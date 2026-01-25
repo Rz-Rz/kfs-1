@@ -1,0 +1,20 @@
+[default_config]
+# Set this to the asm-lsp version you have (check :LspInfo), commonly 0.10.0 or 0.10.1
+version = "0.10.0"
+assembler = "nasm"
+instruction_set = "x86"
+
+[default_config.opts]
+# Force NASM for diagnostics (otherwise it falls back to gcc/clang)
+compiler = "nasm"
+diagnostics = true
+default_diagnostics = false
+
+# Assemble as 32-bit ELF and discard output
+compile_flags_txt = [
+  "-f", "elf32",
+  "-Wall",
+  "-Werror",
+  "-o", "/dev/null",
+]
+
