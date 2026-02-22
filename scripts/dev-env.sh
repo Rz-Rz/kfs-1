@@ -46,6 +46,7 @@ cmd_check() {
   need_cmd readelf
   need_cmd objdump
   need_cmd nm
+  need_cmd strings
   need_cmd nasm
   need_cmd file
 

@@ -158,27 +158,31 @@ run_item 2 2 "Verify tools exist" \
 
 printf '\n'
 color "1;34"; printf '%s\n' "TESTS"; reset_color
-run_item 1 8 "Build release ISO" \
+run_item 1 9 "Build release ISO" \
   bash scripts/container.sh run -- \
     bash -lc "make -B iso arch='${ARCH}' >/dev/null"
 
-run_item 2 8 "Check release ISO (type + size)" \
+run_item 2 9 "Check release ISO (type + size)" \
   bash scripts/container.sh run -- \
     bash -lc "test -f build/os-${ARCH}.iso && test \$(wc -c < build/os-${ARCH}.iso) -le 10485760 && file build/os-${ARCH}.iso | grep -q 'ISO 9660'"
 
-run_item 3 8 "Build release disk image" \
+run_item 3 9 "Build release disk image" \
   bash scripts/container.sh run -- \
     bash -lc "make -B img arch='${ARCH}' >/dev/null"
 
-run_item 4 8 "Check release disk image (type + size)" \
+run_item 4 9 "Check release disk image (type + size)" \
   bash scripts/container.sh run -- \
     bash -lc "test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
 
-run_item 5 8 "Build test ISO" \
+run_item 5 9 "Build test ISO" \
   bash scripts/container.sh run -- \
     bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item_inline 6 8 "Boot test ISO via GRUB" \
+run_item 6 9 "Proof M0.2 (freestanding kernel)" \
+  bash scripts/container.sh run -- \
+    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}'"
+
+run_item_inline 7 9 "Boot test ISO via GRUB" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \
@@ -186,11 +190,11 @@ run_item_inline 6 8 "Boot test ISO via GRUB" \
     KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
     bash scripts/test-qemu.sh "${ARCH}"
 
-run_item 7 8 "Build test disk image" \
+run_item 8 9 "Build test disk image" \
   bash scripts/container.sh run -- \
     bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item_inline 8 8 "Boot test disk image via GRUB" \
+run_item_inline 9 9 "Boot test disk image via GRUB" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \
