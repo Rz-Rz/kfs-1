@@ -2,10 +2,12 @@
 set -euo pipefail
 
 ARCH="${1:-i386}"
+MODE="${2:-cdrom}"
 TIMEOUT_SECS="${TEST_TIMEOUT_SECS:-10}"
 PASS_RC="${TEST_PASS_RC:-33}"
 FAIL_RC="${TEST_FAIL_RC:-35}"
 ISO="build/os-${ARCH}-test.iso"
+IMG="build/os-${ARCH}-test.img"
 
 die() {
   echo "error: $*" >&2
@@ -63,18 +65,31 @@ if [[ -e /dev/kvm ]]; then
 fi
 
 note "qemu: arch ${ARCH}"
-note "qemu: iso ${ISO}"
+note "qemu: mode ${MODE}"
 note "qemu: accel ${qemu_accel}"
 note "qemu: timeout ${TIMEOUT_SECS}s"
 
-if [[ ! -r "${ISO}" ]]; then
-  die "missing ISO: ${ISO}"
-fi
+qemu_boot_args=()
+case "${MODE}" in
+  cdrom)
+    note "qemu: iso ${ISO}"
+    [[ -r "${ISO}" ]] || die "missing ISO: ${ISO}"
+    qemu_boot_args=(-cdrom "${ISO}")
+    ;;
+  drive)
+    note "qemu: img ${IMG}"
+    [[ -r "${IMG}" ]] || die "missing IMG: ${IMG}"
+    qemu_boot_args=(-drive "format=raw,file=${IMG}" -boot order=c)
+    ;;
+  *)
+    die "unknown mode: ${MODE} (expected: cdrom|drive)"
+    ;;
+esac
 
 set +e
 timeout --foreground "${TIMEOUT_SECS}" \
   qemu-system-i386 \
-  -cdrom "${ISO}" \
+  "${qemu_boot_args[@]}" \
   -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
   -nographic \
   -no-reboot \

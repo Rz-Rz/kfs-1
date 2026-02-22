@@ -1,8 +1,10 @@
 arch ?= i386
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
+img := build/os-$(arch).img
 kernel_test := build/kernel-$(arch)-test.bin
 iso_test := build/os-$(arch)-test.iso
+img_test := build/os-$(arch)-test.img
 
 linker_script := src/arch/$(arch)/linker.ld
 grub_cfg := src/arch/$(arch)/grub.cfg
@@ -28,7 +30,8 @@ TEST_FAIL_RC ?= 35
 	container-all container-iso container-run container-qemu-smoke \
 	container-bootstrap container-smoke \
 	test dev iso-in-container run-in-container \
-	iso-test test-qemu
+	iso-test test-qemu \
+	img img-test run-img
 
 all: $(kernel)
 
@@ -39,6 +42,14 @@ run: $(iso)
 	@qemu-system-i386 -cdrom $(iso)
 
 iso: $(iso)
+
+run-img: $(img)
+	@qemu-system-i386 -drive format=raw,file=$(img)
+
+img: $(img)
+
+$(img): $(iso)
+	@cp $(iso) $(img)
 
 $(iso): $(kernel) $(grub_cfg)
 	@mkdir -p build/isofiles/boot/grub
@@ -56,6 +67,11 @@ build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@nasm -felf32 $< -o $@
 
 iso-test: $(iso_test)
+
+img-test: $(img_test)
+
+$(img_test): $(iso_test)
+	@cp $(iso_test) $(img_test)
 
 $(iso_test): $(kernel_test) $(grub_cfg)
 	@mkdir -p build/isofiles/boot/grub
