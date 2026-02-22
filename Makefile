@@ -24,7 +24,7 @@ TEST_PASS_RC ?= 33
 TEST_FAIL_RC ?= 35
 
 .PHONY: all clean run iso \
-	container-image container-shell container-env-check \
+	container-image container-image-force container-shell container-env-check \
 	container-all container-iso container-run container-qemu-smoke \
 	container-bootstrap container-smoke \
 	test dev iso-in-container run-in-container \
@@ -74,6 +74,9 @@ build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
 container-image:
 	@bash scripts/container.sh build-image
 
+container-image-force:
+	@KFS_FORCE_IMAGE_BUILD=1 bash scripts/container.sh build-image
+
 container-shell: container-image
 	@bash scripts/container.sh shell
 
@@ -98,7 +101,7 @@ container-bootstrap: container-env-check
 container-smoke: container-env-check container-qemu-smoke
 	@true
 
-test-qemu: container-image
+test-qemu: container-image-force
 	@bash scripts/container.sh run -- env \
 		TEST_TIMEOUT_SECS=$(TEST_TIMEOUT_SECS) \
 		TEST_PASS_RC=$(TEST_PASS_RC) \
@@ -106,7 +109,7 @@ test-qemu: container-image
 		KFS_TEST_FORCE_FAIL=$(KFS_TEST_FORCE_FAIL) \
 		bash scripts/test-qemu.sh $(arch)
 
-test: container-image
+test: container-image-force
 	@bash scripts/container.sh run -- env \
 		TEST_TIMEOUT_SECS=$(TEST_TIMEOUT_SECS) \
 		TEST_PASS_RC=$(TEST_PASS_RC) \
