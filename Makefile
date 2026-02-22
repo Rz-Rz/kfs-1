@@ -109,13 +109,8 @@ test-qemu: container-image-force
 		KFS_TEST_FORCE_FAIL=$(KFS_TEST_FORCE_FAIL) \
 		bash scripts/test-qemu.sh $(arch)
 
-test: container-image-force
-	@KFS_CONTAINER_TTY=1 bash scripts/container.sh run -- env \
-		TEST_TIMEOUT_SECS=$(TEST_TIMEOUT_SECS) \
-		TEST_PASS_RC=$(TEST_PASS_RC) \
-		TEST_FAIL_RC=$(TEST_FAIL_RC) \
-		KFS_TEST_FORCE_FAIL=$(KFS_TEST_FORCE_FAIL) \
-		bash scripts/test.sh $(arch)
+test:
+	@bash scripts/test-host.sh $(arch)
 
 dev: container-shell
 	@true
