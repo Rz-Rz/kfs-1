@@ -47,6 +47,7 @@ cmd_check() {
   need_cmd objdump
   need_cmd nm
   need_cmd nasm
+  need_cmd file
 
   need_cmd grub-mkrescue
   need_cmd xorriso

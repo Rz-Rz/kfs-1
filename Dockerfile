@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     binutils \
     ca-certificates \
     coreutils \
+    file \
     findutils \
     make \
     mtools \
