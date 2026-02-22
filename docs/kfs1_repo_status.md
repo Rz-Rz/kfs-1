@@ -23,9 +23,10 @@ As-of snapshot:
 Per-epic DoD verdicts, with proof pointers. Detailed per-feature validations (each with
 its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 
-- Base Epic M0 DoD: ✅ YES (i386 target + no-host-libs checks pass for the current ASM-only kernel)
+- Base Epic M0 DoD: ⚠️ PARTIAL (i386 target is correct; freestanding/no-host-libs is only proven for the current ASM-only kernel)
   - Proof: `readelf -h build/kernel-i386.bin` -> `Class: ELF32`, `Machine: Intel 80386`
   - Proof: `readelf -lW build/kernel-i386.bin` -> no `INTERP` / `DYNAMIC`
+  - What’s left: once a chosen language is added (M4/M7), prove M0.2 via compile/link flags (no libc, no default libs, no runtime) on that artifact too
 - Base Epic M1 DoD: ✅ YES (ISO + disk-image artifacts + automated boot checks)
   - Proof: `file build/os-i386.iso` -> ISO 9660 (bootable)
   - Proof: `file build/os-i386.img` -> ISO 9660 (bootable)
@@ -71,7 +72,7 @@ Legend:
 - ⚠️ Partial (some features done, but DoD not met)
 - ❌ Not met
 
-- Base Epic M0 (i386 + freestanding compliance): ✅
+- Base Epic M0 (i386 + freestanding compliance): ⚠️
 - Base Epic M1 (GRUB bootable image <= 10 MB): ✅
 - Base Epic M2 (Multiboot header + ASM bootstrap): ❌
 - Base Epic M3 (custom linker script + layout): ❌
@@ -121,7 +122,11 @@ Evidence:
 Proof:
 - `ISO=build/os-i386.iso; test $(wc -c < "$ISO") -le 10485760 && echo "ISO <= 10MB"`
 
-Epic DoD (M0) complete? ✅
+Epic DoD (M0) complete? ⚠️
+
+Note:
+- M0.1 is complete (i386 toolchain + ELF32).
+- M0.2 is currently only *partially* demonstrated because there is no chosen-language build yet (M4/M7 are not done).
 
 ---
 
@@ -266,17 +271,14 @@ What’s left:
 
 ---
 
-## Infra Automation Status
+## Infra Epics Status (I0–I3)
 
-Status: ✅ In place
+Status: ⚠️ Partial
 Evidence:
-- `make test` rebuilds the container toolchain image each run
-- `make test` verifies the required tools exist in the container
-- `make test` validates M1 artifacts and boot gates
-  - Build + check release ISO (type + <= 10 MB)
-  - Build + check release disk image (type + <= 10 MB)
-  - Boot test ISO via GRUB in QEMU headless and exit PASS/FAIL
-  - Boot test disk image via QEMU `-drive` and exit PASS/FAIL
-Proof:
-- `make test`
-- `make test KFS_TEST_FORCE_FAIL=1`
+- Infra Epic **I0** (Deterministic QEMU PASS/FAIL): ✅ Done
+  - Proof: `make test arch=i386` exits deterministically (PASS) and never hangs
+  - Proof: `make test arch=i386 KFS_TEST_FORCE_FAIL=1` fails deterministically
+- Infra Epic **I3** (Reproducible Dev Environment): ✅ Done
+  - Proof: `make container-env-check`
+- Infra Epic **I1** (Serial console assertions): ❌ Not done
+- Infra Epic **I2** (VGA memory assertions): ❌ Not done
