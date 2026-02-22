@@ -25,10 +25,10 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M0 DoD: ✅ YES (i386 target + no-host-libs checks pass for the current ASM-only kernel)
   - Proof: `readelf -h build/kernel-i386.bin` -> `Class: ELF32`, `Machine: Intel 80386`
   - Proof: `readelf -lW build/kernel-i386.bin` -> no `INTERP` / `DYNAMIC`
-- Base Epic M1 DoD: ⚠️ PARTIAL (artifact exists; boot is a manual check)
+- Base Epic M1 DoD: ✅ YES (ISO + disk-image artifacts + automated boot checks)
   - Proof: `file build/os-i386.iso` -> ISO 9660 (bootable)
   - Proof: `test $(wc -c < build/os-i386.iso) -le 10485760` (<= 10 MB)
-  - Manual proof: `make run` (should execute the kernel; current behavior prints `OK` then halts)
+  - Proof: `make test arch=i386` (builds + checks ISO/IMG size/type and boots both test ISO and test IMG headlessly)
 - Base Epic M2 DoD: ❌ NO
   - Proof: `src/arch/i386/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
 - Base Epic M3 DoD: ❌ NO
@@ -69,7 +69,7 @@ Legend:
 - ❌ Not met
 
 - Base Epic M0 (i386 + freestanding compliance): ✅
-- Base Epic M1 (GRUB bootable image <= 10 MB): ⚠️
+- Base Epic M1 (GRUB bootable image <= 10 MB): ✅
 - Base Epic M2 (Multiboot header + ASM bootstrap): ❌
 - Base Epic M3 (custom linker script + layout): ❌
 - Base Epic M4 (kernel in chosen language): ❌
@@ -125,21 +125,24 @@ Epic DoD (M0) complete? ✅
 ## Base Epic M1: GRUB Bootable Virtual Image (<= 10 MB)
 
 ### Feature M1.1: Provide a minimal GRUB-bootable image (primary path: ISO)
-Status: ⚠️ Partial (artifact exists; boot confirmation is manual)
+Status: ✅ Done (artifact checks + automated boot gate)
 Evidence:
 - `build/os-i386.iso` exists and is a bootable ISO9660 image
 Proof:
 - `file build/os-i386.iso`
 - `test $(wc -c < build/os-i386.iso) -le 10485760 && echo "ISO <= 10MB"`
-Manual proof:
-- `make run` (should print `OK` and halt)
-What’s left:
-- Replace `OK` with the required `42` once the screen interface is implemented.
+Automated proof:
+- `make test arch=i386` (includes ISO build + size/type checks and a headless GRUB boot gate)
 
 ### Feature M1.2: "Install GRUB on a virtual image" (alternate path: tiny disk image)
-Status: ❌ Not done
+Status: ✅ Done (repo implementation: ISO-content disk image, booted via `-drive`)
+Evidence:
+- `build/os-i386.img` exists and is <= 10 MB
+- Boot test runs via QEMU `-drive ...` and exits PASS/FAIL (no hang)
 Proof:
-- `rg -n "^\\s*IMG\\s*:?=|\\.img\\b|grub-install\\b" -S Makefile src || echo "no disk image/grub-install path"`
+- `make img arch=i386` (produces `build/os-i386.img`)
+- `test $(wc -c < build/os-i386.img) -le 10485760 && echo "IMG <= 10MB"`
+- `make test arch=i386` (includes build + checks + `scripts/test-qemu.sh i386 drive`)
 
 ### Feature M1.3: GRUB config uses a consistent Multiboot version
 Status: ✅ Done (Multiboot2 consistently used)
@@ -150,7 +153,7 @@ Proof:
 - `rg -n "^\\s*multiboot2\\b" -S src/arch/i386/grub.cfg`
 - `rg -n "0xe85250d6" -S src/arch/i386/multiboot_header.asm`
 
-Epic DoD (M1) complete? ⚠️
+Epic DoD (M1) complete? ✅
 
 ---
 
@@ -266,9 +269,11 @@ Status: ✅ In place
 Evidence:
 - `make test` rebuilds the container toolchain image each run
 - `make test` verifies the required tools exist in the container
-- `make test` runs two tests
-  - Build ISO
-  - Boot ISO via GRUB in QEMU headless and exit PASS or FAIL
+- `make test` validates M1 artifacts and boot gates
+  - Build + check release ISO (type + <= 10 MB)
+  - Build + check release disk image (type + <= 10 MB)
+  - Boot test ISO via GRUB in QEMU headless and exit PASS/FAIL
+  - Boot test disk image via QEMU `-drive` and exit PASS/FAIL
 Proof:
 - `make test`
 - `make test KFS_TEST_FORCE_FAIL=1`

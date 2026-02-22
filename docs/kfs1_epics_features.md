@@ -310,6 +310,12 @@ Proof / tests (definition of done):
 This is optional if your evaluation accepts an ISO, but it exactly matches the wording
 in the subject and can reduce ambiguity during defense.
 
+Repo implementation note:
+- This repo implements the “disk image” path as an `.img` file that is **ISO content** and is booted via QEMU’s
+  `-drive format=raw,file=...` path.
+- This avoids brittle `grub-install`/partitioning flows inside containers, while still producing a hand-off image
+  file that boots to the kernel.
+
 Implementation tasks (one possible approach):
 - Create a small raw image file.
 - Partition/format it minimally.
@@ -326,6 +332,7 @@ Proof / tests (definition of done):
 - WP-M1.2-1 (image exists + size): `IMG=build/os-i386.img; test -f "$IMG" && test $(wc -c < "$IMG") -le 10485760`
 - MANUAL-M1.2-1 (boots): `qemu-system-i386 -drive format=raw,file=build/os-i386.img -no-reboot -no-shutdown` and confirm it reaches the kernel. (Automation: prefer AUTO-M1.2-1)
 - AUTO-M1.2-1 (preferred for CI): use **Infra I0.1** as the “boots far enough” gate for the disk-image path
+  - In this repo: `make img-test arch=i386 && bash scripts/test-qemu.sh i386 drive` (PASS via isa-debug-exit)
 
 ### Feature M1.3: GRUB config uses a consistent Multiboot version
 Implementation tasks:
