@@ -49,6 +49,7 @@ cmd_check() {
   need_cmd strings
   need_cmd nasm
   need_cmd file
+  need_cmd rustc
 
   need_cmd grub-mkrescue
   need_cmd xorriso
