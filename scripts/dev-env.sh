@@ -15,6 +15,7 @@ cmd_check() {
   echo "dev-env: checking required tools..."
   need_cmd bash
   need_cmd make
+  need_cmd timeout
   need_cmd ld
   need_cmd readelf
   need_cmd objdump

@@ -1,18 +1,27 @@
 arch ?= i386
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
+kernel_test := build/kernel-$(arch)-test.bin
+iso_test := build/os-$(arch)-test.iso
 
 linker_script := src/arch/$(arch)/linker.ld
 grub_cfg := src/arch/$(arch)/grub.cfg
 assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
 assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
+assembly_object_files_test := $(patsubst src/arch/$(arch)/%.asm, \
+	build/arch/$(arch)/test/%.o, $(assembly_source_files))
+
+TEST_TIMEOUT_SECS ?= 10
+TEST_PASS_RC ?= 33
+TEST_FAIL_RC ?= 35
 
 .PHONY: all clean run iso \
 	container-image container-shell container-env-check \
 	container-all container-iso container-run container-qemu-smoke \
 	container-bootstrap container-smoke \
-	test dev iso-in-container run-in-container
+	test dev iso-in-container run-in-container \
+	iso-test test-qemu
 
 all: $(kernel)
 
@@ -38,6 +47,22 @@ $(kernel): $(assembly_object_files) $(linker_script)
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
 	@nasm -felf32 $< -o $@
+
+iso-test: $(iso_test)
+
+$(iso_test): $(kernel_test) $(grub_cfg)
+	@mkdir -p build/isofiles/boot/grub
+	@cp $(kernel_test) build/isofiles/boot/kernel.bin
+	@cp $(grub_cfg) build/isofiles/boot/grub
+	@grub-mkrescue -o $(iso_test) build/isofiles 2> /dev/null
+	@rm -r build/isofiles
+
+$(kernel_test): $(assembly_object_files_test) $(linker_script)
+	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel_test) $(assembly_object_files_test)
+
+build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
+	@mkdir -p $(shell dirname $@)
+	@nasm -felf32 -DKFS_TEST=1 $< -o $@
 
 container-image:
 	@bash scripts/container.sh build-image
@@ -66,7 +91,10 @@ container-bootstrap: container-env-check
 container-smoke: container-env-check container-qemu-smoke
 	@true
 
-test: container-smoke
+test-qemu: container-image
+	@bash scripts/container.sh run -- bash -lc 'set -euo pipefail; make -B iso-test arch=$(arch) >/dev/null; set +e; timeout --foreground $(TEST_TIMEOUT_SECS) qemu-system-i386 -cdrom $(iso_test) -device isa-debug-exit,iobase=0xf4,iosize=0x04 -nographic -no-reboot -no-shutdown </dev/null >/dev/null 2>&1; rc=$$?; set -e; if [ "$$rc" -eq 124 ]; then echo "test-qemu: FAIL timeout"; exit 1; fi; if [ "$$rc" -eq $(TEST_PASS_RC) ]; then echo "test-qemu: PASS"; exit 0; fi; if [ "$$rc" -eq $(TEST_FAIL_RC) ]; then echo "test-qemu: FAIL"; exit 1; fi; echo "test-qemu: FAIL rc=$$rc"; exit 1;'
+
+test: test-qemu
 	@true
 
 dev: container-shell

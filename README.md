@@ -12,12 +12,12 @@ What it does:
 - Builds the dev image if needed
 - Checks required tools inside the container
 - Builds the ISO
-- Runs a headless QEMU boot check for a few seconds
+- Runs a headless QEMU test that exits with PASS or FAIL
 
 ## When to use each command
 
 - `make test`
-  - Use when: daily check that build and boot still work; this is a smoke check until Infra I0 exists
+  - Use when: daily check that build and boot still work and the test exits with PASS or FAIL
 - `make dev`
   - Use when: you want an interactive shell inside the toolchain container
 - `make iso-in-container`

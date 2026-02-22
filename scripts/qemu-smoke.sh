@@ -36,13 +36,14 @@ main() {
   fi
 
   set +e
-  timeout "${TIMEOUT_SECS}" \
+  timeout --foreground "${TIMEOUT_SECS}" \
     "${qemu}" \
       -cdrom "${iso}" \
       -nographic \
       -no-reboot \
       -no-shutdown \
       "${accel[@]}" \
+      </dev/null \
       >/dev/null 2>&1
   local rc=$?
   set -e
@@ -56,4 +57,3 @@ main() {
 }
 
 main
-
