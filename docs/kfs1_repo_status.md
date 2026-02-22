@@ -13,8 +13,8 @@ As-of snapshot:
 - Kernel artifact present: `build/kernel-i386.bin` (ELF32, Intel 80386)
 - ISO artifact present: `build/os-i386.iso` (bootable ISO9660, <= 10 MB)
 - Disk-image artifact present: `build/os-i386.img` (bootable ISO9660, <= 10 MB; boots via QEMU `-drive`)
-- Sources present only in ASM under `src/arch/i386/`
-- Chosen language: **Rust** (not implemented yet: no Rust sources/build; no `kmain`)
+- Sources present in ASM under `src/arch/i386/` and minimal Rust under `src/rust/`
+- Chosen language: **Rust** (started: Rust is compiled/linked into the kernel; `kmain` not implemented yet)
 
 ---
 
@@ -23,10 +23,9 @@ As-of snapshot:
 Per-epic DoD verdicts, with proof pointers. Detailed per-feature validations (each with
 its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 
-- Base Epic M0 DoD: ⚠️ PARTIAL (i386 target is correct; freestanding/no-host-libs is only proven for the current ASM-only kernel)
+- Base Epic M0 DoD: ✅ YES (i386 target + freestanding/no-host-libs enforced in `make test` on a Rust-linked kernel)
   - Proof: `readelf -h build/kernel-i386.bin` -> `Class: ELF32`, `Machine: Intel 80386`
-  - Proof: `readelf -lW build/kernel-i386.bin` -> no `INTERP` / `DYNAMIC`
-  - What’s left: once a chosen language is added (M4/M7), prove M0.2 via compile/link flags (no libc, no default libs, no runtime) on that artifact too
+  - Proof: `make test arch=i386` (builds a Rust-linked test kernel and enforces the M0.2 checks on it)
 - Base Epic M1 DoD: ✅ YES (ISO + disk-image artifacts + automated boot checks)
   - Proof: `file build/os-i386.iso` -> ISO 9660 (bootable)
   - Proof: `file build/os-i386.img` -> ISO 9660 (bootable)
@@ -43,8 +42,9 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" -S src` -> no matches (no kernel library helpers)
 - Base Epic M6 DoD: ❌ NO
   - Proof: `src/arch/i386/boot.asm` prints `OK`; `rg -n "\\b42\\b|\\\"42\\\"" -S src` -> no matches
-- Base Epic M7 DoD: ⚠️ PARTIAL (Makefile builds ASM+ISO+IMG and runs QEMU; missing chosen-language build rules)
-  - Proof: Makefile compiles ASM/links/ISO/IMG/runs, but no chosen-language build rules exist yet
+- Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
+  - Proof: `make -n all arch=i386 | rg -n "\\brustc\\b"`
+  - Proof: `make all arch=i386 && nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
 - Base Epic M8 DoD: ⚠️ PARTIAL
   - Proof: ISO exists and is small, and a `README.md` quickstart exists
 
@@ -72,14 +72,14 @@ Legend:
 - ⚠️ Partial (some features done, but DoD not met)
 - ❌ Not met
 
-- Base Epic M0 (i386 + freestanding compliance): ⚠️
+- Base Epic M0 (i386 + freestanding compliance): ✅
 - Base Epic M1 (GRUB bootable image <= 10 MB): ✅
 - Base Epic M2 (Multiboot header + ASM bootstrap): ❌
 - Base Epic M3 (custom linker script + layout): ❌
-- Base Epic M4 (kernel in chosen language): ❌
+- Base Epic M4 (kernel in chosen language): ⚠️
 - Base Epic M5 (kernel library types + helpers): ❌
 - Base Epic M6 (screen I/O interface + prints 42): ❌
-- Base Epic M7 (Makefile compiles ASM + language, links, image, run): ⚠️
+- Base Epic M7 (Makefile compiles ASM + language, links, image, run): ✅
 - Base Epic M8 (turn-in packaging): ⚠️
 
 ---
@@ -104,16 +104,13 @@ Proof:
 - `readelf -h build/kernel-i386.bin | rg -n "Class:|Machine:"`
 
 ### Feature M0.2: Enforce "no host libs" and "freestanding" rules
-Status: ⚠️ Partial / not yet exercised by a chosen language
+Status: ✅ Done (exercised by Rust + enforced via `make test`)
 Evidence:
-- Current kernel is ASM-only and linked with `ld` (no libc link step).
-- Artifact is statically linked and has no dynamic loader segments/sections.
+- Rust code is compiled and linked into the kernel image (symbol `kfs_rust_marker`).
+- M0.2 is enforced by inspecting the linked ELF (no dynamic loader/sections, no undefined symbols, no libc/loader markers).
 Proof:
-- `readelf -lW build/kernel-i386.bin | rg -n "INTERP|DYNAMIC" || echo "no INTERP/DYNAMIC"`
-- `readelf -SW build/kernel-i386.bin | rg -n "\\.(interp|dynamic)\\b" || echo "no .interp/.dynamic"`
-- `test -z "$(nm -u build/kernel-i386.bin)" && echo "no undefined symbols"`
-What’s left:
-- Once C/Rust/etc is added, enforce freestanding/no-std flags and re-run the checks on the same i386 artifact.
+- `make test arch=i386` (runs the four “no host libs (ELF checks)” steps)
+- `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
 
 ### Feature M0.3: Size discipline baked into workflow
 Status: ✅ Mostly done (image size)
@@ -122,11 +119,11 @@ Evidence:
 Proof:
 - `ISO=build/os-i386.iso; test $(wc -c < "$ISO") -le 10485760 && echo "ISO <= 10MB"`
 
-Epic DoD (M0) complete? ⚠️
+Epic DoD (M0) complete? ✅
 
 Note:
 - M0.1 is complete (i386 toolchain + ELF32).
-- M0.2 is currently only *partially* demonstrated because there is no chosen-language build yet (M4/M7 are not done).
+- M0.2 is enforced on a Rust-linked kernel artifact via `make test` (Rust is present but `kmain` is still not implemented).
 
 ---
 
@@ -225,9 +222,13 @@ Epic DoD (M3) complete? ❌
 
 ## Base Epic M4: Minimal Kernel in Your Chosen Language
 
-Status: ❌ Not started
+Status: ⚠️ Started (Rust is linked; `kmain` is not implemented yet)
 Proof:
-- `rg --files src | rg -n "\\.(rs|c|h|hpp)\\b" || echo "no chosen-language sources"`
+- `rg --files src/rust | rg -n "\\.rs\\b"`
+- `rg -n "#!\\[no_std\\]" -S src/rust`
+- `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
+What’s left:
+- Implement `kmain` in Rust and transfer control to it from `src/arch/i386/boot.asm`.
 
 ---
 
@@ -251,13 +252,12 @@ Proof:
 
 ## Base Epic M7: Makefile must compile all sources (ASM + chosen language), link, image, run
 
-Status: ⚠️ Partial
+Status: ✅ Done
 Evidence:
 - Makefile assembles ASM, links i386, builds ISO, and runs QEMU.
-- There are no compile rules for a chosen-language kernel yet.
 Proof:
 - `make -n iso`
-- `rg --files src | rg -n "\\.(rs|c|h|hpp)\\b" || echo "no chosen-language sources"`
+- `make -n all arch=i386 | rg -n "\\brustc\\b"`
 
 ---
 
