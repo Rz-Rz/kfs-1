@@ -41,20 +41,23 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `src/arch/i386/boot.asm` prints `OK`; `rg -n "\\b42\\b|\\\"42\\\"" -S src` -> no matches
 - Base Epic M7 DoD: ❌ NO
   - Proof: Makefile compiles ASM/links/ISO/runs, but no chosen-language build rules exist yet
-- Base Epic M8 DoD: ❌ NO (partial deliverables only)
-  - Proof: ISO exists and is small, but `git ls-files` shows no `README*`
+- Base Epic M8 DoD: ⚠️ PARTIAL
+  - Proof: ISO exists and is small, and a `README.md` quickstart exists
 
 ---
 
 ## Environment Readiness (This Machine)
 
-Tools present:
-- `nasm`, `ld`
-- `grub-mkrescue`
-- `qemu-system-i386`
+Canonical workflow:
+- Run builds and tests inside the container toolchain
+- Use `make test` for the daily red or green result
+
+Host requirements:
+- `docker` or `podman`
 
 Proof:
-- `command -v nasm ld grub-mkrescue qemu-system-i386`
+- `command -v docker || command -v podman`
+- `make container-env-check`
 
 ---
 
@@ -253,4 +256,19 @@ Status: ⚠️ Partial
 Evidence:
 - ISO exists and is <= 10 MB: `build/os-i386.iso`
 What’s left:
-- Add `README.md` with exact build/run commands and the expected output (`42`).
+- Update `README.md` with the expected output 42 once the screen interface is implemented.
+
+---
+
+## Infra Automation Status
+
+Status: ✅ In place
+Evidence:
+- `make test` rebuilds the container toolchain image each run
+- `make test` verifies the required tools exist in the container
+- `make test` runs two tests
+  - Build ISO
+  - Boot ISO via GRUB in QEMU headless and exit PASS or FAIL
+Proof:
+- `make test`
+- `make test KFS_TEST_FORCE_FAIL=1`

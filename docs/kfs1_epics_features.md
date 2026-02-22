@@ -98,6 +98,43 @@ Definition of Done (I2):
 
 ---
 
+## Infra Epic I3: Reproducible Dev Environment
+
+Goal:
+- Make builds and tests reproducible across host OSes by standardizing the toolchain entrypoints
+
+Motivation:
+- Tool and package names differ across distros
+- Some machines do not have the required tooling installed
+
+### Feature I3.1: Containerized dev toolchain
+Implementation tasks:
+- Ship a repo local container definition that installs the full toolchain
+  - `nasm`, `binutils`, `make`
+  - `qemu-system-i386`
+  - `grub-mkrescue`, `xorriso`, `mtools`
+- Add Make targets that work with Docker or Podman
+  - `make container-image`
+  - `make container-env-check`
+  - `make dev`
+  - `make test`
+
+Acceptance criteria:
+- Fedora and Ubuntu WSL can both run `make test` and get the same PASS or FAIL behavior
+- CI runs `make test` in a headless container environment
+
+Implementation scope:
+- `MAKE` + `AUTOMATION`
+
+Proof and tests:
+- WP-I3.1-1 engine works: `make container-env-check`
+- WP-I3.1-2 daily gate works: `make test`
+
+Definition of Done (I3):
+- There is a known good container path to build and run tests that is independent of host distro
+
+---
+
 ## Verification Conventions (Used In This Backlog)
 
 To make this backlog **TDD-friendly**, each feature below gets appended metadata:

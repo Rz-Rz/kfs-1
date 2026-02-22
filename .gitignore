@@ -1,2 +1,4 @@
 .history/*
 *.o
+build/*-test.bin
+build/*-test.iso
