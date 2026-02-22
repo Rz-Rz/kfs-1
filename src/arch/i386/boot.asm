@@ -1,8 +1,19 @@
 global start
+extern kmain
+
+section .bss
+align 16
+stack_bottom:
+    resb 16384
+stack_top:
 
 section .text
 bits 32
 start:
+    cli
+    cld
+    mov esp, stack_top
+
 %ifdef KFS_TEST
     mov dx, 0xf4
 %ifdef KFS_TEST_FORCE_FAIL
@@ -11,12 +22,13 @@ start:
     mov al, 0x10
 %endif
     out dx, al
-    cli
 .halt:
     hlt
     jmp .halt
 %else
-    ; print `OK` to screen
-    mov dword [0xb8000], 0x2f4b2f4f
+    call kmain
+.halt:
+    cli
     hlt
+    jmp .halt
 %endif

@@ -12,8 +12,8 @@ Scope:
 As-of snapshot:
 - Kernel artifact present: `build/kernel-i386.bin` (ELF32, Intel 80386)
 - ISO artifact present: `build/os-i386.iso` (bootable ISO9660, <= 10 MB)
-- Sources present only in ASM under `src/arch/i386/`
-- No C/Rust/Go/etc kernel code present (no `kmain`)
+- ASM bootstrap sources under `src/arch/i386/`
+- Rust kernel entry present: `src/kernel/kmain.rs` (`kmain` symbol linked)
 
 ---
 
@@ -22,25 +22,27 @@ As-of snapshot:
 Per-epic DoD verdicts, with proof pointers. Detailed per-feature validations (each with
 its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 
-- Base Epic M0 DoD: ✅ YES (i386 target + no-host-libs checks pass for the current ASM-only kernel)
+- Base Epic M0 DoD: ✅ YES (i386 target + no-host-libs checks pass for the current freestanding ASM+Rust kernel)
   - Proof: `readelf -h build/kernel-i386.bin` -> `Class: ELF32`, `Machine: Intel 80386`
   - Proof: `readelf -lW build/kernel-i386.bin` -> no `INTERP` / `DYNAMIC`
 - Base Epic M1 DoD: ⚠️ PARTIAL (artifact exists; boot is a manual check)
   - Proof: `file build/os-i386.iso` -> ISO 9660 (bootable)
   - Proof: `test $(wc -c < build/os-i386.iso) -le 10485760` (<= 10 MB)
-  - Manual proof: `make run` (should execute the kernel; current behavior prints `OK` then halts)
-- Base Epic M2 DoD: ❌ NO
-  - Proof: `src/arch/i386/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
+  - Manual proof: `make run` (should execute the kernel; current behavior prints `RS` from Rust then halts)
+- Base Epic M2 DoD: ✅ YES
+  - Proof: `src/arch/i386/boot.asm` initializes stack via `mov esp, stack_top`
+  - Proof: `src/arch/i386/boot.asm` calls Rust entry via `call kmain`
+  - Proof: `nm -n build/kernel-i386.bin` contains `kmain`, `stack_bottom`, and `stack_top`
 - Base Epic M3 DoD: ❌ NO
   - Proof: `src/arch/i386/linker.ld` defines only `.boot` and `.text`, and exports no layout symbols
-- Base Epic M4 DoD: ❌ NO
-  - Proof: `rg -n "\\b(kmain|main)\\b" -S src` -> no matches (no chosen-language kernel entry)
+- Base Epic M4 DoD: ⚠️ PARTIAL
+  - Proof: `src/kernel/kmain.rs` defines `#[no_mangle] extern "C" fn kmain() -> !`
 - Base Epic M5 DoD: ❌ NO
   - Proof: `rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" -S src` -> no matches (no kernel library helpers)
 - Base Epic M6 DoD: ❌ NO
-  - Proof: `src/arch/i386/boot.asm` prints `OK`; `rg -n "\\b42\\b|\\\"42\\\"" -S src` -> no matches
-- Base Epic M7 DoD: ❌ NO
-  - Proof: Makefile compiles ASM/links/ISO/runs, but no chosen-language build rules exist yet
+  - Proof: kernel prints `RS` from Rust; `rg -n "\\b42\\b|\\\"42\\\"" -S src` -> no matches
+- Base Epic M7 DoD: ⚠️ PARTIAL
+  - Proof: Makefile compiles ASM and Rust, links, builds ISO, and runs QEMU; still missing later-epic integration checks
 - Base Epic M8 DoD: ⚠️ PARTIAL
   - Proof: ISO exists and is small, and a `README.md` quickstart exists
 
@@ -70,9 +72,9 @@ Legend:
 
 - Base Epic M0 (i386 + freestanding compliance): ✅
 - Base Epic M1 (GRUB bootable image <= 10 MB): ⚠️
-- Base Epic M2 (Multiboot header + ASM bootstrap): ❌
+- Base Epic M2 (Multiboot header + ASM bootstrap): ✅
 - Base Epic M3 (custom linker script + layout): ❌
-- Base Epic M4 (kernel in chosen language): ❌
+- Base Epic M4 (kernel in chosen language): ⚠️
 - Base Epic M5 (kernel library types + helpers): ❌
 - Base Epic M6 (screen I/O interface + prints 42): ❌
 - Base Epic M7 (Makefile compiles ASM + language, links, image, run): ⚠️
@@ -100,16 +102,17 @@ Proof:
 - `readelf -h build/kernel-i386.bin | rg -n "Class:|Machine:"`
 
 ### Feature M0.2: Enforce "no host libs" and "freestanding" rules
-Status: ⚠️ Partial / not yet exercised by a chosen language
+Status: ✅ Done (current ASM+Rust kernel path)
 Evidence:
-- Current kernel is ASM-only and linked with `ld` (no libc link step).
+- Rust entry uses `#![no_std]` and is compiled with `-C panic=abort`.
+- Link step stays explicit with `ld -m elf_i386` and does not link libc.
 - Artifact is statically linked and has no dynamic loader segments/sections.
 Proof:
+- `rg -n "#!\\[no_std\\]" -S src/kernel/kmain.rs`
+- `make -Bn all arch=i386 | rg -n "rustc|ld -m elf_i386|\\-lc"`
 - `readelf -lW build/kernel-i386.bin | rg -n "INTERP|DYNAMIC" || echo "no INTERP/DYNAMIC"`
 - `readelf -SW build/kernel-i386.bin | rg -n "\\.(interp|dynamic)\\b" || echo "no .interp/.dynamic"`
 - `test -z "$(nm -u build/kernel-i386.bin)" && echo "no undefined symbols"`
-What’s left:
-- Once C/Rust/etc is added, enforce freestanding/no-std flags and re-run the checks on the same i386 artifact.
 
 ### Feature M0.3: Size discipline baked into workflow
 Status: ✅ Mostly done (image size)
@@ -132,9 +135,9 @@ Proof:
 - `file build/os-i386.iso`
 - `test $(wc -c < build/os-i386.iso) -le 10485760 && echo "ISO <= 10MB"`
 Manual proof:
-- `make run` (should print `OK` and halt)
+- `make run` (should print `RS` and halt)
 What’s left:
-- Replace `OK` with the required `42` once the screen interface is implemented.
+- Replace `RS` with the required `42` once the screen interface is implemented.
 
 ### Feature M1.2: "Install GRUB on a virtual image" (alternate path: tiny disk image)
 Status: ❌ Not done
@@ -157,7 +160,7 @@ Epic DoD (M1) complete? ⚠️
 ## Base Epic M2: Multiboot Header + ASM Boot Strap
 
 ### Feature M2.1: Valid Multiboot header placed early in the kernel image
-Status: ⚠️ Partial (header exists + linked early; bootstrap remains minimal)
+Status: ✅ Done
 Evidence:
 - Header lives in `.multiboot_header`; linker script places it first in `.boot`
 Proof:
@@ -165,23 +168,22 @@ Proof:
 - `nm -n build/kernel-i386.bin | rg -n "header_(start|end)|\\bstart\\b"`
 
 ### Feature M2.2: ASM entry point sets up a safe execution environment
-Status: ❌ Not done
+Status: ✅ Done
 Evidence:
-- `src/arch/i386/boot.asm` does not set up a stack
+- `src/arch/i386/boot.asm` sets a known state with `cli`, `cld`, and `mov esp, stack_top`
 Proof:
-- `rg -n "mov\\s+esp,|lea\\s+esp,|stack_(top|end)" -S src/arch/i386/boot.asm || echo "no stack init"`
-What’s left:
-- Reserve a stack region and set `esp` before calling any higher-level code
+- `rg -n "mov\\s+esp,|stack_(top|bottom)" -S src/arch/i386/boot.asm`
+- `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "stack_(top|bottom)"`
 
 ### Feature M2.3: Transfer control to a higher-level `kmain`/`main`
-Status: ❌ Not done
+Status: ✅ Done
 Evidence:
-- Boot code prints and halts; there is no `kmain`
+- ASM transfers control to Rust via `call kmain`; Rust entrypoint is defined in `src/kernel/kmain.rs`
 Proof:
-- `rg -n "extern\\s+kmain|call\\s+kmain" -S src/arch/i386/boot.asm || echo "no kmain call"`
-- `rg -n "\\b(kmain|main)\\b" -S src || echo "no kmain symbol in sources"`
+- `rg -n "extern\\s+kmain|call\\s+kmain" -S src/arch/i386/boot.asm`
+- `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\bkmain\\b"`
 
-Epic DoD (M2) complete? ❌
+Epic DoD (M2) complete? ✅
 
 ---
 
@@ -214,9 +216,10 @@ Epic DoD (M3) complete? ❌
 
 ## Base Epic M4: Minimal Kernel in Your Chosen Language
 
-Status: ❌ Not started
+Status: ⚠️ Partial
 Proof:
-- `rg --files src | rg -n "\\.(rs|c|h|hpp)\\b" || echo "no chosen-language sources"`
+- `rg --files src | rg -n "\\.rs\\b"`
+- `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\bkmain\\b"`
 
 ---
 
@@ -231,9 +234,9 @@ Status: ❌ Not started
 ### Feature M6.3: Mandatory output: display `42`
 Status: ❌ Not done
 Evidence:
-- Current output is `OK` in ASM
+- Current output is `RS` from Rust (`src/kernel/kmain.rs`), not `42`
 Proof:
-- `rg -n "0xb8000" -S src/arch/i386/boot.asm`
+- `rg -n "0xb8000|write_volatile" -S src/kernel/kmain.rs`
 - `rg -n "\\b42\\b|\\\"42\\\"" -S src || echo "no 42 yet"`
 
 ---
@@ -242,11 +245,11 @@ Proof:
 
 Status: ⚠️ Partial
 Evidence:
-- Makefile assembles ASM, links i386, builds ISO, and runs QEMU.
-- There are no compile rules for a chosen-language kernel yet.
+- Makefile assembles ASM, compiles Rust (`rustc --target i686-unknown-linux-gnu`), links i386, builds ISO, and runs QEMU.
+- Integration checks for later epics are still pending.
 Proof:
 - `make -n iso`
-- `rg --files src | rg -n "\\.(rs|c|h|hpp)\\b" || echo "no chosen-language sources"`
+- `make -Bn all arch=i386 | rg -n "nasm|rustc|ld -m elf_i386"`
 
 ---
 
