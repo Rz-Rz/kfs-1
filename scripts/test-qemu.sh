@@ -67,8 +67,9 @@ note "qemu: iso ${ISO}"
 note "qemu: accel ${qemu_accel}"
 note "qemu: timeout ${TIMEOUT_SECS}s"
 
-make -B iso-test arch="${ARCH}" >/dev/null
-note "build: OK"
+if [[ ! -r "${ISO}" ]]; then
+  die "missing ISO: ${ISO}"
+fi
 
 set +e
 timeout --foreground "${TIMEOUT_SECS}" \

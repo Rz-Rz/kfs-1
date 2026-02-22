@@ -72,15 +72,14 @@ indent() {
   sed 's/^/  /'
 }
 
-run_check() {
+run_item() {
   local idx="$1"
   local total="$2"
-  local name="$3"
-  local does="$4"
-  shift 4
+  local title="$3"
+  shift 3
 
   color "1;34"
-  printf '[%s/%s] %s ' "${idx}" "${total}" "${name}"
+  printf '[%s/%s] %s ' "${idx}" "${total}" "${title}"
   reset_color
 
   local log
@@ -93,7 +92,6 @@ run_check() {
   if [[ "${rc}" -eq 0 ]]; then
     pass
     printf '\n'
-    printf '  %s\n' "does: ${does}"
     if [[ "${VERBOSE}" == "1" ]]; then
       cat "${log}" | indent
     fi
@@ -103,21 +101,19 @@ run_check() {
 
   fail
   printf '\n'
-  printf '  %s\n' "does: ${does}"
   cat "${log}" | indent
   rm -f "${log}"
   return "${rc}"
 }
 
-run_check_inline() {
+run_item_inline() {
   local idx="$1"
   local total="$2"
-  local name="$3"
-  local does="$4"
-  shift 4
+  local title="$3"
+  shift 3
 
   color "1;34"
-  printf '[%s/%s] %s ' "${idx}" "${total}" "${name}"
+  printf '[%s/%s] %s ' "${idx}" "${total}" "${title}"
   reset_color
 
   local log rc
@@ -130,7 +126,6 @@ run_check_inline() {
   if [[ "${rc}" -eq 0 ]]; then
     pass
     printf '\n'
-    printf '  %s\n' "does: ${does}"
     if [[ "${VERBOSE}" == "1" ]]; then
       cat "${log}" | indent
     fi
@@ -140,7 +135,6 @@ run_check_inline() {
 
   fail
   printf '\n'
-  printf '  %s\n' "does: ${does}"
   cat "${log}" | indent
   rm -f "${log}"
   return "${rc}"
@@ -156,24 +150,25 @@ info "arch: ${ARCH}"
 printf '\n'
 
 color "1;34"; printf '%s\n' "SETUP"; reset_color
-run_check 1 2 "setup.image_build" \
-  "rebuild the container toolchain image" \
+run_item 1 2 "Rebuild the container toolchain image" \
   env KFS_FORCE_IMAGE_BUILD=1 bash scripts/container.sh build-image
 
-run_check 2 2 "setup.tools" \
-  "verify required tools exist in the container" \
+run_item 2 2 "Verify tools exist" \
   bash scripts/container.sh env-check
 
 printf '\n'
 color "1;34"; printf '%s\n' "TESTS"; reset_color
-run_check_inline 1 1 "test.boot_pass_fail" \
-  "boot the ISO headless and exit PASS or FAIL" \
+run_item 1 2 "Build ISO" \
+  bash scripts/container.sh run -- \
+    bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
+
+run_item_inline 2 2 "Boot ISO via GRUB" \
   bash scripts/container.sh run -- env \
-      TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
-      TEST_PASS_RC="${TEST_PASS_RC}" \
-      TEST_FAIL_RC="${TEST_FAIL_RC}" \
-      KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
-      bash scripts/test-qemu.sh "${ARCH}"
+    TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
+    TEST_PASS_RC="${TEST_PASS_RC}" \
+    TEST_FAIL_RC="${TEST_FAIL_RC}" \
+    KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
+    bash scripts/test-qemu.sh "${ARCH}"
 
 printf '\n'
 pass
