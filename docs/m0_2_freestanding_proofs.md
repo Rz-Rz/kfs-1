@@ -22,9 +22,21 @@ These checks do **not** guarantee:
 - Script: `scripts/check-m0.2-freestanding.sh`
 - Hard gate: `make test arch=i386`
 
-The script checks both artifacts when present:
-- `build/kernel-i386.bin` (release)
-- `build/kernel-i386-test.bin` (test build used by `make test` boot path)
+The hard gate (`make test arch=i386`) checks:
+- `build/kernel-i386-test.bin` (fresh test kernel built by `make iso-test`)
+
+Optional (manual) check for the release kernel:
+- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/check-m0.2-freestanding.sh i386 all`
+  (also checks `build/kernel-i386.bin`)
+
+### Why the tests require a Rust marker symbol
+KFS_1 requires at least two languages (ASM + the chosen language). An ASM-only kernel can
+accidentally satisfy the ELF freestanding checks while the chosen language build is still
+missing or not linked.
+
+So the script first asserts the final linked kernel includes a tiny Rust object by requiring
+the symbol `kfs_rust_marker` (from `src/rust/kernel_marker.rs`). This makes the M0.2 proofs
+apply to an **ASM + Rust** kernel artifact, not an ASM-only artifact.
 
 ---
 
@@ -97,4 +109,3 @@ pulling in hosted assumptions). It is not the primary proof; it is an additional
 ## Notes for later (Rust/C)
 When the chosen language (Rust) is integrated (M4/M7), these same artifact checks remain valid.
 They must continue to pass for the Rust-linked kernel image.
-

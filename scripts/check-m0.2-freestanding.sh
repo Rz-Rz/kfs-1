@@ -13,6 +13,12 @@ check_file() {
   local kernel="$1"
   [[ -r "${kernel}" ]] || die "missing artifact: ${kernel}"
 
+  if ! nm -n "${kernel}" | grep -qw 'kfs_rust_marker'; then
+    echo "FAIL ${kernel}: Rust marker symbol missing (kfs_rust_marker)"
+    echo "hint: the kernel must include the chosen language (Rust) object so M0.2 is proven for ASM+Rust, not ASM-only"
+    return 1
+  fi
+
   case "${CHECK}" in
     all|interp)
       # WP-M0.2-1: no PT_INTERP program header
@@ -70,16 +76,12 @@ main() {
 
   local failures=0
 
-  if [[ -r "build/kernel-${ARCH}.bin" ]]; then
-    check_file "build/kernel-${ARCH}.bin" || failures=$((failures + 1))
-  else
-    echo "SKIP build/kernel-${ARCH}.bin (not present)"
-  fi
+  [[ -r "build/kernel-${ARCH}-test.bin" ]] || die "missing test kernel: build/kernel-${ARCH}-test.bin (build it with make iso-test arch=${ARCH})"
+  check_file "build/kernel-${ARCH}-test.bin" || failures=$((failures + 1))
 
-  if [[ -r "build/kernel-${ARCH}-test.bin" ]]; then
-    check_file "build/kernel-${ARCH}-test.bin" || failures=$((failures + 1))
-  else
-    echo "SKIP build/kernel-${ARCH}-test.bin (not present)"
+  if [[ "${KFS_M0_2_INCLUDE_RELEASE:-0}" == "1" ]]; then
+    [[ -r "build/kernel-${ARCH}.bin" ]] || die "missing release kernel: build/kernel-${ARCH}.bin (build it with make all arch=${ARCH})"
+    check_file "build/kernel-${ARCH}.bin" || failures=$((failures + 1))
   fi
 
   if [[ "${failures}" -ne 0 ]]; then
