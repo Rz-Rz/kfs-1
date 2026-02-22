@@ -158,17 +158,57 @@ run_item 2 2 "Verify tools exist" \
 
 printf '\n'
 color "1;34"; printf '%s\n' "TESTS"; reset_color
-run_item 1 2 "Build ISO" \
+run_item 1 11 "release ISO is bootable" \
+  bash scripts/container.sh run -- \
+    bash -lc "test -f build/os-${ARCH}.iso && test \$(wc -c < build/os-${ARCH}.iso) -le 10485760 && file build/os-${ARCH}.iso | grep -q 'ISO 9660'"
+
+run_item 2 11 "release IMG is bootable" \
+  bash scripts/container.sh run -- \
+    bash -lc "test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
+
+run_item 3 11 "Build test ISO" \
   bash scripts/container.sh run -- \
     bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item_inline 2 2 "Boot ISO via GRUB" \
+run_item 4 11 "kernel includes ASM+Rust (symbol gate)" \
+  bash scripts/container.sh run -- \
+    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' langs"
+
+run_item 5 11 "no host libs (ELF checks): no PT_INTERP" \
+  bash scripts/container.sh run -- \
+    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' interp"
+
+run_item 6 11 "no host libs (ELF checks): no .interp/.dynamic" \
+  bash scripts/container.sh run -- \
+    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' dynamic"
+
+run_item 7 11 "no host libs (ELF checks): no undefined symbols" \
+  bash scripts/container.sh run -- \
+    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' undef"
+
+run_item 8 11 "no host libs (ELF checks): no libc/loader strings" \
+  bash scripts/container.sh run -- \
+    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' strings"
+
+run_item_inline 9 11 "GRUB boots test ISO" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \
     TEST_FAIL_RC="${TEST_FAIL_RC}" \
     KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
     bash scripts/test-qemu.sh "${ARCH}"
+
+run_item 10 11 "Build test IMG artifact" \
+  bash scripts/container.sh run -- \
+    bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
+
+run_item_inline 11 11 "GRUB boots test IMG" \
+  bash scripts/container.sh run -- env \
+    TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
+    TEST_PASS_RC="${TEST_PASS_RC}" \
+    TEST_FAIL_RC="${TEST_FAIL_RC}" \
+    KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
+    bash scripts/test-qemu.sh "${ARCH}" drive
 
 printf '\n'
 pass

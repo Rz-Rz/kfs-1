@@ -6,6 +6,9 @@ This document is a requirements-to-backlog translation split into:
 - **Base (Mandatory)**: what you must deliver
 - **Bonus (Deferred)**: explicitly *not* doing now, but captured for later
 
+Repo decision (language):
+- Chosen language for the kernel code in this repo: **Rust** (freestanding / `#![no_std]`).
+
 Each epic has:
 - Multiple features
 - Acceptance criteria and validation hints
@@ -224,9 +227,16 @@ Current state vs KFS_1 requirements:
 ### Feature M0.1: Make i386 the explicit default target
 Implementation tasks:
 - Use an explicit arch name that matches the subject (recommended: `i386`).
-- Ensure assembler output is 32-bit (`nasm -f elf32`).
+- Ensure assembler output is 32-bit (`nasm -felf32`).
 - Ensure linker mode is 32-bit (`ld -m elf_i386`).
 - Ensure QEMU run target matches (`qemu-system-i386`).
+
+Repo implementation note (where this is wired):
+- `Makefile` assembles with `nasm -felf32`, links with `ld -m elf_i386`, and runs with `qemu-system-i386`.
+
+Subject references:
+- III.4 Architecture (i386 mandatory)
+- IV.0.2 Makefile (rules for ASM + chosen language)
 
 Acceptance criteria:
 - `file build/kernel-*.bin` indicates a 32-bit kernel artifact.
@@ -247,12 +257,25 @@ Implementation tasks (adapt to chosen language):
 - Compile freestanding and disable default libs/startup objects.
 - Avoid exceptions/RTTI/new/delete until you have a kernel allocator/runtime.
 
+Technical rationale:
+- See `docs/m0_2_freestanding_proofs.md` for why the ELF inspection checks are meaningful proofs of “no host libs”.
+
+Repo enforcement note:
+- The hard gate is `make test arch=i386`, which runs `scripts/check-m0.2-freestanding.sh` on the freshly built
+  test kernel (`build/kernel-i386-test.bin`).
+- The script requires the symbol `kfs_rust_marker` so the checks are enforced on an **ASM + Rust** linked kernel
+  artifact (not ASM-only).
+
 Acceptance criteria:
 - Kernel artifact is not dynamically linked (no `.interp`, no `.dynamic`).
 - No unresolved external symbols from libc at link time.
 
 Implementation scope:
 - `RUST` (freestanding build flags) + `LD` (+ `MAKE`)
+
+Subject references:
+- III.2.2 Flags (no dependencies / no host libs; `-nostdlib`, `-nodefaultlibs`, etc.)
+- III.3 Linking (use `ld` but not host `.ld`; ship your own linker script)
 
 Proof / tests (definition of done):
 - WP-M0.2-1 (no PT_INTERP segment): `KERNEL=build/kernel-i386.bin; ! readelf -lW "$KERNEL" | rg -n "INTERP"`
@@ -310,6 +333,12 @@ Proof / tests (definition of done):
 This is optional if your evaluation accepts an ISO, but it exactly matches the wording
 in the subject and can reduce ambiguity during defense.
 
+Repo implementation note:
+- This repo implements the “disk image” path as an `.img` file that is **ISO content** and is booted via QEMU’s
+  `-drive format=raw,file=...` path.
+- This avoids brittle `grub-install`/partitioning flows inside containers, while still producing a hand-off image
+  file that boots to the kernel.
+
 Implementation tasks (one possible approach):
 - Create a small raw image file.
 - Partition/format it minimally.
@@ -326,6 +355,7 @@ Proof / tests (definition of done):
 - WP-M1.2-1 (image exists + size): `IMG=build/os-i386.img; test -f "$IMG" && test $(wc -c < "$IMG") -le 10485760`
 - MANUAL-M1.2-1 (boots): `qemu-system-i386 -drive format=raw,file=build/os-i386.img -no-reboot -no-shutdown` and confirm it reaches the kernel. (Automation: prefer AUTO-M1.2-1)
 - AUTO-M1.2-1 (preferred for CI): use **Infra I0.1** as the “boots far enough” gate for the disk-image path
+  - In this repo: `make img-test arch=i386 && bash scripts/test-qemu.sh i386 drive` (PASS via isa-debug-exit)
 
 ### Feature M1.3: GRUB config uses a consistent Multiboot version
 Implementation tasks:

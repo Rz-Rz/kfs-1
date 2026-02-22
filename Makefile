@@ -1,8 +1,10 @@
 arch ?= i386
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
+img := build/os-$(arch).img
 kernel_test := build/kernel-$(arch)-test.bin
 iso_test := build/os-$(arch)-test.iso
+img_test := build/os-$(arch)-test.img
 
 linker_script := src/arch/$(arch)/linker.ld
 grub_cfg := src/arch/$(arch)/grub.cfg
@@ -11,6 +13,11 @@ assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
 assembly_object_files_test := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/test/%.o, $(assembly_source_files))
+
+rust_target := i686-unknown-linux-gnu
+rust_source_files := $(wildcard src/rust/*.rs)
+rust_object_files := $(patsubst src/rust/%.rs, \
+	build/arch/$(arch)/rust/%.o, $(rust_source_files))
 
 KFS_TEST_FORCE_FAIL ?= 0
 
@@ -28,7 +35,8 @@ TEST_FAIL_RC ?= 35
 	container-all container-iso container-run container-qemu-smoke \
 	container-bootstrap container-smoke \
 	test dev iso-in-container run-in-container \
-	iso-test test-qemu
+	iso-test test-qemu \
+	img img-test run-img
 
 all: $(kernel)
 
@@ -40,6 +48,14 @@ run: $(iso)
 
 iso: $(iso)
 
+run-img: $(img)
+	@qemu-system-i386 -drive format=raw,file=$(img)
+
+img: $(img)
+
+$(img): $(iso)
+	@cp $(iso) $(img)
+
 $(iso): $(kernel) $(grub_cfg)
 	@mkdir -p build/isofiles/boot/grub
 	@cp $(kernel) build/isofiles/boot/kernel.bin
@@ -47,8 +63,8 @@ $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) build/isofiles 2> /dev/null
 	@rm -r build/isofiles
 
-$(kernel): $(assembly_object_files) $(linker_script)
-	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel) $(assembly_object_files)
+$(kernel): $(assembly_object_files) $(rust_object_files) $(linker_script)
+	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(rust_object_files)
 
 # compile assembly files
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
@@ -57,6 +73,11 @@ build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 
 iso-test: $(iso_test)
 
+img-test: $(img_test)
+
+$(img_test): $(iso_test)
+	@cp $(iso_test) $(img_test)
+
 $(iso_test): $(kernel_test) $(grub_cfg)
 	@mkdir -p build/isofiles/boot/grub
 	@cp $(kernel_test) build/isofiles/boot/kernel.bin
@@ -64,12 +85,25 @@ $(iso_test): $(kernel_test) $(grub_cfg)
 	@grub-mkrescue -o $(iso_test) build/isofiles 2> /dev/null
 	@rm -r build/isofiles
 
-$(kernel_test): $(assembly_object_files_test) $(linker_script)
-	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel_test) $(assembly_object_files_test)
+$(kernel_test): $(assembly_object_files_test) $(rust_object_files) $(linker_script)
+	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel_test) $(assembly_object_files_test) $(rust_object_files)
 
 build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
 	@nasm -felf32 $(TEST_ASM_DEFS) $< -o $@
+
+build/arch/$(arch)/rust/%.o: src/rust/%.rs
+	@mkdir -p $(shell dirname $@)
+	@rustc \
+		--crate-type lib \
+		--target $(rust_target) \
+		--emit=obj \
+		-C panic=abort \
+		-C opt-level=z \
+		-C code-model=kernel \
+		-C relocation-model=static \
+		-o $@ \
+		$<
 
 container-image:
 	@bash scripts/container.sh build-image

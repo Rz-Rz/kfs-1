@@ -2,3 +2,4 @@
 *.o
 build/*-test.bin
 build/*-test.iso
+build/*-test.img
