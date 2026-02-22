@@ -234,6 +234,10 @@ Implementation tasks:
 Repo implementation note (where this is wired):
 - `Makefile` assembles with `nasm -felf32`, links with `ld -m elf_i386`, and runs with `qemu-system-i386`.
 
+Subject references:
+- III.4 Architecture (i386 mandatory)
+- IV.0.2 Makefile (rules for ASM + chosen language)
+
 Acceptance criteria:
 - `file build/kernel-*.bin` indicates a 32-bit kernel artifact.
 - Boot works under `qemu-system-i386`.
@@ -256,12 +260,22 @@ Implementation tasks (adapt to chosen language):
 Technical rationale:
 - See `docs/m0_2_freestanding_proofs.md` for why the ELF inspection checks are meaningful proofs of “no host libs”.
 
+Repo enforcement note:
+- The hard gate is `make test arch=i386`, which runs `scripts/check-m0.2-freestanding.sh` on the freshly built
+  test kernel (`build/kernel-i386-test.bin`).
+- The script requires the symbol `kfs_rust_marker` so the checks are enforced on an **ASM + Rust** linked kernel
+  artifact (not ASM-only).
+
 Acceptance criteria:
 - Kernel artifact is not dynamically linked (no `.interp`, no `.dynamic`).
 - No unresolved external symbols from libc at link time.
 
 Implementation scope:
 - `RUST` (freestanding build flags) + `LD` (+ `MAKE`)
+
+Subject references:
+- III.2.2 Flags (no dependencies / no host libs; `-nostdlib`, `-nodefaultlibs`, etc.)
+- III.3 Linking (use `ld` but not host `.ld`; ship your own linker script)
 
 Proof / tests (definition of done):
 - WP-M0.2-1 (no PT_INTERP segment): `KERNEL=build/kernel-i386.bin; ! readelf -lW "$KERNEL" | rg -n "INTERP"`
