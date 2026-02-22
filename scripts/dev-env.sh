@@ -6,6 +6,32 @@ die() {
   exit 1
 }
 
+want_color() {
+  [[ -z "${NO_COLOR:-}" ]] || return 1
+  [[ "${KFS_COLOR:-}" == "1" ]] && return 0
+  [[ -t 1 ]]
+}
+
+color() {
+  local code="$1"
+  if want_color; then
+    printf '\033[%sm' "${code}"
+  fi
+}
+
+reset_color() {
+  if want_color; then
+    printf '\033[0m'
+  fi
+}
+
+ok() {
+  color "32"
+  printf '%s' "$*"
+  reset_color
+  printf '\n'
+}
+
 need_cmd() {
   local cmd="$1"
   command -v "${cmd}" >/dev/null 2>&1 || die "missing required tool: ${cmd}"
@@ -28,7 +54,8 @@ cmd_check() {
 
   need_cmd qemu-system-i386
 
-  echo "dev-env: OK"
+  printf '%s ' "dev-env:"
+  ok "OK"
   echo "  nasm: $(nasm -v | head -n 1)"
   echo "  ld: $(ld -v | head -n 1)"
   echo "  grub-mkrescue: $(grub-mkrescue --version | head -n 1)"

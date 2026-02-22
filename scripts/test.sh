@@ -26,7 +26,7 @@ hr() {
   printf '%s\n' "============================================================"
 }
 
-section() {
+banner() {
   local title="$1"
   hr
   color "1;34"
@@ -53,21 +53,29 @@ note() {
   printf '%s\n' "$*"
 }
 
-section "KFS TEST SUITE"
+banner "KFS TEST SUITE"
 note "arch: ${ARCH}"
-note ""
 
-note "STEP 1  toolchain"
-bash scripts/dev-env.sh check
-note ""
+color "1;34"; note "[1/2] toolchain"; reset_color
+if bash scripts/dev-env.sh check; then
+  printf '%s ' "toolchain:"
+  ok "OK"
+else
+  printf '%s ' "toolchain:"
+  bad "FAIL"
+  exit 1
+fi
 
-note "STEP 2  boot and deterministic exit gate"
-note "This is a single gate test"
-note "It checks the kernel boots far enough to signal PASS or FAIL and QEMU exits"
+note ""
+color "1;34"; note "[2/2] qemu exit gate"; reset_color
+note "assert: qemu exits via isa-debug-exit on port 0xf4"
+note "assert: PASS when rc is ${TEST_PASS_RC:-33}"
+note "assert: FAIL when rc is ${TEST_FAIL_RC:-35} or timeout"
+
 if bash scripts/test-qemu.sh "${ARCH}"; then
-  ok "RESULT  PASS"
+  ok "RESULT PASS"
   exit 0
 fi
 
-bad "RESULT  FAIL"
+bad "RESULT FAIL"
 exit 1

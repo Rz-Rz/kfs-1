@@ -11,6 +11,8 @@ jobs:
     env:
       KFS_CONTAINER_ENGINE: docker
       KFS_CONTAINER_IMAGE: kfs1-dev:latest
+      KFS_CONTAINER_TTY: 0
+      NO_COLOR: 1
     steps:
       - uses: actions/checkout@v4
 

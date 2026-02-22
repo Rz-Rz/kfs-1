@@ -35,15 +35,6 @@ hr() {
   printf '%s\n' "------------------------------------------------------------"
 }
 
-title() {
-  local t="$1"
-  hr
-  color "1;34"
-  printf '%s\n' "${t}"
-  reset_color
-  hr
-}
-
 ok() {
   color "32"
   printf '%s' "$*"
@@ -71,11 +62,10 @@ if [[ -e /dev/kvm ]]; then
   qemu_accel="kvm"
 fi
 
-title "TEST  test-qemu"
-note "arch: ${ARCH}"
-note "iso: ${ISO}"
-note "accel: ${qemu_accel}"
-note "timeout: ${TIMEOUT_SECS}s"
+note "qemu: arch ${ARCH}"
+note "qemu: iso ${ISO}"
+note "qemu: accel ${qemu_accel}"
+note "qemu: timeout ${TIMEOUT_SECS}s"
 
 make -B iso-test arch="${ARCH}" >/dev/null
 note "build: OK"
@@ -94,17 +84,17 @@ rc="$?"
 set -e
 
 if [[ "${rc}" -eq 124 ]]; then
-  bad "FAIL  timeout"
+  bad "qemu: FAIL timeout"
   exit 1
 fi
 if [[ "${rc}" -eq "${PASS_RC}" ]]; then
-  ok "PASS"
+  ok "qemu: PASS"
   exit 0
 fi
 if [[ "${rc}" -eq "${FAIL_RC}" ]]; then
-  bad "FAIL"
+  bad "qemu: FAIL"
   exit 1
 fi
 
-bad "FAIL  rc=${rc}"
+bad "qemu: FAIL rc=${rc}"
 exit 1

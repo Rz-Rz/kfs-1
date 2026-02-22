@@ -102,7 +102,7 @@ container-smoke: container-env-check container-qemu-smoke
 	@true
 
 test-qemu: container-image-force
-	@bash scripts/container.sh run -- env \
+	@KFS_CONTAINER_TTY=1 bash scripts/container.sh run -- env \
 		TEST_TIMEOUT_SECS=$(TEST_TIMEOUT_SECS) \
 		TEST_PASS_RC=$(TEST_PASS_RC) \
 		TEST_FAIL_RC=$(TEST_FAIL_RC) \
@@ -110,7 +110,7 @@ test-qemu: container-image-force
 		bash scripts/test-qemu.sh $(arch)
 
 test: container-image-force
-	@bash scripts/container.sh run -- env \
+	@KFS_CONTAINER_TTY=1 bash scripts/container.sh run -- env \
 		TEST_TIMEOUT_SECS=$(TEST_TIMEOUT_SECS) \
 		TEST_PASS_RC=$(TEST_PASS_RC) \
 		TEST_FAIL_RC=$(TEST_FAIL_RC) \
