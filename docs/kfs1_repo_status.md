@@ -4,58 +4,71 @@ This file is an analysis of the current repository state against the backlog in:
 - `docs/kfs1_epics_features.md` (do not edit; treated as the baseline spec/backlog)
 
 Scope:
-- Focus on **Base (Mandatory)** epics (M0-M8).
+- Focus on **Base (Mandatory)** epics (M0–M8).
+- **Infra (Automation)** epics (I0–I2) are tracked as optional (not graded), but they make “proofs/tests” CI-friendly.
 - Bonus epics are listed as deferred (not required right now).
 
-As-of snapshot:
-- Kernel artifact present: `build/kernel-x86_64.bin` (ELF64, x86-64)
-- ISO artifact present: `build/os-x86_64.iso` (~4.9 MB)
-- Sources present only in ASM under `src/arch/x86_64/`
-- No C/Rust/Go/etc kernel code present
+Path/arch note:
+- The spec assumes the final base target is **i386**, with artifacts like `build/kernel-i386.bin` and sources under `src/arch/i386/`.
+- Until M0.1 is implemented in code, the spec explicitly allows substituting current paths/arch. This repo currently uses `arch=x86_64` naming, even though `boot.asm` is `bits 32`.
+
+As-of snapshot (checked 2026-02-22):
+- Kernel artifact present: `build/kernel-x86_64.bin` (ELF64, x86-64, ~832 bytes)
+- ISO artifact present: `build/os-x86_64.iso` (~4.9 MB, bootable ISO9660)
+- `src/arch/i386/` exists but is empty; active sources are under `src/arch/x86_64/` (ASM + `.ld` + `grub.cfg`)
+- No C/Rust/Go/etc kernel code present (no `kmain`)
+- No host-side tests/harness targets (no `make test-qemu`, `test-qemu-serial`, `test-vga`)
 
 ---
 
-## Epic Validation Summary (DoD YES/NO)
+## Epic Validation Summary (Base DoD YES/NO)
 
 Per-epic DoD verdicts, with proof pointers. Detailed per-feature validations (each with
 its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 
 - Base Epic M0 DoD: NO
-  - Proof: `readelf -h build/kernel-x86_64.bin` -> `Class: ELF64`, `Machine: X86-64` (not i386)
-  - Proof: `file build/arch/x86_64/boot.o` -> `ELF 64-bit ... x86-64`
-- Base Epic M1 DoD: NO (boot/rebuild not provable on this machine)
-  - Proof: `ls -lh build` -> ISO is `4.9M` (<= 10 MB)
-  - Proof: `file build/os-x86_64.iso` -> bootable ISO format
-  - Proof: `command -v grub-mkrescue qemu-system-i386` -> missing here
+  - Spec proofs: `WP-M0.1-*`
+  - Current proof: `readelf -h build/kernel-x86_64.bin` -> `Class: ELF64`, `Machine: X86-64` (subject mandates i386)
+- Base Epic M1 DoD: NO (artifact exists, but rebuild/boot not provable on this machine)
+  - Spec proofs: `WP-M1.1-*` + `MANUAL/AUTO-M1.1-*`
+  - Current proof: `build/os-x86_64.iso` exists and is < 10 MB; `grub-mkrescue`/`qemu-system-*` are missing in PATH here
 - Base Epic M2 DoD: NO
-  - Proof: `src/arch/x86_64/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
+  - Spec proofs: `WP-M2.1-*`, `WP-M2.2-*`, `WP-M2.3-*`
+  - Current proof: `src/arch/x86_64/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
 - Base Epic M3 DoD: NO
-  - Proof: `src/arch/x86_64/linker.ld` defines only `.boot` and `.text`, and exports no layout symbols
+  - Spec proofs: `WP-M3.1-*`, `WP-M3.2-*`, `WP-M3.3-*`
+  - Current proof: `src/arch/x86_64/linker.ld` defines only `.boot` and `.text`, and exports no layout symbols
 - Base Epic M4 DoD: NO
-  - Proof: `rg -n "\\b(kmain|main)\\b" src` -> no matches (no chosen-language kernel entry)
+  - Spec proofs: `WP-M4.1-*`, `WP-M4.2-*`, `WP-M4.3-*`
+  - Current proof: `rg -n "\\b(kmain|main)\\b" -S src` -> no matches (no chosen-language kernel entry)
 - Base Epic M5 DoD: NO
-  - Proof: `rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" src` -> no matches (no kernel library helpers)
+  - Spec proofs: `WP-M5.1-*` + `UT-M5.2-*` + `UT-M5.3-*`
+  - Current proof: no kernel helpers/tests exist (`rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" -S src` -> no matches)
 - Base Epic M6 DoD: NO
-  - Proof: `src/arch/x86_64/boot.asm` writes "OK"; `rg -n "\\b42\\b|\\\"42\\\"" src` -> no matches
+  - Spec proofs: `MANUAL/AUTO-M6.*` (+ optional UT proofs)
+  - Current proof: ASM writes `OK`; no screen module; `rg -n "\"42\"|\\b42\\b" -S src` -> no matches
 - Base Epic M7 DoD: NO
-  - Proof: `Makefile:36` uses `nasm -felf64`; no chosen-language compile rules; `Makefile:19` runs `qemu-system-x86_64`
+  - Spec proofs: `WP-M7.1-*`, `WP-M7.2-*`, `WP-M7.3-*`, `WP-M7.4-*`
+  - Current proof: Makefile builds only NASM, uses `nasm -felf64`, links ELF64, runs `qemu-system-x86_64`
 - Base Epic M8 DoD: NO (partial deliverables only)
-  - Proof: ISO exists and is small, but build/run reproducibility is blocked here and `git ls-files` shows no `README*`
+  - Spec proofs: `WP-M8.1-*`, `WP-M8.2-*`, `WP-M8.3-*`
+  - Current proof: image exists and is small, but build/run reproducibility is blocked here and there is no `README.md`
+
+---
 
 ## Environment Readiness (This Machine)
 
 These tools are *not available in PATH right now* (so you cannot rebuild/run here):
-- `nasm` (missing) -> `Makefile` currently requires it
-- `qemu-system-*` (missing) -> cannot run `make run` here
+- `nasm` (missing) -> `Makefile` requires it
+- `qemu-system-i386` / `qemu-system-x86_64` (missing) -> cannot run `make run` / infra tests here
 - `grub-mkrescue` / `grub-file` (missing) -> cannot regenerate/validate ISO here
 
-Tools present:
-- `ld`, `as`
+Tools present (useful for WP/proof-style checks):
+- `ld`, `as`, `readelf`, `nm`, `objdump`, `gdb`, `timeout`, `rg`
 
 Impact:
-- The repo contains prebuilt artifacts (`build/*`) that may have been built elsewhere,
-  but reproducibility and verification are currently blocked on tool installation or
-  switching away from NASM/QEMU/GRUB tooling.
+- The repo contains prebuilt artifacts (`build/*`) that may have been built elsewhere.
+- Most `MANUAL-*` and `AUTO-*` proofs from the spec are blocked until QEMU/GRUB tooling is installed.
 
 ---
 
@@ -69,16 +82,15 @@ Legend:
 - Base Epic M0 (i386 + freestanding compliance): ❌
   - Evidence: `build/kernel-x86_64.bin` is ELF64 x86-64; subject mandates i386.
 - Base Epic M1 (GRUB bootable image <= 10 MB): ⚠️
-  - Evidence: `build/os-x86_64.iso` exists and is < 10 MB; cannot verify boot here.
+  - Evidence: `build/os-x86_64.iso` exists and is < 10 MB; cannot verify boot/rebuild here.
 - Base Epic M2 (Multiboot header + ASM bootstrap): ❌
   - Evidence: MB2 header exists, but no stack init and no `kmain` handoff.
 - Base Epic M3 (custom linker script + layout): ⚠️
-  - Evidence: `src/arch/x86_64/linker.ld` exists and places `.multiboot_header` first,
-    but layout is minimal and currently targets ELF64 output.
+  - Evidence: custom `.ld` exists and places `.multiboot_header` first, but layout is minimal and currently yields ELF64.
 - Base Epic M4 (kernel in chosen language): ❌
   - Evidence: no non-ASM kernel sources exist.
 - Base Epic M5 (kernel library types + helpers): ❌
-  - Evidence: no types/`strlen`/`strcmp` implementations exist.
+  - Evidence: no types/`strlen`/`strcmp` implementations or host UTs exist.
 - Base Epic M6 (screen I/O interface + prints 42): ❌
   - Evidence: ASM writes `OK` directly to VGA; no screen interface module; no `42`.
 - Base Epic M7 (Makefile compiles ASM + language, links, image, run): ❌
@@ -88,116 +100,139 @@ Legend:
 
 ---
 
+## Infra (Automation) Status (Optional, Not Graded)
+
+These match `Infra Epic I0–I2` in `docs/kfs1_epics_features.md`. They are not required by the PDF,
+but they make Base epics provable via `AUTO-*` checks (CI-friendly).
+
+- Infra Epic I0 (deterministic QEMU PASS/FAIL): ❌ Not started
+  - Evidence: no `test-qemu` target (`make -qp | rg -n "^(test-qemu):"` finds none)
+  - Blocked here anyway: `qemu-system-*` missing
+- Infra Epic I1 (serial console assertions): ❌ Not started
+  - Evidence: no `test-qemu-serial` target; no serial driver code
+- Infra Epic I2 (VGA memory assertion harness): ❌ Not started
+  - Evidence: no `test-vga` target/harness; would likely leverage `gdb` (present) once QEMU exists
+
+---
+
 # Base (Mandatory) Detailed Status (Per Feature)
 
 ## Base Epic M0: i386 + Freestanding Compliance
 
 ### Feature M0.1: Make i386 the explicit default target
 Status: ❌ Not done
+Spec proofs: `WP-M0.1-1`, `WP-M0.1-2`, `WP-M0.1-3` (+ `MANUAL/AUTO-M0.1-1`)
 Evidence:
 - `Makefile` defaults `arch ?= x86_64`
 - `Makefile` assembles with `nasm -felf64`
 - `build/kernel-x86_64.bin` is `ELF 64-bit ... x86-64`
 Proof:
-- `Makefile:1` (`arch ?= x86_64`) and `Makefile:36` (`nasm -felf64 ...`)
-- `file build/arch/x86_64/boot.o` shows ELF64 relocatable x86-64 (assembled output)
-- `readelf -h build/kernel-x86_64.bin` shows `Class: ELF64`, `Machine: X86-64`
+- `readelf -h build/kernel-x86_64.bin | rg -n "Class:|Machine:"`
+- `rg -n "^arch \\?=" Makefile` and `rg -n "\\bnasm\\b.*-f" Makefile`
 What’s left:
-- Switch to an explicit i386 target (`arch ?= i386` or similar)
-- Produce `ELF32` objects (`elf32`) and link with `ld -m elf_i386`
+- Make i386 the explicit/primary target (`arch ?= i386`) and move sources under `src/arch/i386/`
+- Produce `ELF32` objects (`nasm -f elf32`) and link with `ld -m elf_i386`
+- Wire `run` to `qemu-system-i386`
 
-### Feature M0.2: Enforce "no host libs" and "freestanding" rules
+### Feature M0.2: Enforce "no host libs" and "freestanding" compilation rules
 Status: ⚠️ Partial / not yet applicable
+Spec proofs: `WP-M0.2-1` .. `WP-M0.2-5`
 Evidence:
 - Current kernel is ASM-only and linked with `ld` (no libc link step).
 Proof:
-- `rg --files src` shows only ASM + linker script + grub.cfg under `src/`
-- Kernel is `statically linked` per `file build/kernel-x86_64.bin`
+- `readelf -lW build/kernel-x86_64.bin | rg -n "INTERP|DYNAMIC" || echo "no INTERP/DYNAMIC"`
+- `readelf -SW build/kernel-x86_64.bin | rg -n "\\.(interp|dynamic)\\b" || echo "no .interp/.dynamic"`
+- `test -z "$(nm -u build/kernel-x86_64.bin)" && echo "no undefined symbols"`
 What’s left:
-- Once a C/Rust/etc kernel is added, enforce freestanding flags and ensure no dynamic sections.
+- Once C/Rust/etc is added, enforce freestanding/no-std flags and re-run the spec’s WP checks on the i386 artifact.
 
-### Feature M0.3: Size discipline baked into workflow
+### Feature M0.3: Size discipline baked into the workflow
 Status: ✅ Mostly done (image size)
+Spec proofs: `WP-M0.3-1`, `WP-M0.3-2`
 Evidence:
 - `build/os-x86_64.iso` is ~4.9 MB (< 10 MB)
 Proof:
-- `ls -lh build` shows `os-x86_64.iso` is `4.9M`
+- `ISO=build/os-x86_64.iso; test $(wc -c < "$ISO") -le 10485760 && echo "ISO <= 10MB"`
 What’s left:
-- Ensure the *turned-in* image remains <= 10 MB after future changes.
+- Keep the turned-in i386 image (expected `build/os-i386.iso`) <= 10 MB after future changes.
 
 Epic DoD (M0) complete? ❌
-- Blockers: i386 requirement not met; build cannot be reproduced here due to missing `nasm`.
+- Blockers: i386 requirement not met; cannot rebuild here due to missing `nasm`.
 
 ---
 
 ## Base Epic M1: GRUB Bootable Virtual Image (<= 10 MB)
 
-### Feature M1.1: Minimal GRUB-bootable image (ISO)
+### Feature M1.1: Provide a minimal GRUB-bootable image (primary path: ISO)
 Status: ⚠️ Partial (artifact exists, rebuild/verify blocked)
+Spec proofs: `WP-M1.1-1`, `WP-M1.1-2`, `WP-M1.1-3` (+ `MANUAL/AUTO-M1.1-1`)
 Evidence:
-- `build/os-x86_64.iso` exists and is bootable ISO format
+- `build/os-x86_64.iso` exists and is a bootable ISO9660 image
 Proof:
-- `file build/os-x86_64.iso` reports ISO 9660 bootable
-- Local verification blocked: `grub-mkrescue` and `qemu-system-*` are missing in PATH
+- `file build/os-x86_64.iso`
+- `test $(wc -c < build/os-x86_64.iso) -le 10485760 && echo "ISO <= 10MB"`
 What’s left:
-- Ability to rebuild ISO locally (`grub-mkrescue`) and verify boot (`qemu-system-i386`)
+- Regenerate the ISO from sources (`grub-mkrescue`) and verify boot in QEMU once tools are available
+- Produce the i386-named artifact expected by the spec (`build/os-i386.iso`)
 
-### Feature M1.2: Optional disk image install path
+### Feature M1.2: "Install GRUB on a virtual image" (alternate path: tiny disk image)
 Status: ❌ Not done
+Spec proofs: `WP-M1.2-1` (+ `MANUAL/AUTO-M1.2-1`)
 Proof:
-- `Makefile` only has an ISO recipe using `grub-mkrescue` (no raw disk image build/install steps)
-- `git ls-files` shows no disk image artifact tracked besides `build/os-x86_64.iso`
+- `rg -n "^\\s*IMG\\s*:?=|\\.img\\b|grub-install\\b" -S Makefile src || echo "no disk image/grub-install path"`
 What’s left:
-- Create and install GRUB to a tiny disk image (optional, but matches wording)
+- Add a raw disk-image build/install path (optional, but matches the subject wording exactly)
 
-### Feature M1.3: Consistent Multiboot version and GRUB config
-Status: ✅ Done (config + header exist)
+### Feature M1.3: GRUB config uses a consistent Multiboot version
+Status: ⚠️ Partial (present under `src/arch/x86_64/`, not yet under `src/arch/i386/`)
+Spec proofs: `WP-M1.3-1`, `WP-M1.3-2` (+ optional `WP-M1.3-3`)
 Evidence:
 - `src/arch/x86_64/grub.cfg` uses `multiboot2`
-- `src/arch/x86_64/multiboot_header.asm` is MB2 magic (`0xe85250d6`)
+- `src/arch/x86_64/multiboot_header.asm` contains MB2 magic `0xe85250d6` and arch `0` (i386 protected mode)
 Proof:
-- `src/arch/x86_64/grub.cfg:5` is `multiboot2 /boot/kernel.bin`
-- `src/arch/x86_64/multiboot_header.asm:3-4` sets MB2 magic and i386 architecture field
+- `rg -n "^\\s*multiboot2\\b" -S src/arch/x86_64/grub.cfg`
+- `rg -n "0xe85250d6" -S src/arch/x86_64/multiboot_header.asm`
 What’s left:
-- Optional verification using `grub-file` (not installed here).
+- Move/copy the MB2 header + GRUB config into the i386 target directory and keep them consistent.
 
 Epic DoD (M1) complete? ⚠️
-- The image exists and is small, but local rebuild/boot verification is currently blocked.
+- The image exists and is small, but local rebuild/boot verification is blocked here.
 
 ---
 
 ## Base Epic M2: Multiboot Header + ASM Boot Strap
 
-### Feature M2.1: Valid Multiboot header placed early
-Status: ⚠️ Partial (present + linked early; spec-level validity not verified here)
+### Feature M2.1: Valid Multiboot header placed early in the kernel image
+Status: ⚠️ Partial (header present + linked early; i386 artifact not produced yet)
+Spec proofs: `WP-M2.1-1`, `WP-M2.1-2` (+ `MANUAL/AUTO-M2.1-1`)
 Evidence:
-- Header in `.multiboot_header` section
-- Linker script places `*(.multiboot_header)` before `.text`
+- Header is in `.multiboot_header`; linker script places it first in `.boot`
 Proof:
-- `src/arch/x86_64/multiboot_header.asm:1-15` defines `.multiboot_header`
-- `src/arch/x86_64/linker.ld:6-10` places `*(.multiboot_header)` first
-- `readelf -S build/kernel-x86_64.bin` shows `.boot` at `0x100000` (size `0x18`) and `.text` at `0x100020`
-- `nm -n build/kernel-x86_64.bin` shows `header_start` at `0x100000` and `start` at `0x100020`
+- `readelf -SW build/kernel-x86_64.bin | rg -n "\\.boot|\\.multiboot_header|\\.text"`
+- `nm -n build/kernel-x86_64.bin | rg -n "header_(start|end)|\\bstart\\b"`
 What’s left:
-- Verify header constraints and that GRUB accepts it on i386 with the final ELF32 kernel.
+- Produce the i386 kernel artifact and re-run the WP checks on `build/kernel-i386.bin`
 
-### Feature M2.2: ASM entry sets safe execution environment (stack, known state)
+### Feature M2.2: ASM entry point sets up a safe execution environment
 Status: ❌ Not done
+Spec proofs: `WP-M2.2-1`, `WP-M2.2-2` (+ `MANUAL/AUTO-M2.2-1`)
 Evidence:
 - `src/arch/x86_64/boot.asm` does not set up a stack
 Proof:
-- `src/arch/x86_64/boot.asm` contains only a single store and `hlt` (no `mov esp, ...`)
+- `rg -n "mov\\s+esp,|lea\\s+esp,|stack_(top|end)" -S src/arch/x86_64/boot.asm || echo "no stack init"`
 What’s left:
-- Reserve a stack region and set `esp` before calling any higher-level code.
+- Reserve a stack region and set `esp` before calling any higher-level code
 
-### Feature M2.3: Transfer control to `kmain`/`main`
+### Feature M2.3: Transfer control to a higher-level `kmain`/`main`
 Status: ❌ Not done
+Spec proofs: `WP-M2.3-1`, `WP-M2.3-2` (+ `MANUAL/AUTO-M2.3-1`)
 Evidence:
-- `src/arch/x86_64/boot.asm` prints to VGA and halts (`hlt`)
+- Boot code prints and halts; there is no `kmain`
 Proof:
-- `rg -n "\\b(kmain|main)\\b" src` returns no matches
+- `rg -n "extern\\s+kmain|call\\s+kmain" -S src/arch/x86_64/boot.asm || echo "no kmain call"`
+- `rg -n "\\b(kmain|main)\\b" -S src || echo "no kmain symbol in sources"`
 What’s left:
-- Define an `extern kmain` and `call kmain` (or language equivalent).
+- Implement `kmain` in the chosen language and `call kmain` from ASM after stack init
 
 Epic DoD (M2) complete? ❌
 
@@ -205,60 +240,67 @@ Epic DoD (M2) complete? ❌
 
 ## Base Epic M3: Custom Linker Script + Memory Layout
 
-### Feature M3.1: Custom `linker.ld` used for linking
-Status: ✅ Done (minimal)
+### Feature M3.1: Custom `linker.ld` (do not use host scripts)
+Status: ⚠️ Partial (custom script exists/used, but i386 layout/outputs not in place)
+Spec proofs: `WP-M3.1-1`, `WP-M3.1-2` (+ `MANUAL/AUTO-M3.1-1`)
 Evidence:
-- `src/arch/x86_64/linker.ld` exists and is used by Makefile
+- `src/arch/x86_64/linker.ld` exists, sets `. = 1M;`, places `*(.multiboot_header)` first
+- Makefile links using `-T src/arch/$(arch)/linker.ld`
 Proof:
-- `Makefile:31` links with `-T src/arch/$(arch)/linker.ld`
-- Kernel section addresses match `src/arch/x86_64/linker.ld:4` (`. = 1M;`) via `readelf -S build/kernel-x86_64.bin`
+- `rg -n "ENTRY\\(|SECTIONS\\s*\\{|\\s*\\.\\s*=\\s*1M;" -S src/arch/x86_64/linker.ld`
+- `rg -n "\\bld\\b.*\\s-T\\s+src/arch/\\$\\(arch\\)/linker\\.ld" -S Makefile`
 What’s left:
-- Adjust it for ELF32/i386 once toolchain is corrected.
+- Produce an i386 build with `ld -m elf_i386` and ensure the script is under `src/arch/i386/`
 
-### Feature M3.2: Standard sections (.text/.rodata/.data/.bss)
+### Feature M3.2: Provide standard sections for growth
 Status: ❌ Not done
+Spec proofs: `WP-M3.2-1`, `WP-M3.2-2`, `WP-M3.2-3`
 Evidence:
-- Linker script only defines `.boot` and `.text`
+- Linker script defines only `.boot` and `.text`
 Proof:
-- `src/arch/x86_64/linker.ld` contains only `.boot` and `.text` output sections
+- `rg -n "^\\s*\\.(rodata|data|bss)\\b" -S src/arch/x86_64/linker.ld || echo "missing rodata/data/bss"`
 What’s left:
-- Add `.rodata`, `.data`, `.bss` and ensure alignment rules are sane.
+- Add `.rodata`, `.data`, `.bss` (and basic alignment rules)
 
-### Feature M3.3: Export layout symbols
+### Feature M3.3: Export useful layout symbols
 Status: ❌ Not done
+Spec proofs: `WP-M3.3-1`, `WP-M3.3-2`
 Proof:
-- `nm -n build/kernel-x86_64.bin` only shows `header_start`, `header_end`, `start` (no `kernel_start/kernel_end/bss_*`)
+- `nm -n build/kernel-x86_64.bin | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b" || echo "no layout symbols"`
 What’s left:
-- Add symbols for `kernel_start/end` and `bss_start/end` (names flexible).
+- Export layout symbols in the linker script and reference them from the chosen language
 
-Epic DoD (M3) complete? ⚠️
+Epic DoD (M3) complete? ❌
 
 ---
 
-## Base Epic M4: Minimal Kernel in a Chosen Language
+## Base Epic M4: Minimal Kernel in Your Chosen Language
 
-### Feature M4.1: `kmain` in chosen language
+### Feature M4.1: A real `kmain` entry point in the chosen language
 Status: ❌ Not done
-Evidence:
-- No kernel sources outside ASM exist.
+Spec proofs: `WP-M4.1-1`, `WP-M4.1-2` (+ `MANUAL/AUTO-M4.1-1`)
 Proof:
-- `rg --files src` lists only ASM + `.ld` + `grub.cfg`
+- `rg -n "\\b(kmain|main)\\b" -S src || echo "no kmain/main"`
 What’s left:
-- Pick language (most common: C) and implement `kmain`.
+- Pick language (spec examples assume Rust; C is also common) and implement `kmain`
 
-### Feature M4.2: Minimal init pattern
+### Feature M4.2: Minimal "kernel init" sequence (even if tiny)
 Status: ❌ Not done
+Spec proofs: `WP-M4.2-1` (+ `MANUAL/AUTO-M4.2-1`)
+Evidence:
+- No chosen-language kernel exists, so there is no init sequence beyond ASM
 Proof:
-- No chosen-language `kmain` exists (`rg -n "\\b(kmain|main)\\b" src` returns none), so there is no init sequence beyond ASM
+- `rg -n "\\b(vga|screen)_init\\b" -S src || echo "no init calls"`
 
 ### Feature M4.3: Clean halt behavior
 Status: ⚠️ Partial
+Spec proofs: `WP-M4.3-1` (+ `MANUAL/AUTO-M4.3-1`)
 Evidence:
-- Current ASM ends with `hlt` (halts) but without a robust halt loop.
+- Current ASM ends with `hlt`, but without a defined `cli; hlt; jmp $`-style loop
 Proof:
-- Disassembly of `build/kernel-x86_64.bin` at `<start>` ends with a single `hlt` (no `jmp` loop)
+- `rg -n "^\\s*hlt\\b|\\bcli\\b" -S src/arch/x86_64/boot.asm`
 What’s left:
-- Provide a defined halt path (e.g., loop) after `kmain` returns.
+- Provide a consistent halt loop path for the defense build/profile (and a deterministic exit for CI via Infra I0.1)
 
 Epic DoD (M4) complete? ❌
 
@@ -266,93 +308,101 @@ Epic DoD (M4) complete? ❌
 
 ## Base Epic M5: Basic Kernel Library (Types + Helpers)
 
-### Feature M5.1: Kernel-owned types
+### Feature M5.1: Kernel-owned type definitions
 Status: ❌ Not done
+Spec proofs: `WP-M5.1-*`
 Proof:
-- `git ls-files` contains no `*.c`, `*.h`, `*.rs`, etc.; `src/` is ASM-only (`rg --files src`)
+- `rg --files src | rg -n "\\.(rs|c|h|hpp)\\b" || echo "no chosen-language sources"`
 
-### Feature M5.2: `strlen` / `strcmp`
+### Feature M5.2: Minimal string helpers (`strlen`, `strcmp`)
 Status: ❌ Not done
+Spec proofs: `UT-M5.2-1`, `WP-M5.2-2`
 Proof:
-- `rg -n "\\b(strlen|strcmp)\\b" src` returns no matches
+- `rg -n "\\b(strlen|strcmp)\\b" -S src || echo "no strlen/strcmp"`
 
-### Feature M5.3: `memcpy` / `memset`
+### Feature M5.3: Minimal memory helpers (`memcpy`, `memset`)
 Status: ❌ Not done
+Spec proofs: `UT-M5.3-1`, `WP-M5.3-2`
 Proof:
-- `rg -n "\\b(memcpy|memset)\\b" src` returns no matches
+- `rg -n "\\b(memcpy|memset)\\b" -S src || echo "no memcpy/memset"`
 
 Epic DoD (M5) complete? ❌
 
 ---
 
-## Base Epic M6: Screen I/O Interface + Prints 42
+## Base Epic M6: Screen I/O Interface + Mandatory Output
 
-### Feature M6.1: Screen interface module (VGA text writer)
-Status: ⚠️ Partial
+### Feature M6.1: VGA text mode writer (VGA memory at `0xB8000`)
+Status: ⚠️ Partial (one hard-coded store exists; no screen module)
+Spec proofs: `MANUAL/AUTO-M6.1-1` (+ optional `UT-M6.1-1`)
 Evidence:
-- Direct VGA write exists in ASM (`mov dword [0xb8000], ...`).
+- `src/arch/x86_64/boot.asm` writes a single dword to `0xB8000` (prints `OK`)
 Proof:
-- Source intent: `src/arch/x86_64/boot.asm:7` uses `[0xb8000]`
-- Built artifact reality: `objdump -d build/kernel-x86_64.bin` shows RIP-relative store `[rip+0xb8000]` (not absolute VGA `0xB8000`)
+- `rg -n "0xb8000" -S src/arch/x86_64/boot.asm`
 What’s left:
-- A real interface in the chosen language (`putc`, `puts`) callable from `kmain`.
+- Implement a real screen module (`putc`/`puts`) callable from `kmain`
 
-### Feature M6.2: Newline handling / cursor movement
+### Feature M6.2: Newline handling (basic cursor movement)
 Status: ❌ Not done
-Proof:
-- Only output logic in repo is a single fixed store in `src/arch/x86_64/boot.asm`; no cursor/newline code exists
-
-### Feature M6.3: Mandatory output "42"
-Status: ❌ Not done
+Spec proofs: `UT-M6.2-1` (+ `MANUAL/AUTO-M6.2-1`)
 Evidence:
-- Current output is `OK`, not `42`.
+- Only output logic is a single fixed store in ASM; no cursor/newline logic exists
+
+### Feature M6.3: Mandatory output: display `42`
+Status: ❌ Not done
+Spec proofs: `MANUAL/AUTO-M6.3-1`, `WP-M6.3-2`
+Evidence:
+- Current output is `OK`, not `42`
 Proof:
-- `src/arch/x86_64/boot.asm:6-7` comments/constant correspond to "OK"
-- `rg -n "\\b42\\b|\\\"42\\\"" src` returns no matches
+- `rg -n "\"42\"|\\b42\\b" -S src || echo "no 42"`
 What’s left:
-- Print `42` (preferably from `kmain` via the screen interface).
+- Print `42` via the screen interface from `kmain` (preferred)
 
 Epic DoD (M6) complete? ❌
 
 ---
 
-## Base Epic M7: Makefile (ASM + Language + Link + Image + Run)
+## Base Epic M7: Makefile (ASM + Language + Link + Image)
 
-### Feature M7.1: ASM compiled for i386 correctly
+### Feature M7.1: Compile ASM sources with the correct target format
 Status: ❌ Not done
+Spec proofs: `WP-M7.1-1`, `WP-M7.1-2`
 Evidence:
-- `Makefile` uses `nasm -felf64` (and `nasm` isn’t installed here).
+- `Makefile` uses `nasm -felf64` (and `nasm` isn’t installed here)
 Proof:
-- `Makefile:36` uses `-felf64`
-- `file build/arch/x86_64/boot.o` is ELF64 relocatable x86-64
-- `command -v nasm` fails on this machine (cannot rebuild here)
+- `rg -n "\\bnasm\\b.*-f" -S Makefile`
+- `command -v nasm || echo "nasm missing"`
 What’s left:
-- Assemble as `elf32` (or switch to GAS with equivalent sources).
+- Assemble i386 objects as `elf32` and store them under `build/arch/i386/`
 
 ### Feature M7.2: Compile chosen-language sources with freestanding flags
 Status: ❌ Not done
+Spec proofs: `WP-M7.2-1`, `WP-M7.2-2`, `WP-M7.2-3`
+Evidence:
+- No chosen-language sources exist; Makefile has no C/Rust rules
 Proof:
-- No non-ASM sources exist (`git ls-files` shows only `.asm` under `src/`)
-- `Makefile` has no compilation rules for C/Rust/etc (only NASM rule exists)
+- `rg --files src | rg -n "\\.(rs|c|h|hpp)\\b" || echo "no chosen-language sources"`
 
-### Feature M7.3: Link all objects with custom linker script in i386 mode
+### Feature M7.3: Link all objects with custom linker script
 Status: ⚠️ Partial
+Spec proofs: `WP-M7.3-1` (+ `MANUAL/AUTO-M7.3-1`)
 Evidence:
-- Links with `ld -T linker.ld`, but produces ELF64 due to inputs and missing `-m elf_i386`.
+- Links with `ld -T linker.ld`, but produces ELF64 due to inputs and missing `-m elf_i386`
 Proof:
-- `Makefile:31` links with `ld -T ...` but does not pass `-m elf_i386`
-- Output kernel is ELF64 x86-64 per `readelf -h build/kernel-x86_64.bin`
+- `rg -n "\\bld\\b" -S Makefile`
+- `readelf -h build/kernel-x86_64.bin | rg -n "Class:|Machine:"`
 What’s left:
-- Link with `-m elf_i386` once objects are ELF32.
+- Link i386 with `ld -m elf_i386 -T src/arch/i386/linker.ld ...`
 
-### Feature M7.4: Standard targets exist
-Status: ✅ Done
+### Feature M7.4: Provide standard targets (`all`, `clean`, `iso`, `run`)
+Status: ✅ Done (targets exist)
+Spec proofs: `WP-M7.4-1` (+ `MANUAL/AUTO-M7.4-1`)
 Evidence:
-- `all`, `clean`, `run`, `iso` targets exist.
+- `all`, `clean`, `run`, `iso` targets exist
 Proof:
-- `Makefile:11` declares `.PHONY: all clean run iso` and defines each target below
+- `make -qp | rg -n "^(all:|clean:|iso:|run:)" | head`
 What’s left:
-- Make `run` target use i386 QEMU (and ensure QEMU exists).
+- Make `run`/`iso` work for i386 and add infra test targets (`test-qemu`, etc.) once QEMU/GRUB tooling is available
 
 Epic DoD (M7) complete? ❌
 
@@ -360,28 +410,35 @@ Epic DoD (M7) complete? ❌
 
 ## Base Epic M8: Turn-In Packaging (Defense-Ready)
 
-### Feature M8.1: Required deliverables present
+### Feature M8.1: Turn-in artifact checklist is satisfied
 Status: ⚠️ Partial
+Spec proofs: `WP-M8.1-1` (+ `MANUAL-M8.1-1`)
 Evidence:
-- Code and Makefile present.
-- A bootable image artifact exists in `build/`.
+- Code and Makefile are present
+- A bootable image artifact exists in `build/`
 Proof:
-- `git ls-files` includes `Makefile` and `src/arch/x86_64/*`
-- `git ls-files` includes `build/os-x86_64.iso` and `build/kernel-x86_64.bin` (tracked artifacts)
+- `test -f Makefile && test -d src && echo "code+Makefile present"`
+- `test -f build/os-x86_64.iso && echo "ISO present"`
 What’s left:
-- Ensure final image matches i386 base requirements and is reproducible.
+- Make the build reproducible for i386 on a machine with required tooling
 
-### Feature M8.2: Enforce <= 10 MB image
+### Feature M8.2: Enforce the 10 MB upper bound
 Status: ✅ Done (currently)
+Spec proofs: `WP-M8.2-1`
 Evidence:
-- `build/os-x86_64.iso` < 10 MB.
+- `build/os-x86_64.iso` < 10 MB
 Proof:
-- `ls -lh build` shows ISO size `4.9M`
+- `test $(wc -c < build/os-x86_64.iso) -le 10485760 && echo "ISO <= 10MB"`
+What’s left:
+- Ensure the final i386 turn-in image stays <= 10 MB
 
-### Feature M8.3: Minimal "how to run" notes
+### Feature M8.3: Minimal "how to run" notes (optional but helpful)
 Status: ❌ Not done
+Spec proofs: `WP-M8.3-1`, `WP-M8.3-2`
 Proof:
-- `git ls-files` contains no `README*`
+- `test -f README.md || echo "README.md missing"`
+What’s left:
+- Add a minimal `README.md` quickstart (3 lines is enough)
 
 Epic DoD (M8) complete? ⚠️
 
@@ -389,7 +446,7 @@ Epic DoD (M8) complete? ⚠️
 
 # Bonus (Deferred) Status
 
-All bonus epics (B1-B5) are currently: ❌ Not started
+All bonus epics (B1–B5) are currently: ❌ Not started
 - This is fine; bonus is only assessed after mandatory is perfect.
 
 ---
@@ -407,12 +464,15 @@ Why:
 Deliverable for this priority:
 - `make` produces an `ELF32` i386 kernel using your own linker script.
 
+Notes:
+- As soon as QEMU is available, adding **Infra I0.1** (`make test-qemu`) turns “it boots” into a deterministic PASS/FAIL gate.
+
 ### Priority 2: Add chosen-language kernel entry and call it from ASM
 Why:
 - Subject expects ASM + chosen language, and GRUB should "call main function".
 
 Deliverable:
-- `kmain()` exists (e.g., C) and is invoked from ASM after stack init.
+- `kmain()` exists and is invoked from ASM after stack init.
 
 ### Priority 3: Implement screen interface and print `42` from `kmain`
 Why:
