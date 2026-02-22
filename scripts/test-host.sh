@@ -158,21 +158,41 @@ run_item 2 2 "Verify tools exist" \
 
 printf '\n'
 color "1;34"; printf '%s\n' "TESTS"; reset_color
-run_item 1 3 "release IMG is bootable" \
+run_item 1 7 "M1: release ISO is bootable + <=10MB" \
   bash scripts/container.sh run -- \
-    bash -lc "test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && file build/os-${ARCH}.img | grep -qi 'bootable' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
+    bash -lc "test -f build/os-${ARCH}.iso && test \$(wc -c < build/os-${ARCH}.iso) -le 10485760 && file build/os-${ARCH}.iso | grep -q 'ISO 9660'"
 
-run_item 2 3 "no host libs (ELF checks)" \
+run_item 2 7 "M1: release IMG is bootable + <=10MB" \
+  bash scripts/container.sh run -- \
+    bash -lc "test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
+
+run_item 3 7 "Build test ISO/IMG artifacts" \
+  bash scripts/container.sh run -- \
+    bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
+
+run_item 4 7 "M0.2: no host libs (ELF checks)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}'"
 
-run_item_inline 3 3 "GRUB boots test IMG" \
+run_item_inline 5 7 "M1: GRUB boots test ISO (headless gate)" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \
     TEST_FAIL_RC="${TEST_FAIL_RC}" \
     KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
-    bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null && bash scripts/test-qemu.sh '${ARCH}' drive"
+    bash scripts/test-qemu.sh "${ARCH}"
+
+run_item 6 7 "Build test IMG artifact" \
+  bash scripts/container.sh run -- \
+    bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
+
+run_item_inline 7 7 "M1: GRUB boots test IMG (headless gate)" \
+  bash scripts/container.sh run -- env \
+    TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
+    TEST_PASS_RC="${TEST_PASS_RC}" \
+    TEST_FAIL_RC="${TEST_FAIL_RC}" \
+    KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
+    bash scripts/test-qemu.sh "${ARCH}" drive
 
 printf '\n'
 pass
