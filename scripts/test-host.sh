@@ -158,23 +158,23 @@ run_item 2 2 "Verify tools exist" \
 
 printf '\n'
 color "1;34"; printf '%s\n' "TESTS"; reset_color
-run_item 1 7 "Check release ISO (type + size)" \
+run_item 1 7 "M1: release ISO is bootable + <=10MB" \
   bash scripts/container.sh run -- \
     bash -lc "test -f build/os-${ARCH}.iso && test \$(wc -c < build/os-${ARCH}.iso) -le 10485760 && file build/os-${ARCH}.iso | grep -q 'ISO 9660'"
 
-run_item 2 7 "Check release disk image (type + size)" \
+run_item 2 7 "M1: release IMG is bootable + <=10MB" \
   bash scripts/container.sh run -- \
     bash -lc "test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
 
-run_item 3 7 "Build test ISO" \
+run_item 3 7 "Build test ISO/IMG artifacts" \
   bash scripts/container.sh run -- \
     bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item 4 7 "Proof M0.2 (freestanding kernel)" \
+run_item 4 7 "M0.2: no host libs (ELF checks)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}'"
 
-run_item_inline 5 7 "Boot test ISO via GRUB" \
+run_item_inline 5 7 "M1: GRUB boots test ISO (headless gate)" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \
@@ -182,11 +182,11 @@ run_item_inline 5 7 "Boot test ISO via GRUB" \
     KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
     bash scripts/test-qemu.sh "${ARCH}"
 
-run_item 6 7 "Build test disk image" \
+run_item 6 7 "Build test IMG artifact" \
   bash scripts/container.sh run -- \
     bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item_inline 7 7 "Boot test disk image via GRUB" \
+run_item_inline 7 7 "M1: GRUB boots test IMG (headless gate)" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \
