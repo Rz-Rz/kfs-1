@@ -13,7 +13,9 @@ die() {
 }
 
 want_color() {
-  [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]
+  [[ -z "${NO_COLOR:-}" ]] || return 1
+  [[ "${KFS_COLOR:-}" == "1" ]] && return 0
+  [[ -t 1 ]]
 }
 
 color() {
@@ -27,6 +29,19 @@ reset_color() {
   if want_color; then
     printf '\033[0m'
   fi
+}
+
+hr() {
+  printf '%s\n' "------------------------------------------------------------"
+}
+
+title() {
+  local t="$1"
+  hr
+  color "1;34"
+  printf '%s\n' "${t}"
+  reset_color
+  hr
 }
 
 ok() {
@@ -56,14 +71,14 @@ if [[ -e /dev/kvm ]]; then
   qemu_accel="kvm"
 fi
 
-note "TEST test-qemu"
-note "  arch: ${ARCH}"
-note "  iso: ${ISO}"
-note "  accel: ${qemu_accel}"
-note "  timeout: ${TIMEOUT_SECS}s"
+title "TEST  test-qemu"
+note "arch: ${ARCH}"
+note "iso: ${ISO}"
+note "accel: ${qemu_accel}"
+note "timeout: ${TIMEOUT_SECS}s"
 
 make -B iso-test arch="${ARCH}" >/dev/null
-note "  build: OK"
+note "build: OK"
 
 set +e
 timeout --foreground "${TIMEOUT_SECS}" \
@@ -79,18 +94,17 @@ rc="$?"
 set -e
 
 if [[ "${rc}" -eq 124 ]]; then
-  bad "  FAIL timeout"
+  bad "FAIL  timeout"
   exit 1
 fi
 if [[ "${rc}" -eq "${PASS_RC}" ]]; then
-  ok "  PASS"
+  ok "PASS"
   exit 0
 fi
 if [[ "${rc}" -eq "${FAIL_RC}" ]]; then
-  bad "  FAIL"
+  bad "FAIL"
   exit 1
 fi
 
-bad "  FAIL rc=${rc}"
+bad "FAIL  rc=${rc}"
 exit 1
-

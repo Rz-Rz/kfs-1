@@ -13,6 +13,12 @@ What it does:
 - Builds the test ISO
 - Runs a headless QEMU test that exits with PASS or FAIL
 
+## What the test proves
+
+The QEMU test is a deterministic exit gate.
+It proves the build works and the kernel boots far enough to signal PASS or FAIL.
+It does not prove the subject features like printing 42 yet.
+
 ## When to use each command
 
 - `make test`
