@@ -111,6 +111,8 @@ Evidence:
 Proof:
 - `make test arch=i386` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
 - `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
+- `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"` (release kernel also links Rust)
+- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/check-m0.2-freestanding.sh i386 all` (checks both test + release kernels)
 
 ### Feature M0.3: Size discipline baked into workflow
 Status: ✅ Mostly done (image size)
