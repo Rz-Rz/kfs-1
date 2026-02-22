@@ -158,23 +158,35 @@ run_item 2 2 "Verify tools exist" \
 
 printf '\n'
 color "1;34"; printf '%s\n' "TESTS"; reset_color
-run_item 1 7 "M1: release ISO is bootable + <=10MB" \
+run_item 1 10 "release ISO is bootable" \
   bash scripts/container.sh run -- \
     bash -lc "test -f build/os-${ARCH}.iso && test \$(wc -c < build/os-${ARCH}.iso) -le 10485760 && file build/os-${ARCH}.iso | grep -q 'ISO 9660'"
 
-run_item 2 7 "M1: release IMG is bootable + <=10MB" \
+run_item 2 10 "release IMG is bootable" \
   bash scripts/container.sh run -- \
     bash -lc "test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
 
-run_item 3 7 "Build test ISO/IMG artifacts" \
+run_item 3 10 "Build test ISO" \
   bash scripts/container.sh run -- \
     bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item 4 7 "M0.2: no host libs (ELF checks)" \
+run_item 4 10 "no host libs (ELF checks): no PT_INTERP" \
   bash scripts/container.sh run -- \
-    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}'"
+    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' interp"
 
-run_item_inline 5 7 "M1: GRUB boots test ISO (headless gate)" \
+run_item 5 10 "no host libs (ELF checks): no .interp/.dynamic" \
+  bash scripts/container.sh run -- \
+    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' dynamic"
+
+run_item 6 10 "no host libs (ELF checks): no undefined symbols" \
+  bash scripts/container.sh run -- \
+    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' undef"
+
+run_item 7 10 "no host libs (ELF checks): no libc/loader strings" \
+  bash scripts/container.sh run -- \
+    bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' strings"
+
+run_item_inline 8 10 "GRUB boots test ISO" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \
@@ -182,11 +194,11 @@ run_item_inline 5 7 "M1: GRUB boots test ISO (headless gate)" \
     KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
     bash scripts/test-qemu.sh "${ARCH}"
 
-run_item 6 7 "Build test IMG artifact" \
+run_item 9 10 "Build test IMG artifact" \
   bash scripts/container.sh run -- \
     bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item_inline 7 7 "M1: GRUB boots test IMG (headless gate)" \
+run_item_inline 10 10 "GRUB boots test IMG" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \
