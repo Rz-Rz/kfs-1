@@ -1,8 +1,12 @@
-# KFS_1 Repo Status vs Subject (Done / Not Done + Priorities)
+# KFS_1 Repo Status vs Subject (Updated)
 
-This file is an analysis of the current repository state against the backlog in:
-- `docs/kfs1_epics_features.md` (do not edit; treated as the baseline spec/backlog)
+Snapshot date: February 22, 2026.
 
+
+This status file was refreshed after the architecture migration from `x86_64` build outputs to `i386` build outputs.
+
+## Scope of this update
+=======
 Scope:
 - Focus on **Base (Mandatory)** epics (M0–M8).
 - **Infra (Automation)** epics (I0–I2) are tracked as optional (not graded), but they make “proofs/tests” CI-friendly.
@@ -19,12 +23,20 @@ As-of snapshot (checked 2026-02-22):
 - No C/Rust/Go/etc kernel code present (no `kmain`)
 - No host-side tests/harness targets (no `make test-qemu`, `test-qemu-serial`, `test-vga`)
 
----
 
+
+## Architecture Migration Summary
+=======
 ## Epic Validation Summary (Base DoD YES/NO)
 
-Per-epic DoD verdicts, with proof pointers. Detailed per-feature validations (each with
-its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
+
+Applied changes:
+- `Makefile` default target changed to `arch ?= i386`.
+- NASM output changed to `-felf32`.
+- Linker invocation changed to `ld -m elf_i386`.
+- Run target changed to `qemu-system-i386`.
+- Architecture sources now live under `src/arch/i386/`.
+- `src/arch/x86_64/` was removed intentionally.
 
 - Base Epic M0 DoD: NO
   - Spec proofs: `WP-M0.1-*`
@@ -272,7 +284,13 @@ What’s left:
 
 Epic DoD (M3) complete? ❌
 
----
+ISO image:
+- `file build/os-i386.iso`
+- Result:
+  - `ISO 9660 ... (bootable)`
+- `ls -lh build/os-i386.iso`
+- Result:
+  - `4.9M` (<= 10 MB)
 
 ## Base Epic M4: Minimal Kernel in Your Chosen Language
 
@@ -451,18 +469,17 @@ All bonus epics (B1–B5) are currently: ❌ Not started
 
 ---
 
-## Priority: What To Focus On First (Starting Point)
+- Base Epic M3 DoD: PARTIAL
+- Reason: custom linker script exists and is used, but layout is still minimal (`.boot`, `.text` only).
 
-If the goal is a fast, defensible KFS_1 mandatory pass, focus on the smallest path to:
-**i386 GRUB boot -> enters `kmain` -> prints `42` via a screen interface -> halts**.
+- Base Epic M4 DoD: NO
+- Reason: no chosen-language kernel entry (`kmain`/`main`) exists yet.
 
-### Priority 1 (Focus Now): Fix i386 toolchain + build correctness
-Why:
-- The subject explicitly mandates i386; current artifact is x86-64 (likely a hard fail).
-- Everything else builds on having a correct, reproducible kernel binary.
+- Base Epic M5 DoD: NO
+- Reason: no kernel helper/type library implementation yet (`strlen`, `strcmp`, etc.).
 
-Deliverable for this priority:
-- `make` produces an `ELF32` i386 kernel using your own linker script.
+- Base Epic M6 DoD: NO
+- Reason: current ASM output writes `OK`; mandatory output is `42` via a screen interface.
 
 Notes:
 - As soon as QEMU is available, adding **Infra I0.1** (`make test-qemu`) turns “it boots” into a deterministic PASS/FAIL gate.
@@ -474,17 +491,15 @@ Why:
 Deliverable:
 - `kmain()` exists and is invoked from ASM after stack init.
 
-### Priority 3: Implement screen interface and print `42` from `kmain`
-Why:
-- Mandatory functional requirement is printing `42` and having a screen I/O interface.
+## Important repository note
 
-Deliverable:
-- `puts("42")` (or equivalent) prints on VGA text mode.
+- Legacy pre-migration artifacts still exist in `build/` (`build/kernel-x86_64.bin`, `build/os-x86_64.iso`).
+- New i386 artifacts are generated as `build/kernel-i386.bin` and `build/os-i386.iso`.
 
-### Priority 4: Add minimal kernel library helpers (types, strlen/strcmp)
-Why:
-- Explicitly mentioned in the mandatory section and becomes useful immediately.
+## Remaining mandatory gaps (after architecture fix)
 
-### Priority 5: Defense packaging polish (README + ensure image stays <= 10 MB)
-Why:
-- Prevents last-minute defense issues and proves reproducibility.
+- Add stack initialization in ASM boot entry.
+- Call a chosen-language `kmain` from ASM.
+- Implement a minimal screen interface and print `42`.
+- Add minimal kernel helpers/types required by the subject.
+- Add concise run/defense documentation.

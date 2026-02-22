@@ -1,4 +1,4 @@
-arch ?= x86_64
+arch ?= i386
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
 
@@ -16,7 +16,7 @@ clean:
 	@rm -r build
 
 run: $(iso)
-	@qemu-system-x86_64 -cdrom $(iso)
+	@qemu-system-i386 -cdrom $(iso)
 
 iso: $(iso)
 
@@ -28,9 +28,9 @@ $(iso): $(kernel) $(grub_cfg)
 	@rm -r build/isofiles
 
 $(kernel): $(assembly_object_files) $(linker_script)
-	@ld -n -T $(linker_script) -o $(kernel) $(assembly_object_files)
+	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel) $(assembly_object_files)
 
 # compile assembly files
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
-	@nasm -felf64 $< -o $@
+	@nasm -felf32 $< -o $@

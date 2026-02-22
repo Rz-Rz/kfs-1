@@ -155,17 +155,17 @@ Bonus items in the PDF and where they are covered:
 
 ## Notes About This Repo (Current Gaps vs The PDF)
 
-This repo already builds a GRUB ISO and contains a Multiboot2 header, but a few items
-are currently out of alignment with KFS_1 requirements:
-- i386 mandate vs current naming:
-  - Subject mandates i386 (32-bit).
-  - Repo uses `src/arch/x86_64`, but `boot.asm` is `bits 32` and the Multiboot2 header
-    uses architecture 0 (protected mode i386).
-- Toolchain mismatch (must be fixed for a clean, defensible base solution):
-  - `.asm-lsp.toml` expects `elf32`.
-  - `Makefile` uses `nasm -felf64` and `qemu-system-x86_64`.
-- Mandatory output mismatch:
-  - `boot.asm` prints `OK`, but KFS_1 requires printing `42`.
+This repo already builds a GRUB ISO and contains a Multiboot2 header.
+Current state vs KFS_1 requirements:
+- Architecture/toolchain alignment is now fixed for i386:
+  - Sources are under `src/arch/i386`.
+  - `Makefile` uses `nasm -felf32`, `ld -m elf_i386`, and `qemu-system-i386`.
+  - Proof (local commands):
+  - `readelf -h build/kernel-i386.bin` -> `Class: ELF32`, `Machine: Intel 80386`
+  - `file build/arch/i386/boot.o` -> `ELF 32-bit LSB relocatable, Intel 80386`
+- Mandatory functional gaps still open:
+  - ASM entry does not initialize a stack or transfer control to `kmain` yet.
+  - Current output is still `OK`; KFS_1 requires displaying `42` via a screen interface.
 
 ---
 
