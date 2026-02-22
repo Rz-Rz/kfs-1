@@ -50,7 +50,7 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 
 Canonical workflow:
 - Run builds and tests inside the container toolchain
-- Use `make test` for the daily red or green gate
+- Use `make test` for the daily red or green result
 
 Host requirements:
 - `docker` or `podman`
@@ -264,7 +264,11 @@ What’s left:
 
 Status: ✅ In place
 Evidence:
-- `make test` is a deterministic PASS or FAIL gate and it rebuilds the container image each run
-- Tests run headless in QEMU and exit without hanging
+- `make test` rebuilds the container toolchain image each run
+- `make test` verifies the required tools exist in the container
+- `make test` runs two tests
+  - Build ISO
+  - Boot ISO via GRUB in QEMU headless and exit PASS or FAIL
 Proof:
 - `make test`
+- `make test KFS_TEST_FORCE_FAIL=1`
