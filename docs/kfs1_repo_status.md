@@ -109,7 +109,7 @@ Evidence:
 - Rust code is compiled and linked into the kernel image (symbol `kfs_rust_marker`).
 - M0.2 is enforced by inspecting the linked ELF (no dynamic loader/sections, no undefined symbols, no libc/loader markers).
 Proof:
-- `make test arch=i386` (runs the four “no host libs (ELF checks)” steps)
+- `make test arch=i386` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
 - `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
 
 ### Feature M0.3: Size discipline baked into workflow

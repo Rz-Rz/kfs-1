@@ -13,11 +13,25 @@ check_file() {
   local kernel="$1"
   [[ -r "${kernel}" ]] || die "missing artifact: ${kernel}"
 
-  if ! nm -n "${kernel}" | grep -qw 'kfs_rust_marker'; then
-    echo "FAIL ${kernel}: Rust marker symbol missing (kfs_rust_marker)"
-    echo "hint: the kernel must include the chosen language (Rust) object so M0.2 is proven for ASM+Rust, not ASM-only"
-    return 1
-  fi
+  case "${CHECK}" in
+    all|langs|interp|dynamic|undef|strings)
+      if ! nm -n "${kernel}" | grep -qw 'kfs_rust_marker'; then
+        echo "FAIL ${kernel}: Rust marker symbol missing (kfs_rust_marker)"
+        echo "hint: the kernel must include the chosen language (Rust) object so M0.2 is proven for ASM+Rust, not ASM-only"
+        return 1
+      fi
+      ;;
+  esac
+
+  case "${CHECK}" in
+    all|langs)
+      if ! nm -n "${kernel}" | grep -qw 'start'; then
+        echo "FAIL ${kernel}: ASM entry symbol missing (start)"
+        echo "hint: the test kernel must link the ASM boot object and expose the entry symbol"
+        return 1
+      fi
+      ;;
+  esac
 
   case "${CHECK}" in
     all|interp)
@@ -70,8 +84,8 @@ check_file() {
 main() {
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
   case "${CHECK}" in
-    all|interp|dynamic|undef|strings) ;;
-    *) die "unknown check: ${CHECK} (expected: all|interp|dynamic|undef|strings)" ;;
+    all|langs|interp|dynamic|undef|strings) ;;
+    *) die "unknown check: ${CHECK} (expected: all|langs|interp|dynamic|undef|strings)" ;;
   esac
 
   local failures=0
