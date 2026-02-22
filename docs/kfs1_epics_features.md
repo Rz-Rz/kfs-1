@@ -6,6 +6,9 @@ This document is a requirements-to-backlog translation split into:
 - **Base (Mandatory)**: what you must deliver
 - **Bonus (Deferred)**: explicitly *not* doing now, but captured for later
 
+Repo decision (language):
+- Chosen language for the kernel code in this repo: **Rust** (freestanding / `#![no_std]`).
+
 Each epic has:
 - Multiple features
 - Acceptance criteria and validation hints

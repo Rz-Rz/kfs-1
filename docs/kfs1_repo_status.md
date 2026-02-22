@@ -14,7 +14,7 @@ As-of snapshot:
 - ISO artifact present: `build/os-i386.iso` (bootable ISO9660, <= 10 MB)
 - Disk-image artifact present: `build/os-i386.img` (bootable ISO9660, <= 10 MB; boots via QEMU `-drive`)
 - Sources present only in ASM under `src/arch/i386/`
-- No C/Rust/Go/etc kernel code present (no `kmain`)
+- Chosen language: **Rust** (not implemented yet: no Rust sources/build; no `kmain`)
 
 ---
 
