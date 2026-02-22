@@ -12,6 +12,7 @@ Scope:
 As-of snapshot:
 - Kernel artifact present: `build/kernel-i386.bin` (ELF32, Intel 80386)
 - ISO artifact present: `build/os-i386.iso` (bootable ISO9660, <= 10 MB)
+- Disk-image artifact present: `build/os-i386.img` (bootable ISO9660, <= 10 MB; boots via QEMU `-drive`)
 - Sources present only in ASM under `src/arch/i386/`
 - No C/Rust/Go/etc kernel code present (no `kmain`)
 
@@ -27,7 +28,9 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `readelf -lW build/kernel-i386.bin` -> no `INTERP` / `DYNAMIC`
 - Base Epic M1 DoD: ✅ YES (ISO + disk-image artifacts + automated boot checks)
   - Proof: `file build/os-i386.iso` -> ISO 9660 (bootable)
+  - Proof: `file build/os-i386.img` -> ISO 9660 (bootable)
   - Proof: `test $(wc -c < build/os-i386.iso) -le 10485760` (<= 10 MB)
+  - Proof: `test $(wc -c < build/os-i386.img) -le 10485760` (<= 10 MB)
   - Proof: `make test arch=i386` (builds + checks ISO/IMG size/type and boots both test ISO and test IMG headlessly)
 - Base Epic M2 DoD: ❌ NO
   - Proof: `src/arch/i386/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
@@ -39,8 +42,8 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" -S src` -> no matches (no kernel library helpers)
 - Base Epic M6 DoD: ❌ NO
   - Proof: `src/arch/i386/boot.asm` prints `OK`; `rg -n "\\b42\\b|\\\"42\\\"" -S src` -> no matches
-- Base Epic M7 DoD: ❌ NO
-  - Proof: Makefile compiles ASM/links/ISO/runs, but no chosen-language build rules exist yet
+- Base Epic M7 DoD: ⚠️ PARTIAL (Makefile builds ASM+ISO+IMG and runs QEMU; missing chosen-language build rules)
+  - Proof: Makefile compiles ASM/links/ISO/IMG/runs, but no chosen-language build rules exist yet
 - Base Epic M8 DoD: ⚠️ PARTIAL
   - Proof: ISO exists and is small, and a `README.md` quickstart exists
 
