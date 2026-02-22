@@ -6,6 +6,7 @@ CONTAINERFILE="${KFS_CONTAINERFILE:-Dockerfile}"
 USE_KVM="${KFS_USE_KVM:-0}"
 ENGINE="${KFS_CONTAINER_ENGINE:-}"
 FORCE_BUILD="${KFS_FORCE_IMAGE_BUILD:-0}"
+TTY_MODE="${KFS_CONTAINER_TTY:-auto}"
 
 die() {
   echo "error: $*" >&2
@@ -137,6 +138,18 @@ cmd_run() {
   engine="$(detect_engine)"
   local root
   root="$(repo_root)"
+  local tty_args=()
+
+  case "${TTY_MODE}" in
+    1|true|yes) tty_args=(-t) ;;
+    0|false|no) tty_args=() ;;
+    auto|"")
+      if [[ -t 1 ]]; then
+        tty_args=(-t)
+      fi
+      ;;
+    *) die "KFS_CONTAINER_TTY must be auto, 1, or 0" ;;
+  esac
 
   if [[ "${1:-}" != "--" ]]; then
     die "run requires -- separator (example: scripts/container.sh run -- make container-env-check)"
@@ -146,7 +159,8 @@ cmd_run() {
     die "run requires a command after --"
   fi
 
-  "${engine}" run --rm -t \
+  "${engine}" run --rm \
+    "${tty_args[@]}" \
     -v "$(mount_arg "${root}" "${engine}")" \
     -w /work \
     $(user_args "${engine}") \

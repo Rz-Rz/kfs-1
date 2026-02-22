@@ -12,6 +12,13 @@ assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 assembly_object_files_test := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/test/%.o, $(assembly_source_files))
 
+KFS_TEST_FORCE_FAIL ?= 0
+
+TEST_ASM_DEFS := -DKFS_TEST=1
+ifeq ($(KFS_TEST_FORCE_FAIL),1)
+TEST_ASM_DEFS += -DKFS_TEST_FORCE_FAIL=1
+endif
+
 TEST_TIMEOUT_SECS ?= 10
 TEST_PASS_RC ?= 33
 TEST_FAIL_RC ?= 35
@@ -62,7 +69,7 @@ $(kernel_test): $(assembly_object_files_test) $(linker_script)
 
 build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
-	@nasm -felf32 -DKFS_TEST=1 $< -o $@
+	@nasm -felf32 $(TEST_ASM_DEFS) $< -o $@
 
 container-image:
 	@bash scripts/container.sh build-image
@@ -92,10 +99,20 @@ container-smoke: container-env-check container-qemu-smoke
 	@true
 
 test-qemu: container-image
-	@bash scripts/container.sh run -- bash -lc 'set -euo pipefail; make -B iso-test arch=$(arch) >/dev/null; set +e; timeout --foreground $(TEST_TIMEOUT_SECS) qemu-system-i386 -cdrom $(iso_test) -device isa-debug-exit,iobase=0xf4,iosize=0x04 -nographic -no-reboot -no-shutdown </dev/null >/dev/null 2>&1; rc=$$?; set -e; if [ "$$rc" -eq 124 ]; then echo "test-qemu: FAIL timeout"; exit 1; fi; if [ "$$rc" -eq $(TEST_PASS_RC) ]; then echo "test-qemu: PASS"; exit 0; fi; if [ "$$rc" -eq $(TEST_FAIL_RC) ]; then echo "test-qemu: FAIL"; exit 1; fi; echo "test-qemu: FAIL rc=$$rc"; exit 1;'
+	@bash scripts/container.sh run -- env \
+		TEST_TIMEOUT_SECS=$(TEST_TIMEOUT_SECS) \
+		TEST_PASS_RC=$(TEST_PASS_RC) \
+		TEST_FAIL_RC=$(TEST_FAIL_RC) \
+		KFS_TEST_FORCE_FAIL=$(KFS_TEST_FORCE_FAIL) \
+		bash scripts/test-qemu.sh $(arch)
 
-test: test-qemu
-	@true
+test: container-image
+	@bash scripts/container.sh run -- env \
+		TEST_TIMEOUT_SECS=$(TEST_TIMEOUT_SECS) \
+		TEST_PASS_RC=$(TEST_PASS_RC) \
+		TEST_FAIL_RC=$(TEST_FAIL_RC) \
+		KFS_TEST_FORCE_FAIL=$(KFS_TEST_FORCE_FAIL) \
+		bash scripts/test.sh $(arch)
 
 dev: container-shell
 	@true
