@@ -19,6 +19,9 @@ The QEMU test is a deterministic exit gate.
 It proves the build works and the kernel boots far enough to signal PASS or FAIL.
 It does not prove the subject features like printing 42 yet.
 
+`make test` also includes an ELF artifact inspection gate for M0.2 (“freestanding / no host libs”).
+See `docs/m0_2_freestanding_proofs.md`.
+
 ## When to use each command
 
 - `make test`

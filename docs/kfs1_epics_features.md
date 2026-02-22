@@ -250,6 +250,9 @@ Implementation tasks (adapt to chosen language):
 - Compile freestanding and disable default libs/startup objects.
 - Avoid exceptions/RTTI/new/delete until you have a kernel allocator/runtime.
 
+Technical rationale:
+- See `docs/m0_2_freestanding_proofs.md` for why the ELF inspection checks are meaningful proofs of “no host libs”.
+
 Acceptance criteria:
 - Kernel artifact is not dynamically linked (no `.interp`, no `.dynamic`).
 - No unresolved external symbols from libc at link time.
