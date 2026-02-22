@@ -50,21 +50,21 @@ banner() {
   hr
 }
 
-ok() {
-  color "32"
-  printf '%s' "$*"
-  reset_color
-}
-
-bad() {
-  color "31"
-  printf '%s' "$*"
-  reset_color
-}
-
 info() {
   color "2"
   printf '%s' "$*"
+  reset_color
+}
+
+pass() {
+  color "32"
+  printf '%s' "PASS"
+  reset_color
+}
+
+fail() {
+  color "31"
+  printf '%s' "FAIL"
   reset_color
 }
 
@@ -72,14 +72,15 @@ indent() {
   sed 's/^/  /'
 }
 
-run_step() {
+run_check() {
   local idx="$1"
   local total="$2"
   local name="$3"
-  shift 3
+  local does="$4"
+  shift 4
 
   color "1;34"
-  printf '[%s/%s] %-18s ' "${idx}" "${total}" "${name}"
+  printf '[%s/%s] %s ' "${idx}" "${total}" "${name}"
   reset_color
 
   local log
@@ -90,8 +91,9 @@ run_step() {
   set -e
 
   if [[ "${rc}" -eq 0 ]]; then
-    ok "OK"
+    pass
     printf '\n'
+    printf '  %s\n' "does: ${does}"
     if [[ "${VERBOSE}" == "1" ]]; then
       cat "${log}" | indent
     fi
@@ -99,8 +101,46 @@ run_step() {
     return 0
   fi
 
-  bad "FAIL"
+  fail
   printf '\n'
+  printf '  %s\n' "does: ${does}"
+  cat "${log}" | indent
+  rm -f "${log}"
+  return "${rc}"
+}
+
+run_check_inline() {
+  local idx="$1"
+  local total="$2"
+  local name="$3"
+  local does="$4"
+  shift 4
+
+  color "1;34"
+  printf '[%s/%s] %s ' "${idx}" "${total}" "${name}"
+  reset_color
+
+  local log rc
+  log="$(mktemp -t kfs-test.XXXXXX)"
+  set +e
+  "$@" >"${log}" 2>&1
+  rc="$?"
+  set -e
+
+  if [[ "${rc}" -eq 0 ]]; then
+    pass
+    printf '\n'
+    printf '  %s\n' "does: ${does}"
+    if [[ "${VERBOSE}" == "1" ]]; then
+      cat "${log}" | indent
+    fi
+    rm -f "${log}"
+    return 0
+  fi
+
+  fail
+  printf '\n'
+  printf '  %s\n' "does: ${does}"
   cat "${log}" | indent
   rm -f "${log}"
   return "${rc}"
@@ -108,53 +148,33 @@ run_step() {
 
 [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
 
-if is_tty; then
-  export KFS_CONTAINER_TTY=1
-else
-  export KFS_CONTAINER_TTY=0
-fi
+export KFS_CONTAINER_TTY=0
+is_tty && export KFS_CONTAINER_TTY=1
 
-banner "KFS TEST"
+banner "KFS TESTS"
 info "arch: ${ARCH}"
 printf '\n'
 
-run_step 1 3 "image build" \
+color "1;34"; printf '%s\n' "SETUP"; reset_color
+run_check 1 2 "setup.image_build" \
+  "rebuild the container toolchain image" \
   env KFS_FORCE_IMAGE_BUILD=1 bash scripts/container.sh build-image
 
-run_step 2 3 "toolchain" \
+run_check 2 2 "setup.tools" \
+  "verify required tools exist in the container" \
   bash scripts/container.sh env-check
 
-color "1;34"
-printf '[%s/%s] %-18s ' "3" "3" "qemu gate"
-reset_color
-
-info "checks: qemu exits on port 0xf4"
 printf '\n'
+color "1;34"; printf '%s\n' "TESTS"; reset_color
+run_check_inline 1 1 "test.boot_pass_fail" \
+  "boot the ISO headless and exit PASS or FAIL" \
+  bash scripts/container.sh run -- env \
+      TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
+      TEST_PASS_RC="${TEST_PASS_RC}" \
+      TEST_FAIL_RC="${TEST_FAIL_RC}" \
+      KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
+      bash scripts/test-qemu.sh "${ARCH}"
 
-log="$(mktemp -t kfs-test.XXXXXX)"
-set +e
-bash scripts/container.sh run -- env \
-  TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
-  TEST_PASS_RC="${TEST_PASS_RC}" \
-  TEST_FAIL_RC="${TEST_FAIL_RC}" \
-  KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
-  bash scripts/test-qemu.sh "${ARCH}" >"${log}" 2>&1
-rc="$?"
-set -e
-
-if [[ "${rc}" -eq 0 ]]; then
-  ok "result: PASS"
-  printf '\n'
-  if [[ "${VERBOSE}" == "1" ]]; then
-    cat "${log}" | indent
-  fi
-  rm -f "${log}"
-  exit 0
-fi
-
-bad "result: FAIL"
 printf '\n'
-cat "${log}" | indent
-rm -f "${log}"
-exit 1
-
+pass
+printf ' %s\n' "SUMMARY PASS"

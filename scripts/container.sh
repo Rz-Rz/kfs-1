@@ -39,12 +39,12 @@ mount_arg() {
   local root="$1"
   local engine="$2"
   if [[ "${engine}" == "podman" ]]; then
-    echo "${root}:/work:Z"
+    echo "${root}:/work:z"
     return 0
   fi
 
   if [[ "${engine}" == "docker" && -r /sys/fs/selinux/enforce && "$(cat /sys/fs/selinux/enforce)" == "1" ]]; then
-    echo "${root}:/work:Z"
+    echo "${root}:/work:z"
     return 0
   fi
 
