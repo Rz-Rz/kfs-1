@@ -1,4 +1,4 @@
-arch ?= $(shell bash scripts/detect-arch.sh 2>/dev/null || echo x86_64)
+arch ?= i386
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
 
@@ -37,7 +37,7 @@ $(kernel): $(assembly_object_files) $(linker_script)
 # compile assembly files
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
-	@nasm -felf64 $< -o $@
+	@nasm -felf32 $< -o $@
 
 container-image:
 	@bash scripts/container.sh build-image
