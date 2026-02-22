@@ -227,9 +227,12 @@ Current state vs KFS_1 requirements:
 ### Feature M0.1: Make i386 the explicit default target
 Implementation tasks:
 - Use an explicit arch name that matches the subject (recommended: `i386`).
-- Ensure assembler output is 32-bit (`nasm -f elf32`).
+- Ensure assembler output is 32-bit (`nasm -felf32`).
 - Ensure linker mode is 32-bit (`ld -m elf_i386`).
 - Ensure QEMU run target matches (`qemu-system-i386`).
+
+Repo implementation note (where this is wired):
+- `Makefile` assembles with `nasm -felf32`, links with `ld -m elf_i386`, and runs with `qemu-system-i386`.
 
 Acceptance criteria:
 - `file build/kernel-*.bin` indicates a 32-bit kernel artifact.
