@@ -32,7 +32,7 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `file build/os-i386.img` -> ISO 9660 (bootable)
   - Proof: `test $(wc -c < build/os-i386.iso) -le 10485760` (<= 10 MB)
   - Proof: `test $(wc -c < build/os-i386.img) -le 10485760` (<= 10 MB)
-  - Proof: `make test arch=i386` (builds + checks ISO/IMG size/type and boots both test ISO and test IMG headlessly)
+  - Proof: `make test arch=i386` (checks the tracked release ISO/IMG size/type and boots both test ISO and test IMG headlessly)
 - Base Epic M2 DoD: ❌ NO
   - Proof: `src/arch/i386/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
 - Base Epic M3 DoD: ❌ NO

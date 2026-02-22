@@ -10,7 +10,8 @@ One command:
 What it does:
 - Rebuilds the dev image
 - Checks required tools inside the container
-- Builds the test ISO
+- Checks the tracked release ISO/disk-image artifacts (type + size)
+- Builds the test ISO/disk-image artifacts
 - Runs a headless QEMU test that exits with PASS or FAIL
 
 ## What the test proves
