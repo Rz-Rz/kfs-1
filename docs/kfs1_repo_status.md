@@ -39,7 +39,7 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M4 DoD: ⚠️ PARTIAL
   - Proof: `make test arch=i386` (includes release-kernel M4.1 checks for `kmain`; stronger M4.2 early-init/runtime-assumption checks are not implemented yet)
 - Base Epic M5 DoD: ❌ NO
-  - Proof: `rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" -S src` -> no matches (no kernel library helpers)
+  - Proof: `bash scripts/tests/string-helpers.sh i386 host-strlen-unit-tests-pass && bash scripts/tests/string-helpers.sh i386 host-strcmp-unit-tests-pass` passes (`strlen`/`strcmp` done), but `memcpy`/`memset` are still missing
 - Base Epic M6 DoD: ❌ NO
   - Proof: `src/kernel/kmain.rs` prints `42`, but there is still no reusable screen interface/module as required by M6.1/M6.2
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
@@ -77,7 +77,7 @@ Legend:
 - Base Epic M2 (Multiboot header + ASM bootstrap): ✅
 - Base Epic M3 (custom linker script + layout): ✅
 - Base Epic M4 (kernel in chosen language): ⚠️
-- Base Epic M5 (kernel library types + helpers): ❌
+- Base Epic M5 (kernel library helpers): ⚠️
 - Base Epic M6 (screen I/O interface + prints 42): ❌
 - Base Epic M7 (Makefile compiles ASM + language, links, image, run): ✅
 - Base Epic M8 (turn-in packaging): ⚠️
@@ -284,9 +284,19 @@ Epic DoD (M4) complete? ✅
 
 ---
 
-## Base Epic M5: Basic Kernel Library (Types + Helpers)
+## Base Epic M5: Basic Kernel Library (Helpers)
 
-Status: ❌ Not started
+Status: ⚠️ Started (M5.2 done; M5.3 pending; native Rust types policy kept)
+Evidence:
+- Rust string helpers are implemented in `src/kernel/string/string_impl.rs` (module included by `src/kernel/string.rs`) (`strlen`, `strcmp`)
+- Host unit tests exist in `tests/host_string.rs` and are enforced by `scripts/tests/string-helpers.sh`
+Proof:
+- `bash scripts/tests/string-helpers.sh i386 host-strlen-unit-tests-pass`
+- `bash scripts/tests/string-helpers.sh i386 host-strcmp-unit-tests-pass`
+- `bash scripts/tests/string-helpers.sh i386 release-kernel-links-string-helper-marker`
+- `rg -n "\\bfn\\s+(strlen|strcmp)\\b" -S src/kernel`
+What’s left:
+- M5.3: implement `memcpy`/`memset` and add host tests for them
 
 ---
 

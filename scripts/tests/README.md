@@ -146,6 +146,7 @@ If your branch was created before the recent cleanup, these are the main file re
 | `scripts/rejection-tests/check-m3.2-rejections.sh` | `scripts/rejection-tests/section-rejections.sh` |
 | `scripts/boot-tests/check-m0.2-freestanding.sh` | `scripts/boot-tests/freestanding-kernel.sh` |
 | `scripts/boot-tests/check-m3.3-layout-symbols.sh` | `scripts/boot-tests/layout-symbols.sh` |
+| `scripts/check-m5.2-string.sh` | `scripts/tests/string-helpers.sh` |
 | `scripts/boot-tests/test.sh` | `scripts/boot-tests/build-boot-artifacts.sh` |
 | `scripts/boot-tests/test-qemu.sh` | `scripts/boot-tests/qemu-boot.sh` |
 
@@ -197,6 +198,20 @@ These old broad cases were split into clearer one-behavior cases.
 | `build-test-img-artifact` | `build-img-artifact` |
 | `grub-boots-test-iso` | `grub-boots-iso` |
 | `grub-boots-test-img` | `grub-boots-img` |
+
+#### `scripts/check-m5.2-string.sh`
+
+That older script bundled several checks into one non-discoverable entrypoint. After rebasing
+onto the current framework, move those checks into `scripts/tests/string-helpers.sh` and split
+them into:
+
+- `host-strlen-unit-tests-pass`
+- `host-strcmp-unit-tests-pass`
+- `rust-defines-strlen`
+- `rust-defines-strcmp`
+- `rust-avoids-extern-strlen`
+- `rust-avoids-extern-strcmp`
+- `release-kernel-links-string-helper-marker`
 
 ## Rebase Tips For Older Branches
 

@@ -256,7 +256,7 @@ Mandatory requirements in the PDF and where they are covered:
 - "Write basic kernel code of the chosen language" -> Base Epic M4
 - "Compile with correct flags; no host libs; link it to make it bootable" -> Base Epic M0 + Base Epic M3 + Base Epic M7
 - "Create a linker file with GNU ld (no host .ld)" -> Base Epic M3
-- "Write helpers like kernel types or basic functions (strlen, strcmp, ...)" -> Base Epic M5
+- "Write helpers like kernel types or basic functions (strlen, strcmp, ...)" -> Base Epic M5 (repo decision: use Rust native types directly)
 - "Code the interface between your kernel and the screen" -> Base Epic M6
 - 'Display "42" on the screen' -> Base Epic M6
 - "Makefile must compile all source files with correct flags (ASM + other language)" -> Base Epic M7
@@ -871,21 +871,22 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 ---
 
-## Base Epic M5: Basic Kernel Library (Types + Helpers)
+## Base Epic M5: Basic Kernel Library (Helpers)
 
-### Feature M5.1: Kernel-owned type definitions
+### Feature M5.1: Use Rust native core types (no custom type layer required)
 Implementation tasks:
-- Define fixed-width integer types and `size` types in kernel headers/modules.
+- Use Rust primitive/core types directly in kernel code (`usize`, `u8`, `u16`, `u32`, `i32`).
+- Avoid host runtime/headers (`std`, libc), keep kernel code freestanding.
 
 Acceptance criteria:
-- Kernel code compiles without pulling in host-dependent headers.
+- Kernel code stays freestanding while using native Rust types directly.
 
 Implementation scope:
 - `RUST` (kernel library)
 
 Proof / tests (definition of done):
 - WP-M5.1-1 (no std in kernel code): `rg -n "\\bstd::|extern\\s+crate\\s+std\\b" -S src | rg -v "tests?/|host"`
-- WP-M5.1-2 (types exist): `rg -n "\\b(u8|u16|u32|i32|usize)\\b" -S src | rg -n "type|pub type|struct"`
+- WP-M5.1-2 (native core types are used): `rg -n "\\b(usize|u8|u16|u32|i32)\\b" -S src/kernel src/rust`
 - WP-M5.1-3 (build proof): `make arch=i386` succeeds with freestanding settings (no host headers/stdlib linked into the kernel)
 
 ### Feature M5.2: Minimal string helpers (`strlen`, `strcmp`)
@@ -899,8 +900,10 @@ Implementation scope:
 - `RUST` (pure helper functions; unit-testable on host)
 
 Proof / tests (definition of done):
-- UT-M5.2-1 (host unit tests): create `tests/host_string.rs` (or equivalent) and run `rustc --test -o build/ut_string tests/host_string.rs && ./build/ut_string`
-- WP-M5.2-2 (no libc fallback): `rg -n "\\b(strlen|strcmp)\\b" -S src | rg -v "extern\\s+\"C\""`
+- UT-M5.2-1 (host strlen unit tests): `bash scripts/tests/string-helpers.sh i386 host-strlen-unit-tests-pass`
+- UT-M5.2-2 (host strcmp unit tests): `bash scripts/tests/string-helpers.sh i386 host-strcmp-unit-tests-pass`
+- WP-M5.2-3 (release kernel links the helper object): `bash scripts/tests/string-helpers.sh i386 release-kernel-links-string-helper-marker`
+- WP-M5.2-4 (no libc fallback): `bash scripts/tests/string-helpers.sh i386 rust-avoids-extern-strlen && bash scripts/tests/string-helpers.sh i386 rust-avoids-extern-strcmp`
 
 ### Feature M5.3: Minimal memory helpers (`memcpy`, `memset`)
 Implementation tasks:
@@ -917,8 +920,8 @@ Proof / tests (definition of done):
 - WP-M5.3-2 (used from screen code once implemented): `rg -n "\\b(memcpy|memset)\\b" -S src | rg -v "tests?/|host"`
 
 ### Definition of Done (M5)
-- `types + strlen/strcmp (+ memcpy/memset)` exist in a "kernel library" location and
-  are used by kernel code.
+- `strlen/strcmp (+ memcpy/memset)` exist in a "kernel library" location and are used by kernel code.
+- Kernel code is allowed to use Rust native core types directly (no mandatory custom type module).
 - No host libc functions are used for these basics.
 
 ---

@@ -6,11 +6,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     binutils \
     ca-certificates \
+    gcc \
     coreutils \
     curl \
     file \
     findutils \
     make \
+    libc6-dev \
     mtools \
     nasm \
     qemu-system-x86 \
