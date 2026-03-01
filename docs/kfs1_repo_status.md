@@ -39,7 +39,7 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M4 DoD: ✅ YES (Rust `kmain` exists and is reachable from ASM)
   - Proof: `make test arch=i386` (includes an M4.1 check for `kmain`)
 - Base Epic M5 DoD: ❌ NO
-  - Proof: `rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" -S src` -> no matches (no kernel library helpers)
+  - Proof: `bash scripts/check-m5.2-string.sh i386` passes (`strlen`/`strcmp` done), but `memcpy`/`memset` are still missing
 - Base Epic M6 DoD: ❌ NO
   - Proof: `src/arch/i386/boot.asm` prints `OK`; `rg -n "\\b42\\b|\\\"42\\\"" -S src` -> no matches
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
@@ -77,7 +77,7 @@ Legend:
 - Base Epic M2 (Multiboot header + ASM bootstrap): ✅
 - Base Epic M3 (custom linker script + layout): ✅
 - Base Epic M4 (kernel in chosen language): ✅
-- Base Epic M5 (kernel library types + helpers): ❌
+- Base Epic M5 (kernel library helpers): ⚠️
 - Base Epic M6 (screen I/O interface + prints 42): ❌
 - Base Epic M7 (Makefile compiles ASM + language, links, image, run): ✅
 - Base Epic M8 (turn-in packaging): ⚠️
@@ -238,9 +238,17 @@ Proof:
 
 ---
 
-## Base Epic M5: Basic Kernel Library (Types + Helpers)
+## Base Epic M5: Basic Kernel Library (Helpers)
 
-Status: ❌ Not started
+Status: ⚠️ Started (M5.2 done; M5.3 pending; native Rust types policy kept)
+Evidence:
+- Rust string helpers are implemented in `src/kernel/string/string_impl.rs` (module included by `src/kernel/string.rs`) (`strlen`, `strcmp`)
+- Host unit tests exist in `tests/host_string.rs` and are enforced by `scripts/check-m5.2-string.sh`
+Proof:
+- `bash scripts/check-m5.2-string.sh i386`
+- `rg -n "\\bfn\\s+(strlen|strcmp)\\b" -S src/kernel`
+What’s left:
+- M5.3: implement `memcpy`/`memset` and add host tests for them
 
 ---
 
