@@ -15,8 +15,8 @@ assembly_object_files_test := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/test/%.o, $(assembly_source_files))
 
 rust_target := i686-unknown-linux-gnu
-rust_source_files := $(wildcard src/rust/*.rs)
-rust_object_files := $(patsubst src/rust/%.rs, \
+rust_source_files := $(wildcard src/rust/*.rs) $(wildcard src/kernel/*.rs)
+rust_object_files := $(patsubst src/%.rs, \
 	build/arch/$(arch)/rust/%.o, $(rust_source_files))
 
 KFS_TEST_FORCE_FAIL ?= 0
@@ -92,7 +92,7 @@ build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
 	@nasm -felf32 $(TEST_ASM_DEFS) $< -o $@
 
-build/arch/$(arch)/rust/%.o: src/rust/%.rs
+build/arch/$(arch)/rust/%.o: src/%.rs
 	@mkdir -p $(shell dirname $@)
 	@rustc \
 		--crate-type lib \
