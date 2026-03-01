@@ -7,11 +7,10 @@ use core::panic::PanicInfo;
 mod kernel_types;
 #[path = "kmain/logic_impl.rs"]
 mod kmain_logic;
+#[path = "vga.rs"]
+mod vga;
 use kernel_types::{KernelRange, Port};
-use kmain_logic::{layout_order_is_sane, vga_text_cell};
-
-const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
-const VGA_COLOR_LIGHT_GREEN_ON_BLACK: u16 = 0x02;
+use kmain_logic::layout_order_is_sane;
 const COM1_DATA: Port = Port::new(0x3f8);
 const COM1_INTERRUPT_ENABLE: Port = COM1_DATA.offset(1);
 const COM1_FIFO_CONTROL: Port = COM1_DATA.offset(2);
@@ -241,16 +240,8 @@ fn memory_override_requested() -> bool {
 }
 
 fn write_42_to_vga() {
-    unsafe {
-        core::ptr::write_volatile(
-            VGA_TEXT_BUFFER,
-            vga_text_cell(VGA_COLOR_LIGHT_GREEN_ON_BLACK, b'4'),
-        );
-        core::ptr::write_volatile(
-            VGA_TEXT_BUFFER.add(1),
-            vga_text_cell(VGA_COLOR_LIGHT_GREEN_ON_BLACK, b'2'),
-        );
-    }
+    vga::vga_init();
+    vga::vga_puts(b"42\0".as_ptr());
 }
 
 fn runtime_fail(marker: &str) -> ! {

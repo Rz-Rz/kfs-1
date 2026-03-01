@@ -41,7 +41,7 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M5 DoD: ✅ YES
   - Proof: `make test arch=i386` now proves `M5.1`, `M5.2`, and `M5.3` end to end (`Port`, `KernelRange`, string-helper ABI, memory-helper ABI, runtime integration, and rejection gates)
 - Base Epic M6 DoD: ❌ NO
-  - Proof: `src/kernel/kmain.rs` prints `42`, but there is still no reusable screen interface/module as required by M6.1/M6.2
+  - Proof: M6.1 + M6.3 are done (`vga_*` exists and `kmain` prints `42` through it), but M6.2 newline/cursor handling is still missing
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
   - Proof: `make -n all arch=i386 | rg -n "\\brustc\\b"`
   - Proof: `make all arch=i386 && nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
@@ -391,13 +391,29 @@ What’s left:
 
 ## Base Epic M6: Screen I/O Interface + Mandatory Output
 
+### Feature M6.1: VGA text mode writer (VGA memory at `0xB8000`)
+Status: ✅ Done
+Evidence:
+- Reusable VGA writer API exists in `src/kernel/vga.rs` (`vga_init`, `vga_putc`, `vga_puts`)
+- `kmain` uses the VGA module instead of writing directly to `0xB8000`
+Proof:
+- `rg -n "\\bvga_(init|putc|puts)\\b" -S src/kernel`
+- `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\b(vga_init|vga_putc|vga_puts)\\b"`
+- `bash scripts/boot-tests/vga-writer.sh i386 release-kernel-links-vga-writer`
+
+### Feature M6.2: Newline handling (basic cursor movement)
+Status: ❌ Not started
+Evidence:
+- No cursor state or newline handling implementation yet
+Proof:
+- `rg -n "\\b(cursor|row|col|newline)\\b" -S src || echo "no cursor handling yet"`
+
 ### Feature M6.3: Mandatory output: display `42`
 Status: ✅ Done
 Evidence:
-- `kmain` writes `4` then `2` directly to the VGA text buffer
+- `kmain` calls the VGA writer to print `42`
 Proof:
-- `rg -n "0xb8000|write_volatile" -S src/kernel/kmain.rs`
-- `rg -n "b'4'|b'2'" -S src/kernel/kmain.rs`
+- `rg -n "\\bvga_(init|puts)\\b|42" -S src/kernel/kmain.rs`
 
 ---
 
