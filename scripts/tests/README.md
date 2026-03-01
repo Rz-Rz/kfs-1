@@ -51,9 +51,9 @@ That means the real unit of discovery is the listed case, not the script file.
 
 Prefer names like:
 
-- `m3.2-kernel-sections.sh`
-- `m3.2-section-stability.sh`
-- `m0.2-freestanding-kernel.sh`
+- `kernel-sections.sh`
+- `section-stability.sh`
+- `freestanding-kernel.sh`
 - `qemu-boot.sh`
 
 Avoid names like:
@@ -141,11 +141,11 @@ If your branch was created before the recent cleanup, these are the main file re
 
 | Old path | New path |
 | --- | --- |
-| `scripts/tests/check-m3.2-sections.sh` | `scripts/tests/m3.2-kernel-sections.sh` |
-| `scripts/stability-tests/check-m3.2-stability.sh` | `scripts/stability-tests/m3.2-section-stability.sh` |
-| `scripts/rejection-tests/check-m3.2-rejections.sh` | `scripts/rejection-tests/m3.2-section-rejections.sh` |
-| `scripts/boot-tests/check-m0.2-freestanding.sh` | `scripts/boot-tests/m0.2-freestanding-kernel.sh` |
-| `scripts/boot-tests/check-m3.3-layout-symbols.sh` | `scripts/boot-tests/m3.3-layout-symbols.sh` |
+| `scripts/tests/check-m3.2-sections.sh` | `scripts/tests/kernel-sections.sh` |
+| `scripts/stability-tests/check-m3.2-stability.sh` | `scripts/stability-tests/section-stability.sh` |
+| `scripts/rejection-tests/check-m3.2-rejections.sh` | `scripts/rejection-tests/section-rejections.sh` |
+| `scripts/boot-tests/check-m0.2-freestanding.sh` | `scripts/boot-tests/freestanding-kernel.sh` |
+| `scripts/boot-tests/check-m3.3-layout-symbols.sh` | `scripts/boot-tests/layout-symbols.sh` |
 | `scripts/boot-tests/test.sh` | `scripts/boot-tests/build-boot-artifacts.sh` |
 | `scripts/boot-tests/test-qemu.sh` | `scripts/boot-tests/qemu-boot.sh` |
 
@@ -211,12 +211,12 @@ If your branch still uses the old framework:
 For quick validation after a rebase:
 
 ```bash
-bash scripts/tests/m3.2-kernel-sections.sh --list
-bash scripts/stability-tests/m3.2-section-stability.sh --list
-bash scripts/rejection-tests/m3.2-section-rejections.sh --list
-bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh --list
-bash scripts/boot-tests/m0.2-freestanding-kernel.sh --list
-bash scripts/boot-tests/m3.3-layout-symbols.sh --list
+bash scripts/tests/kernel-sections.sh --list
+bash scripts/stability-tests/section-stability.sh --list
+bash scripts/rejection-tests/section-rejections.sh --list
+bash scripts/rejection-tests/layout-symbol-rejections.sh --list
+bash scripts/boot-tests/freestanding-kernel.sh --list
+bash scripts/boot-tests/layout-symbols.sh --list
 bash scripts/boot-tests/build-boot-artifacts.sh --list
 bash scripts/boot-tests/qemu-boot.sh --list
 ```
@@ -225,7 +225,7 @@ And for syntax:
 
 ```bash
 bash -n scripts/test-host.sh
-bash -n scripts/tests/m3.2-kernel-sections.sh
-bash -n scripts/rejection-tests/m3.3-layout-symbol-rejections.sh
-bash -n scripts/boot-tests/m3.3-layout-symbols.sh
+bash -n scripts/tests/kernel-sections.sh
+bash -n scripts/rejection-tests/layout-symbol-rejections.sh
+bash -n scripts/boot-tests/layout-symbols.sh
 ```

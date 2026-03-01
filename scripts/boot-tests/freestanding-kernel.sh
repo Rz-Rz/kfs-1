@@ -185,7 +185,7 @@ run_direct() {
 
 run_host_case() {
   bash scripts/container.sh run -- \
-    bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/m0.2-freestanding-kernel.sh '${ARCH}' '${CASE}'"
+    bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/freestanding-kernel.sh '${ARCH}' '${CASE}'"
 }
 
 main() {

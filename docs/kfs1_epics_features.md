@@ -340,7 +340,7 @@ Technical rationale:
 - See `docs/m0_2_freestanding_proofs.md` for why the ELF inspection checks are meaningful proofs of “no host libs”.
 
 Repo enforcement note:
-- The hard gate is `make test arch=i386`, which runs `scripts/boot-tests/m0.2-freestanding-kernel.sh` on the freshly built
+- The hard gate is `make test arch=i386`, which runs `scripts/boot-tests/freestanding-kernel.sh` on the freshly built
   test kernel (`build/kernel-i386-test.bin`).
 - The script requires the symbol `kfs_rust_marker` so the checks are enforced on an **ASM + Rust** linked kernel
   artifact (not ASM-only).
@@ -594,34 +594,34 @@ Proof / tests (definition of done):
 - WP-M3.2-7 (build gate runs immediately after link): `make -n all arch=i386 | rg -n "m3\\.2-kernel-sections\\.sh"`
 
 Stability / adversarial proofs (recommended in visible CI output):
-- AT-M3.2-1 (wildcard capture exists for future subsection names): `bash scripts/stability-tests/m3.2-section-stability.sh i386 rodata-wildcard-capture`, `bash scripts/stability-tests/m3.2-section-stability.sh i386 data-wildcard-capture`, `bash scripts/stability-tests/m3.2-section-stability.sh i386 bss-wildcard-capture`, `bash scripts/stability-tests/m3.2-section-stability.sh i386 common-wildcard-capture`
+- AT-M3.2-1 (wildcard capture exists for future subsection names): `bash scripts/stability-tests/section-stability.sh i386 rodata-wildcard-capture`, `bash scripts/stability-tests/section-stability.sh i386 data-wildcard-capture`, `bash scripts/stability-tests/section-stability.sh i386 bss-wildcard-capture`, `bash scripts/stability-tests/section-stability.sh i386 common-wildcard-capture`
   Why it matters: future compiler output often uses names like `.rodata.foo`, `.data.bar`,
   or `.bss.baz`, not just the bare base names. This proves the linker script keeps wildcard
   rules and `COMMON` support so later growth does not silently create orphan sections.
-- AT-M3.2-2 (read-only subsection canary still folds into output `.rodata`): `bash scripts/stability-tests/m3.2-section-stability.sh i386 rodata-subsection-marker`
+- AT-M3.2-2 (read-only subsection canary still folds into output `.rodata`): `bash scripts/stability-tests/section-stability.sh i386 rodata-subsection-marker`
   Why it matters: proves `*(.rodata .rodata.*)` is doing real work, not just the base
   `.rodata` case.
-- AT-M3.2-3 (initialized writable subsection canary still folds into output `.data`): `bash scripts/stability-tests/m3.2-section-stability.sh i386 data-subsection-marker`
+- AT-M3.2-3 (initialized writable subsection canary still folds into output `.data`): `bash scripts/stability-tests/section-stability.sh i386 data-subsection-marker`
   Why it matters: proves `.data.*` inputs remain in initialized writable storage rather than
   becoming orphans.
-- AT-M3.2-4 (zero-init subsection canary still folds into output `.bss`): `bash scripts/stability-tests/m3.2-section-stability.sh i386 bss-subsection-marker`
+- AT-M3.2-4 (zero-init subsection canary still folds into output `.bss`): `bash scripts/stability-tests/section-stability.sh i386 bss-subsection-marker`
   Why it matters: proves future `.bss.*` globals still end up in real BSS storage.
-- AT-M3.2-5 (`COMMON` symbol is folded into `.bss`): `bash scripts/stability-tests/m3.2-section-stability.sh i386 common-bss-marker`
+- AT-M3.2-5 (`COMMON` symbol is folded into `.bss`): `bash scripts/stability-tests/section-stability.sh i386 common-bss-marker`
   Why it matters: `COMMON` is an older but still real zero-init storage class; without
   `*(COMMON)`, some toolchains/ASM inputs will not land in `.bss`.
-- AT-M3.2-6 (allocatable section allowlist holds): `bash scripts/stability-tests/m3.2-section-stability.sh i386 alloc-section-allowlist`
+- AT-M3.2-6 (allocatable section allowlist holds): `bash scripts/stability-tests/section-stability.sh i386 alloc-section-allowlist`
   Why it matters: catches unexpected loadable sections such as `.eh_frame` before they sneak
   into the shipped kernel image.
 
 Negative / rejection proofs (real bad-linker cases, not mocks):
-- RT-M3.2-1 (rejects missing `.text`): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 text-missing`
-- RT-M3.2-2 (rejects wrong `.text` type): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 text-wrong-type`
-- RT-M3.2-3 (rejects missing `.rodata`): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 rodata-missing`
-- RT-M3.2-4 (rejects wrong `.rodata` type): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 rodata-wrong-type`
-- RT-M3.2-5 (rejects missing `.data`): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 data-missing`
-- RT-M3.2-6 (rejects wrong `.data` type): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 data-wrong-type`
-- RT-M3.2-7 (rejects missing `.bss`): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 bss-missing`
-- RT-M3.2-8 (rejects wrong `.bss` type): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 bss-wrong-type`
+- RT-M3.2-1 (rejects missing `.text`): `bash scripts/rejection-tests/section-rejections.sh i386 text-missing`
+- RT-M3.2-2 (rejects wrong `.text` type): `bash scripts/rejection-tests/section-rejections.sh i386 text-wrong-type`
+- RT-M3.2-3 (rejects missing `.rodata`): `bash scripts/rejection-tests/section-rejections.sh i386 rodata-missing`
+- RT-M3.2-4 (rejects wrong `.rodata` type): `bash scripts/rejection-tests/section-rejections.sh i386 rodata-wrong-type`
+- RT-M3.2-5 (rejects missing `.data`): `bash scripts/rejection-tests/section-rejections.sh i386 data-missing`
+- RT-M3.2-6 (rejects wrong `.data` type): `bash scripts/rejection-tests/section-rejections.sh i386 data-wrong-type`
+- RT-M3.2-7 (rejects missing `.bss`): `bash scripts/rejection-tests/section-rejections.sh i386 bss-missing`
+- RT-M3.2-8 (rejects wrong `.bss` type): `bash scripts/rejection-tests/section-rejections.sh i386 bss-wrong-type`
   Why they matter: these tests compile the real kernel with intentionally broken linker scripts
   and prove the build gate rejects malformed ELF layouts immediately after `ld`, rather than only
   detecting them later in a standalone checker run.
@@ -662,19 +662,19 @@ Proof / tests (definition of done):
 - WP-M3.3-2 (release artifact exports the boundary symbols): `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
 - WP-M3.3-3 (test artifact exports the boundary symbols): `KERNEL=build/kernel-i386-test.bin; nm -n "$KERNEL" | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
 - WP-M3.3-4 (Rust layout consumer declares and references the symbols): `rg -n "kernel_start|kernel_end|bss_start|bss_end|addr_of!" -S src/rust/layout_symbols.rs`
-- WP-M3.3-5 (repo proof script covers exported symbols): `bash scripts/boot-tests/m3.3-layout-symbols.sh i386`
+- WP-M3.3-5 (repo proof script covers exported symbols): `bash scripts/boot-tests/layout-symbols.sh i386`
 
 Stability / adversarial proofs (recommended in visible CI output):
 - AT-M3.3-1 (linker assertions exist for boundary ordering): `rg -n "\\bASSERT\\b" -S src/arch/i386/linker.ld`
-- AT-M3.3-2 (release artifact ordering is monotonic): `bash scripts/boot-tests/m3.3-layout-symbols.sh i386 release-symbol-ordering`
-- AT-M3.3-3 (test artifact ordering is monotonic): `bash scripts/boot-tests/m3.3-layout-symbols.sh i386 test-symbol-ordering`
+- AT-M3.3-2 (release artifact ordering is monotonic): `bash scripts/boot-tests/layout-symbols.sh i386 release-symbol-ordering`
+- AT-M3.3-3 (test artifact ordering is monotonic): `bash scripts/boot-tests/layout-symbols.sh i386 test-symbol-ordering`
   Why they matter: exported symbols are only useful if they describe a sane range. These
   checks prevent a “symbols exist but are semantically wrong” false green.
 
 Negative / rejection proofs (real bad-linker cases, not mocks):
-- RT-M3.3-1 (rejects `bss_start` before `kernel_start`): `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 bss-before-kernel`
-- RT-M3.3-2 (rejects `bss_end` before `bss_start`): `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 bss-end-before-bss-start`
-- RT-M3.3-3 (rejects `kernel_end` before `bss_end`): `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 kernel-end-before-bss-end`
+- RT-M3.3-1 (rejects `bss_start` before `kernel_start`): `bash scripts/rejection-tests/layout-symbol-rejections.sh i386 bss-before-kernel`
+- RT-M3.3-2 (rejects `bss_end` before `bss_start`): `bash scripts/rejection-tests/layout-symbol-rejections.sh i386 bss-end-before-bss-start`
+- RT-M3.3-3 (rejects `kernel_end` before `bss_end`): `bash scripts/rejection-tests/layout-symbol-rejections.sh i386 kernel-end-before-bss-end`
   Why they matter: these tests prove the link fails on impossible layouts instead of silently
   shipping misleading boundary symbols.
 

@@ -19,14 +19,14 @@ These checks do **not** guarantee:
 - The kernel is “correct” or safe—only that it is **self-contained** from a dynamic-linking standpoint.
 
 ### Where the checks run
-- Script: `scripts/boot-tests/m0.2-freestanding-kernel.sh`
+- Script: `scripts/boot-tests/freestanding-kernel.sh`
 - Hard gate: `make test arch=i386`
 
 The hard gate (`make test arch=i386`) checks:
 - `build/kernel-i386-test.bin` (fresh test kernel built by `make iso-test`)
 
 Optional (manual) check for the release kernel:
-- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/m0.2-freestanding-kernel.sh i386 all`
+- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/freestanding-kernel.sh i386 all`
   (also checks `build/kernel-i386.bin`)
 
 ### Why the tests require a Rust marker symbol
