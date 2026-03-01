@@ -34,8 +34,8 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `make test arch=i386` (checks the tracked release ISO/IMG size/type and boots both test ISO and test IMG headlessly)
 - Base Epic M2 DoD: ❌ NO
   - Proof: `src/arch/i386/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
-- Base Epic M3 DoD: ❌ NO
-  - Proof: `src/arch/i386/linker.ld` defines standard sections, but exports no layout symbols (M3.3)
+- Base Epic M3 DoD: ✅ YES (custom linker script, standard sections, exported layout symbols)
+  - Proof: `make test arch=i386` (includes M3.2 + M3.3 checks)
 - Base Epic M4 DoD: ⚠️ PARTIAL
   - Proof: `src/kernel/kmain.rs` defines `#[no_mangle] extern "C" fn kmain() -> !`
 - Base Epic M5 DoD: ❌ NO
@@ -75,7 +75,7 @@ Legend:
 - Base Epic M0 (i386 + freestanding compliance): ✅
 - Base Epic M1 (GRUB bootable image <= 10 MB): ✅
 - Base Epic M2 (Multiboot header + ASM bootstrap): ❌
-- Base Epic M3 (custom linker script + layout): ❌
+- Base Epic M3 (custom linker script + layout): ✅
 - Base Epic M4 (kernel in chosen language): ⚠️
 - Base Epic M5 (kernel library types + helpers): ❌
 - Base Epic M6 (screen I/O interface + prints 42): ❌
@@ -215,11 +215,16 @@ Proof:
 - `bash scripts/check-m3.2-sections.sh i386`
 
 ### Feature M3.3: Export useful layout symbols
-Status: ❌ Not done
+Status: ✅ Done
+Evidence:
+- Linker script exports `kernel_start`, `kernel_end`, `bss_start`, `bss_end`
+- Rust references these layout symbols via an `extern "C"` declaration
 Proof:
-- `nm -n build/kernel-i386.bin | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b" || echo "no layout symbols"`
+- `nm -n build/kernel-i386.bin | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
+- `rg -n "extern\\s+\"C\"\\s*\\{|\\b(kernel_start|kernel_end|bss_start|bss_end)\\b" -S src/rust/layout_symbols.rs`
+- `bash scripts/check-m3.3-layout-symbols.sh i386`
 
-Epic DoD (M3) complete? ❌
+Epic DoD (M3) complete? ✅
 
 ---
 
