@@ -14,7 +14,7 @@ As-of snapshot:
 - ISO artifact present: `build/os-i386.iso` (bootable ISO9660, <= 10 MB)
 - Disk-image artifact present: `build/os-i386.img` (bootable ISO9660, <= 10 MB; boots via QEMU `-drive`)
 - Sources present in ASM under `src/arch/i386/` and minimal Rust under `src/rust/`
-- Chosen language: **Rust** (started: Rust is compiled/linked into the kernel; `kmain` not implemented yet)
+- Chosen language: **Rust** (Rust is compiled/linked into the kernel; `kmain` is implemented and called from ASM in release builds)
 
 ---
 
@@ -32,12 +32,12 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `test $(wc -c < build/os-i386.iso) -le 10485760` (<= 10 MB)
   - Proof: `test $(wc -c < build/os-i386.img) -le 10485760` (<= 10 MB)
   - Proof: `make test arch=i386` (checks the tracked release ISO/IMG size/type and boots both test ISO and test IMG headlessly)
-- Base Epic M2 DoD: ❌ NO
-  - Proof: `src/arch/i386/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
+- Base Epic M2 DoD: ✅ YES (Multiboot header + stack init + handoff to `kmain`)
+  - Proof: `make test arch=i386` (builds artifacts and boots them; M4.1 check ensures `kmain` exists and is called in release kernel)
 - Base Epic M3 DoD: ✅ YES (custom linker script, standard sections, exported layout symbols)
   - Proof: `make test arch=i386` (includes M3.2 + M3.3 checks)
-- Base Epic M4 DoD: ⚠️ PARTIAL
-  - Proof: `src/kernel/kmain.rs` defines `#[no_mangle] extern "C" fn kmain() -> !`
+- Base Epic M4 DoD: ✅ YES (Rust `kmain` exists and is reachable from ASM)
+  - Proof: `make test arch=i386` (includes an M4.1 check for `kmain`)
 - Base Epic M5 DoD: ❌ NO
   - Proof: `rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" -S src` -> no matches (no kernel library helpers)
 - Base Epic M6 DoD: ❌ NO
@@ -74,9 +74,9 @@ Legend:
 
 - Base Epic M0 (i386 + freestanding compliance): ✅
 - Base Epic M1 (GRUB bootable image <= 10 MB): ✅
-- Base Epic M2 (Multiboot header + ASM bootstrap): ❌
+- Base Epic M2 (Multiboot header + ASM bootstrap): ✅
 - Base Epic M3 (custom linker script + layout): ✅
-- Base Epic M4 (kernel in chosen language): ⚠️
+- Base Epic M4 (kernel in chosen language): ✅
 - Base Epic M5 (kernel library types + helpers): ❌
 - Base Epic M6 (screen I/O interface + prints 42): ❌
 - Base Epic M7 (Makefile compiles ASM + language, links, image, run): ✅
@@ -230,13 +230,11 @@ Epic DoD (M3) complete? ✅
 
 ## Base Epic M4: Minimal Kernel in Your Chosen Language
 
-Status: ⚠️ Started (Rust is linked; `kmain` is not implemented yet)
+Status: ✅ Done
 Proof:
-- `rg --files src/rust | rg -n "\\.rs\\b"`
-- `rg -n "#!\\[no_std\\]" -S src/rust`
-- `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
-What’s left:
-- Implement `kmain` in Rust and transfer control to it from `src/arch/i386/boot.asm`.
+- `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\bkmain\\b"`
+- `KERNEL=build/kernel-i386.bin; objdump -d "$KERNEL" | rg -n "call.*<kmain>"`
+- `bash scripts/check-m4.1-kmain.sh i386`
 
 ---
 
