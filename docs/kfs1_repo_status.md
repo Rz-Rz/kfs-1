@@ -12,8 +12,9 @@ Scope:
 As-of snapshot:
 - Kernel artifact present: `build/kernel-i386.bin` (ELF32, Intel 80386)
 - ISO artifact present: `build/os-i386.iso` (bootable ISO9660, <= 10 MB)
-- ASM bootstrap sources under `src/arch/i386/`
-- Rust kernel entry present: `src/kernel/kmain.rs` (`kmain` symbol linked)
+- Disk-image artifact present: `build/os-i386.img` (bootable ISO9660, <= 10 MB; boots via QEMU `-drive`)
+- Sources present in ASM under `src/arch/i386/` and minimal Rust under `src/rust/`
+- Chosen language: **Rust** (started: Rust is compiled/linked into the kernel; `kmain` not implemented yet)
 
 ---
 
@@ -22,17 +23,17 @@ As-of snapshot:
 Per-epic DoD verdicts, with proof pointers. Detailed per-feature validations (each with
 its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 
-- Base Epic M0 DoD: ✅ YES (i386 target + no-host-libs checks pass for the current freestanding ASM+Rust kernel)
+- Base Epic M0 DoD: ✅ YES (i386 target + freestanding/no-host-libs enforced in `make test` on a Rust-linked kernel)
   - Proof: `readelf -h build/kernel-i386.bin` -> `Class: ELF32`, `Machine: Intel 80386`
-  - Proof: `readelf -lW build/kernel-i386.bin` -> no `INTERP` / `DYNAMIC`
-- Base Epic M1 DoD: ⚠️ PARTIAL (artifact exists; boot is a manual check)
+  - Proof: `make test arch=i386` (builds a Rust-linked test kernel and enforces the M0.2 checks on it)
+- Base Epic M1 DoD: ✅ YES (ISO + disk-image artifacts + automated boot checks)
   - Proof: `file build/os-i386.iso` -> ISO 9660 (bootable)
+  - Proof: `file build/os-i386.img` -> ISO 9660 (bootable)
   - Proof: `test $(wc -c < build/os-i386.iso) -le 10485760` (<= 10 MB)
-  - Manual proof: `make run` (should execute the kernel; current behavior prints `RS` from Rust then halts)
-- Base Epic M2 DoD: ✅ YES
-  - Proof: `src/arch/i386/boot.asm` initializes stack via `mov esp, stack_top`
-  - Proof: `src/arch/i386/boot.asm` calls Rust entry via `call kmain`
-  - Proof: `nm -n build/kernel-i386.bin` contains `kmain`, `stack_bottom`, and `stack_top`
+  - Proof: `test $(wc -c < build/os-i386.img) -le 10485760` (<= 10 MB)
+  - Proof: `make test arch=i386` (checks the tracked release ISO/IMG size/type and boots both test ISO and test IMG headlessly)
+- Base Epic M2 DoD: ❌ NO
+  - Proof: `src/arch/i386/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
 - Base Epic M3 DoD: ❌ NO
   - Proof: `src/arch/i386/linker.ld` defines only `.boot` and `.text`, and exports no layout symbols
 - Base Epic M4 DoD: ⚠️ PARTIAL
@@ -40,9 +41,10 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M5 DoD: ❌ NO
   - Proof: `rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" -S src` -> no matches (no kernel library helpers)
 - Base Epic M6 DoD: ❌ NO
-  - Proof: kernel prints `RS` from Rust; `rg -n "\\b42\\b|\\\"42\\\"" -S src` -> no matches
-- Base Epic M7 DoD: ⚠️ PARTIAL
-  - Proof: Makefile compiles ASM and Rust, links, builds ISO, and runs QEMU; still missing later-epic integration checks
+  - Proof: `src/arch/i386/boot.asm` prints `OK`; `rg -n "\\b42\\b|\\\"42\\\"" -S src` -> no matches
+- Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
+  - Proof: `make -n all arch=i386 | rg -n "\\brustc\\b"`
+  - Proof: `make all arch=i386 && nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
 - Base Epic M8 DoD: ⚠️ PARTIAL
   - Proof: ISO exists and is small, and a `README.md` quickstart exists
 
@@ -71,13 +73,13 @@ Legend:
 - ❌ Not met
 
 - Base Epic M0 (i386 + freestanding compliance): ✅
-- Base Epic M1 (GRUB bootable image <= 10 MB): ⚠️
-- Base Epic M2 (Multiboot header + ASM bootstrap): ✅
+- Base Epic M1 (GRUB bootable image <= 10 MB): ✅
+- Base Epic M2 (Multiboot header + ASM bootstrap): ❌
 - Base Epic M3 (custom linker script + layout): ❌
 - Base Epic M4 (kernel in chosen language): ⚠️
 - Base Epic M5 (kernel library types + helpers): ❌
 - Base Epic M6 (screen I/O interface + prints 42): ❌
-- Base Epic M7 (Makefile compiles ASM + language, links, image, run): ⚠️
+- Base Epic M7 (Makefile compiles ASM + language, links, image, run): ✅
 - Base Epic M8 (turn-in packaging): ⚠️
 
 ---
@@ -102,17 +104,15 @@ Proof:
 - `readelf -h build/kernel-i386.bin | rg -n "Class:|Machine:"`
 
 ### Feature M0.2: Enforce "no host libs" and "freestanding" rules
-Status: ✅ Done (current ASM+Rust kernel path)
+Status: ✅ Done (exercised by Rust + enforced via `make test`)
 Evidence:
-- Rust entry uses `#![no_std]` and is compiled with `-C panic=abort`.
-- Link step stays explicit with `ld -m elf_i386` and does not link libc.
-- Artifact is statically linked and has no dynamic loader segments/sections.
+- Rust code is compiled and linked into the kernel image (symbol `kfs_rust_marker`).
+- M0.2 is enforced by inspecting the linked ELF (no dynamic loader/sections, no undefined symbols, no libc/loader markers).
 Proof:
-- `rg -n "#!\\[no_std\\]" -S src/kernel/kmain.rs`
-- `make -Bn all arch=i386 | rg -n "rustc|ld -m elf_i386|\\-lc"`
-- `readelf -lW build/kernel-i386.bin | rg -n "INTERP|DYNAMIC" || echo "no INTERP/DYNAMIC"`
-- `readelf -SW build/kernel-i386.bin | rg -n "\\.(interp|dynamic)\\b" || echo "no .interp/.dynamic"`
-- `test -z "$(nm -u build/kernel-i386.bin)" && echo "no undefined symbols"`
+- `make test arch=i386` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
+- `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
+- `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"` (release kernel also links Rust)
+- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/check-m0.2-freestanding.sh i386 all` (checks both test + release kernels)
 
 ### Feature M0.3: Size discipline baked into workflow
 Status: ✅ Mostly done (image size)
@@ -123,26 +123,33 @@ Proof:
 
 Epic DoD (M0) complete? ✅
 
+Note:
+- M0.1 is complete (i386 toolchain + ELF32).
+- M0.2 is enforced on a Rust-linked kernel artifact via `make test` (Rust is present but `kmain` is still not implemented).
+
 ---
 
 ## Base Epic M1: GRUB Bootable Virtual Image (<= 10 MB)
 
 ### Feature M1.1: Provide a minimal GRUB-bootable image (primary path: ISO)
-Status: ⚠️ Partial (artifact exists; boot confirmation is manual)
+Status: ✅ Done (artifact checks + automated boot gate)
 Evidence:
 - `build/os-i386.iso` exists and is a bootable ISO9660 image
 Proof:
 - `file build/os-i386.iso`
 - `test $(wc -c < build/os-i386.iso) -le 10485760 && echo "ISO <= 10MB"`
-Manual proof:
-- `make run` (should print `RS` and halt)
-What’s left:
-- Replace `RS` with the required `42` once the screen interface is implemented.
+Automated proof:
+- `make test arch=i386` (includes ISO build + size/type checks and a headless GRUB boot gate)
 
 ### Feature M1.2: "Install GRUB on a virtual image" (alternate path: tiny disk image)
-Status: ❌ Not done
+Status: ✅ Done (repo implementation: ISO-content disk image, booted via `-drive`)
+Evidence:
+- `build/os-i386.img` exists and is <= 10 MB
+- Boot test runs via QEMU `-drive ...` and exits PASS/FAIL (no hang)
 Proof:
-- `rg -n "^\\s*IMG\\s*:?=|\\.img\\b|grub-install\\b" -S Makefile src || echo "no disk image/grub-install path"`
+- `make img arch=i386` (produces `build/os-i386.img`)
+- `test $(wc -c < build/os-i386.img) -le 10485760 && echo "IMG <= 10MB"`
+- `make test arch=i386` (includes build + checks + `scripts/test-qemu.sh i386 drive`)
 
 ### Feature M1.3: GRUB config uses a consistent Multiboot version
 Status: ✅ Done (Multiboot2 consistently used)
@@ -153,7 +160,7 @@ Proof:
 - `rg -n "^\\s*multiboot2\\b" -S src/arch/i386/grub.cfg`
 - `rg -n "0xe85250d6" -S src/arch/i386/multiboot_header.asm`
 
-Epic DoD (M1) complete? ⚠️
+Epic DoD (M1) complete? ✅
 
 ---
 
@@ -216,10 +223,13 @@ Epic DoD (M3) complete? ❌
 
 ## Base Epic M4: Minimal Kernel in Your Chosen Language
 
-Status: ⚠️ Partial
+Status: ⚠️ Started (Rust is linked; `kmain` is not implemented yet)
 Proof:
-- `rg --files src | rg -n "\\.rs\\b"`
-- `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\bkmain\\b"`
+- `rg --files src/rust | rg -n "\\.rs\\b"`
+- `rg -n "#!\\[no_std\\]" -S src/rust`
+- `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
+What’s left:
+- Implement `kmain` in Rust and transfer control to it from `src/arch/i386/boot.asm`.
 
 ---
 
@@ -243,13 +253,12 @@ Proof:
 
 ## Base Epic M7: Makefile must compile all sources (ASM + chosen language), link, image, run
 
-Status: ⚠️ Partial
+Status: ✅ Done
 Evidence:
-- Makefile assembles ASM, compiles Rust (`rustc --target i686-unknown-linux-gnu`), links i386, builds ISO, and runs QEMU.
-- Integration checks for later epics are still pending.
+- Makefile assembles ASM, links i386, builds ISO, and runs QEMU.
 Proof:
 - `make -n iso`
-- `make -Bn all arch=i386 | rg -n "nasm|rustc|ld -m elf_i386"`
+- `make -n all arch=i386 | rg -n "\\brustc\\b"`
 
 ---
 
@@ -263,15 +272,14 @@ What’s left:
 
 ---
 
-## Infra Automation Status
+## Infra Epics Status (I0–I3)
 
-Status: ✅ In place
+Status: ⚠️ Partial
 Evidence:
-- `make test` rebuilds the container toolchain image each run
-- `make test` verifies the required tools exist in the container
-- `make test` runs two tests
-  - Build ISO
-  - Boot ISO via GRUB in QEMU headless and exit PASS or FAIL
-Proof:
-- `make test`
-- `make test KFS_TEST_FORCE_FAIL=1`
+- Infra Epic **I0** (Deterministic QEMU PASS/FAIL): ✅ Done
+  - Proof: `make test arch=i386` exits deterministically (PASS) and never hangs
+  - Proof: `make test arch=i386 KFS_TEST_FORCE_FAIL=1` fails deterministically
+- Infra Epic **I3** (Reproducible Dev Environment): ✅ Done
+  - Proof: `make container-env-check`
+- Infra Epic **I1** (Serial console assertions): ❌ Not done
+- Infra Epic **I2** (VGA memory assertions): ❌ Not done

@@ -4,3 +4,4 @@
 build/*-test.bin
 build/*-test.iso
 build/
+build/*-test.img

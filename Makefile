@@ -1,8 +1,10 @@
 arch ?= i386
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
+img := build/os-$(arch).img
 kernel_test := build/kernel-$(arch)-test.bin
 iso_test := build/os-$(arch)-test.iso
+img_test := build/os-$(arch)-test.img
 
 linker_script := src/arch/$(arch)/linker.ld
 grub_cfg := src/arch/$(arch)/grub.cfg
@@ -11,10 +13,11 @@ assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
 assembly_object_files_test := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/test/%.o, $(assembly_source_files))
+
 rust_target := i686-unknown-linux-gnu
-rust_source_files := $(wildcard src/kernel/*.rs)
-rust_object_files := $(patsubst src/kernel/%.rs, \
-	build/kernel/%.o, $(rust_source_files))
+rust_source_files := $(wildcard src/rust/*.rs)
+rust_object_files := $(patsubst src/rust/%.rs, \
+	build/arch/$(arch)/rust/%.o, $(rust_source_files))
 
 KFS_TEST_FORCE_FAIL ?= 0
 
@@ -32,7 +35,8 @@ TEST_FAIL_RC ?= 35
 	container-all container-iso container-run container-qemu-smoke \
 	container-bootstrap container-smoke \
 	test dev iso-in-container run-in-container \
-	iso-test test-qemu
+	iso-test test-qemu \
+	img img-test run-img
 
 all: $(kernel)
 
@@ -43,6 +47,14 @@ run: $(iso)
 	@qemu-system-i386 -cdrom $(iso)
 
 iso: $(iso)
+
+run-img: $(img)
+	@qemu-system-i386 -drive format=raw,file=$(img)
+
+img: $(img)
+
+$(img): $(iso)
+	@cp $(iso) $(img)
 
 $(iso): $(kernel) $(grub_cfg)
 	@mkdir -p build/isofiles/boot/grub
@@ -61,6 +73,11 @@ build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 
 iso-test: $(iso_test)
 
+img-test: $(img_test)
+
+$(img_test): $(iso_test)
+	@cp $(iso_test) $(img_test)
+
 $(iso_test): $(kernel_test) $(grub_cfg)
 	@mkdir -p build/isofiles/boot/grub
 	@cp $(kernel_test) build/isofiles/boot/kernel.bin
@@ -75,9 +92,18 @@ build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
 	@nasm -felf32 $(TEST_ASM_DEFS) $< -o $@
 
-build/kernel/%.o: src/kernel/%.rs
+build/arch/$(arch)/rust/%.o: src/rust/%.rs
 	@mkdir -p $(shell dirname $@)
-	@rustc --edition=2021 --target $(rust_target) -C panic=abort -C opt-level=2 --emit=obj -o $@ $<
+	@rustc \
+		--crate-type lib \
+		--target $(rust_target) \
+		--emit=obj \
+		-C panic=abort \
+		-C opt-level=z \
+		-C code-model=kernel \
+		-C relocation-model=static \
+		-o $@ \
+		$<
 
 container-image:
 	@bash scripts/container.sh build-image

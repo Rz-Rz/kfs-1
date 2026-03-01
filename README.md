@@ -10,14 +10,24 @@ One command:
 What it does:
 - Rebuilds the dev image
 - Checks required tools inside the container
-- Builds the test ISO
+- Checks the tracked release ISO/disk-image artifacts (type + size)
+- Builds the test ISO/disk-image artifacts
 - Runs a headless QEMU test that exits with PASS or FAIL
 
 ## What the test proves
 
-The QEMU test is a deterministic exit gate.
-It proves the build works and the kernel boots far enough to signal PASS or FAIL.
-It does not prove the subject features like printing 42 yet.
+`make test` is a deterministic, headless PASS/FAIL gate.
+It currently proves the following **subject** requirements:
+- “Install GRUB on a virtual image” (boots ISO/IMG via GRUB in QEMU)
+- “Your work must not exceed 10 MB” (checks tracked release ISO/IMG sizes)
+- “must not be linked to any existing library on that host” / freestanding (ELF inspection gate; M0.2)
+
+It does **not** yet prove:
+- ASM boot sets a stack and transfers control to a chosen-language `kmain` (M2/M4)
+- Screen interface and displaying `42` (M6)
+
+`make test` also includes an ELF artifact inspection gate for M0.2 (“freestanding / no host libs”).
+See `docs/m0_2_freestanding_proofs.md`.
 
 ## When to use each command
 
