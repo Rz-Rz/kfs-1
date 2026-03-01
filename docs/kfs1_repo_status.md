@@ -41,7 +41,7 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M5 DoD: ✅ YES (kernel helper layer is present with host-tested string+memory helpers)
   - Proof: `make test arch=i386` (includes M5.2 + M5.3 host helper checks)
 - Base Epic M6 DoD: ❌ NO
-  - Proof: `src/arch/i386/boot.asm` prints `OK`; `rg -n "\\b42\\b|\\\"42\\\"" -S src` -> no matches
+  - Proof: M6.1 + M6.3 are done (`vga_*` module is used by `kmain` and `42` is printed), but M6.2 newline/cursor handling is not implemented
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
   - Proof: `make -n all arch=i386 | rg -n "\\brustc\\b"`
   - Proof: `make all arch=i386 && nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
@@ -256,12 +256,29 @@ Proof:
 
 ## Base Epic M6: Screen I/O Interface + Mandatory Output
 
-### Feature M6.3: Mandatory output: display `42`
-Status: ❌ Not done
+### Feature M6.1: VGA text mode writer (VGA memory at `0xB8000`)
+Status: ✅ Done
 Evidence:
-- Current output is `RS` from Rust (`src/kernel/kmain.rs`), not `42`
+- Reusable VGA writer API exists in `src/kernel/vga.rs` (`vga_init`, `vga_putc`, `vga_puts`)
+- `kmain` uses the VGA module instead of writing directly to `0xB8000`
 Proof:
-- `rg -n "0xb8000|write_volatile" -S src/kernel/kmain.rs`
+- `rg -n "\\bvga_(init|putc|puts)\\b" -S src/kernel`
+- `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\b(vga_init|vga_putc|vga_puts)\\b"`
+- `bash scripts/check-m6.1-vga.sh i386`
+
+### Feature M6.2: Newline handling (basic cursor movement)
+Status: ❌ Not started
+Evidence:
+- No cursor state or newline handling implementation yet
+Proof:
+- `rg -n "\\b(cursor|row|col|newline)\\b" -S src || echo "no cursor handling yet"`
+
+### Feature M6.3: Mandatory output: display `42`
+Status: ✅ Done (printed via VGA module from `kmain`)
+Evidence:
+- `kmain` calls `vga_init` + `vga_puts("42")`
+Proof:
+- `rg -n "\\bvga_(init|puts)\\b|42" -S src/kernel/kmain.rs`
 - `rg -n "\\b42\\b|\\\"42\\\"" -S src || echo "no 42 yet"`
 
 ---
