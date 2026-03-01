@@ -1,6 +1,6 @@
 # KFS_1 Repo Status vs Subject (Done / Not Done + Priorities)
 
-Snapshot date: February 22, 2026.
+Snapshot date: March 1, 2026.
 
 This file is an analysis of the current repository state against the backlog in:
 - `docs/kfs1_epics_features.md` (baseline spec/backlog)
@@ -35,7 +35,7 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M2 DoD: ❌ NO
   - Proof: `src/arch/i386/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
 - Base Epic M3 DoD: ❌ NO
-  - Proof: `src/arch/i386/linker.ld` defines only `.boot` and `.text`, and exports no layout symbols
+  - Proof: `src/arch/i386/linker.ld` defines standard sections, but exports no layout symbols (M3.3)
 - Base Epic M4 DoD: ⚠️ PARTIAL
   - Proof: `src/kernel/kmain.rs` defines `#[no_mangle] extern "C" fn kmain() -> !`
 - Base Epic M5 DoD: ❌ NO
@@ -206,11 +206,13 @@ Proof:
 - `rg -n "\\bld\\b.*\\s-T\\s+src/arch/\\$\\(arch\\)/linker\\.ld" -S Makefile`
 
 ### Feature M3.2: Provide standard sections for growth
-Status: ❌ Not done
+Status: ✅ Done
 Evidence:
-- Linker script defines only `.boot` and `.text`
+- Linker script defines `.text`, `.rodata`, `.data`, `.bss`
+- The linked kernel contains those sections and includes canary symbols in `.rodata` and `.data`
 Proof:
-- `rg -n "^\\s*\\.(rodata|data|bss)\\b" -S src/arch/i386/linker.ld || echo "missing rodata/data/bss"`
+- `rg -n "^\\s*\\.(text|rodata|data|bss)\\b" -S src/arch/i386/linker.ld`
+- `bash scripts/check-m3.2-sections.sh i386`
 
 ### Feature M3.3: Export useful layout symbols
 Status: ❌ Not done
