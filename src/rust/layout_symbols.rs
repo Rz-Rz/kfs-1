@@ -9,11 +9,9 @@ unsafe extern "C" {
 
 #[no_mangle]
 pub extern "C" fn kfs_layout_symbols_marker() -> usize {
-    unsafe {
-        let kernel_lo = core::ptr::addr_of!(kernel_start) as usize;
-        let kernel_hi = core::ptr::addr_of!(kernel_end) as usize;
-        let bss_lo = core::ptr::addr_of!(bss_start) as usize;
-        let bss_hi = core::ptr::addr_of!(bss_end) as usize;
-        kernel_hi.wrapping_sub(kernel_lo) + bss_hi.wrapping_sub(bss_lo)
-    }
+    let kernel_lo = core::ptr::addr_of!(kernel_start) as usize;
+    let kernel_hi = core::ptr::addr_of!(kernel_end) as usize;
+    let bss_lo = core::ptr::addr_of!(bss_start) as usize;
+    let bss_hi = core::ptr::addr_of!(bss_end) as usize;
+    kernel_hi.wrapping_sub(kernel_lo) + bss_hi.wrapping_sub(bss_lo)
 }
