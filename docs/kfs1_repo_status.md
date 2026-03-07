@@ -328,7 +328,7 @@ These items are not required for the base KFS_1 subject, but they are now tracke
 explicitly because they match the intended roadmap for the repo.
 
 High-level status:
-- Bonus Epic B1 (scroll + cursor support): ⚠️ Partial
+- Bonus Epic B1 (scroll + cursor support): ✅ Done
 - Bonus Epic B2 (color support in the screen I/O interface): ⚠️ Partial
 - Bonus Epic B3 (`printk` / formatted printing): ❌ Not started
 - Bonus Epic B4 (keyboard input + echo): ❌ Not started
@@ -337,17 +337,18 @@ High-level status:
 
 ### Bonus Epic B1: Scroll + Cursor Support
 
-Status: ⚠️ Partial
+Status: ✅ Done
 Evidence:
 - Cursor state exists in `src/kernel/vga/vga_impl.rs` via `VgaCursor { row, col }`
 - Host cursor tests exist in `tests/host_cursor.rs`
 - Bottom-of-screen behavior now scrolls the visible text buffer up by one row and clears the last row
-- No hardware cursor programming path is present
+- Hardware cursor programming path exists in `src/kernel/vga.rs` and writes cursor position to VGA CRTC ports
 Proof:
 - `bash scripts/check-m6.2-newline.sh i386`
 - `bash scripts/check-b1.2-scroll.sh i386`
+- `bash scripts/check-b1.3-hw-cursor.sh i386`
 - `rg -n "\\b(VgaCursor|row|col)\\b" -S src/kernel/vga.rs src/kernel/vga/vga_impl.rs tests/host_cursor.rs`
-- `rg -n "\\bscroll_buffer\\b|\\bscrolled\\b|0x3D4|0x3D5|outb|inb" -S src tests || echo "no scroll or hardware cursor support yet"`
+- `rg -n "\\bscroll_buffer\\b|\\bscrolled\\b|0x3D4|0x3D5|asm!\\(\"out dx, al\"\\)" -S src tests`
 
 ### Feature B1.1: Maintain cursor state
 Status: ✅ Done
@@ -369,14 +370,17 @@ Proof:
 - `rg -n "\\bscroll_buffer\\b|\\bscrolled\\b|VGA_CELLS" -S src/kernel/vga.rs src/kernel/vga/vga_impl.rs tests/host_scroll.rs`
 
 ### Feature B1.3: Optional hardware cursor programming (VGA ports `0x3D4/0x3D5`)
-Status: ❌ Not done
+Status: ✅ Done
 Evidence:
-- No port I/O helpers or hardware cursor register writes are present
+- Port I/O helper `port_write_u8` uses inline `asm!` with `out dx, al`
+- VGA cursor registers `0x0E`/`0x0F` are written through ports `0x3D4`/`0x3D5`
+- Hardware cursor updates run after cursor state changes in both `vga_init` and `vga_putc`
 Proof:
-- `rg -n "0x3D4|0x3D5|outb|inb|hardware cursor" -S src tests || echo "no hardware cursor support yet"`
+- `bash scripts/check-b1.3-hw-cursor.sh i386`
+- `rg -n "0x3D4|0x3D5|VGA_CURSOR_HIGH_REGISTER|VGA_CURSOR_LOW_REGISTER|asm!\\(\"out dx, al\"\\)" -S src/kernel/vga.rs`
 
 Definition of Done (B1):
-- ✅ Met for software cursor + scrolling behavior; optional hardware cursor support (B1.3) is still not implemented.
+- ✅ Met: software cursor state, newline behavior, scrolling, and optional hardware cursor programming are all implemented.
 
 ---
 

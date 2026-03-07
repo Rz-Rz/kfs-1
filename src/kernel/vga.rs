@@ -6,11 +6,19 @@ mod vga_format_impl;
 mod vga_impl;
 
 use vga_format_impl::{format_usize_decimal, render_printf_with_args, MAX_USIZE_DECIMAL_DIGITS};
-use vga_impl::{scroll_buffer, VgaCursor, VGA_CELLS};
+use vga_impl::{scroll_buffer, VgaCursor, VGA_CELLS, VGA_WIDTH};
 
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
 const VGA_COLOR_LIGHT_GREEN_ON_BLACK: u16 = 0x02;
 const VGA_BLANK_BYTE: u8 = b' ';
+const VGA_CRTC_ADDR_PORT: u16 = 0x3D4;
+const VGA_CRTC_DATA_PORT: u16 = 0x3D5;
+const VGA_CURSOR_START_REGISTER: u8 = 0x0A;
+const VGA_CURSOR_END_REGISTER: u8 = 0x0B;
+const VGA_CURSOR_HIGH_REGISTER: u8 = 0x0E;
+const VGA_CURSOR_LOW_REGISTER: u8 = 0x0F;
+const VGA_CURSOR_START_SCANLINE: u8 = 0x00;
+const VGA_CURSOR_END_SCANLINE: u8 = 0x0F;
 
 static mut VGA_CURSOR: VgaCursor = VgaCursor::new();
 
@@ -35,6 +43,48 @@ unsafe fn vga_scroll_up() {
     scroll_buffer(buffer, vga_cell_value(VGA_BLANK_BYTE));
 }
 
+#[inline(always)]
+/// This writes one byte to an x86 I/O port.
+unsafe fn port_write_u8(port: u16, value: u8) {
+    unsafe {
+        core::arch::asm!(
+            "out dx, al",
+            in("dx") port,
+            in("al") value,
+            options(nomem, nostack, preserves_flags)
+        );
+    }
+}
+
+#[inline(always)]
+/// This converts the software cursor row/col into one hardware cursor cell index.
+fn vga_cursor_position(cursor: VgaCursor) -> usize {
+    (cursor.row * VGA_WIDTH) + cursor.col
+}
+
+#[inline(always)]
+/// This programs the VGA hardware cursor registers (ports 0x3D4/0x3D5).
+unsafe fn vga_set_hardware_cursor(position: usize) {
+    let value = position as u16;
+    unsafe {
+        port_write_u8(VGA_CRTC_ADDR_PORT, VGA_CURSOR_HIGH_REGISTER);
+        port_write_u8(VGA_CRTC_DATA_PORT, ((value >> 8) & 0x00ff) as u8);
+        port_write_u8(VGA_CRTC_ADDR_PORT, VGA_CURSOR_LOW_REGISTER);
+        port_write_u8(VGA_CRTC_DATA_PORT, (value & 0x00ff) as u8);
+    }
+}
+
+#[inline(always)]
+/// This forces the hardware text cursor to be visible with a simple full-height block.
+unsafe fn vga_enable_hardware_cursor() {
+    unsafe {
+        port_write_u8(VGA_CRTC_ADDR_PORT, VGA_CURSOR_START_REGISTER);
+        port_write_u8(VGA_CRTC_DATA_PORT, VGA_CURSOR_START_SCANLINE);
+        port_write_u8(VGA_CRTC_ADDR_PORT, VGA_CURSOR_END_REGISTER);
+        port_write_u8(VGA_CRTC_DATA_PORT, VGA_CURSOR_END_SCANLINE);
+    }
+}
+
 #[no_mangle]
 /// This resets the saved cursor back to the top-left corner of the screen.
 ///
@@ -42,6 +92,9 @@ unsafe fn vga_scroll_up() {
 pub extern "C" fn vga_init() {
     unsafe {
         VGA_CURSOR = VgaCursor::new();
+        vga_enable_hardware_cursor();
+        let cursor = VGA_CURSOR;
+        vga_set_hardware_cursor(vga_cursor_position(cursor));
     }
 }
 
@@ -61,6 +114,7 @@ pub extern "C" fn vga_putc(byte: u8) {
             vga_scroll_up();
         }
         VGA_CURSOR = cursor;
+        vga_set_hardware_cursor(vga_cursor_position(cursor));
     }
 }
 
