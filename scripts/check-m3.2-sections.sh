@@ -36,6 +36,11 @@ check_kernel() {
     missing=1
   fi
 
+  if ! nm -n "${kernel}" | grep -qE '[[:space:]][Bb][[:space:]]+KFS_BSS_MARKER$'; then
+    echo "FAIL ${kernel}: expected zero-initialized marker missing or not in bss (nm type B/b): KFS_BSS_MARKER"
+    missing=1
+  fi
+
   if [[ "${missing}" -ne 0 ]]; then
     echo "hint: Feature M3.2 expects linker output sections (.text/.rodata/.data/.bss) and the Rust canary symbols from src/rust/section_markers.rs"
     return 1
@@ -64,4 +69,3 @@ main() {
 }
 
 main "$@"
-
