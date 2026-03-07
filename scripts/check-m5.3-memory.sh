@@ -8,11 +8,13 @@ TEST_SOURCE="tests/host_mem.rs"
 SOURCE_CRATE="src/kernel/memory.rs"
 SOURCE_IMPL="src/kernel/memory/memory_impl.rs"
 
+# This stops the script as soon as it finds a blocking problem.
 die() {
   echo "error: $*" >&2
   exit 2
 }
 
+# This searches the source tree for a pattern so we can verify that the Rust helpers are really present.
 find_src_pattern() {
   local pattern="$1"
   if command -v rg >/dev/null 2>&1; then
@@ -22,6 +24,7 @@ find_src_pattern() {
   fi
 }
 
+# This prints matching lines from the source tree to make a failed check easier to understand.
 print_src_pattern() {
   local pattern="$1"
   if command -v rg >/dev/null 2>&1; then
@@ -31,6 +34,7 @@ print_src_pattern() {
   fi
 }
 
+# This builds and runs the memory helper tests, then proves the expected Rust code and marker symbol are linked in.
 main() {
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
   [[ -r "${KERNEL}" ]] || die "missing artifact: ${KERNEL} (build it with make all/iso arch=${ARCH})"

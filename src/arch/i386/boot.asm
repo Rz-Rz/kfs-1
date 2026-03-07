@@ -3,12 +3,14 @@ extern kmain
 
 section .bss
 align 16
+; Reserve a simple 16 KiB stack for early boot before Rust starts running.
 stack_bottom:
     resb 16384
 stack_top:
 
 section .text
 bits 32
+; This is the first instruction label GRUB jumps to after loading the kernel.
 start:
     cli
     cld

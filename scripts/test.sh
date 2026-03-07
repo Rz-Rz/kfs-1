@@ -3,12 +3,14 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 
+# This decides whether the script should use ANSI colors.
 want_color() {
   [[ -z "${NO_COLOR:-}" ]] || return 1
   [[ "${KFS_COLOR:-}" == "1" ]] && return 0
   [[ -t 1 ]]
 }
 
+# This starts a terminal color sequence when color output is enabled.
 color() {
   local code="$1"
   if want_color; then
@@ -16,16 +18,19 @@ color() {
   fi
 }
 
+# This resets the terminal style back to normal.
 reset_color() {
   if want_color; then
     printf '\033[0m'
   fi
 }
 
+# This prints a horizontal divider for readability.
 hr() {
   printf '%s\n' "============================================================"
 }
 
+# This prints a colored title banner for a test section.
 banner() {
   local title="$1"
   hr
@@ -35,6 +40,7 @@ banner() {
   hr
 }
 
+# This prints a success line.
 ok() {
   color "32"
   printf '%s' "$*"
@@ -42,6 +48,7 @@ ok() {
   printf '\n'
 }
 
+# This prints a failure line.
 bad() {
   color "31"
   printf '%s' "$*"
@@ -49,6 +56,7 @@ bad() {
   printf '\n'
 }
 
+# This prints a normal informational line.
 note() {
   printf '%s\n' "$*"
 }

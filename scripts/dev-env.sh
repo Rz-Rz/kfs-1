@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This prints an error and exits so the user sees the first missing requirement clearly.
 die() {
   echo "error: $*" >&2
   exit 1
 }
 
+# This decides whether colored terminal output should be used.
 want_color() {
   [[ -z "${NO_COLOR:-}" ]] || return 1
   [[ "${KFS_COLOR:-}" == "1" ]] && return 0
   [[ -t 1 ]]
 }
 
+# This starts a terminal color escape sequence when color output is enabled.
 color() {
   local code="$1"
   if want_color; then
@@ -19,12 +22,14 @@ color() {
   fi
 }
 
+# This resets terminal colors back to normal text.
 reset_color() {
   if want_color; then
     printf '\033[0m'
   fi
 }
 
+# This prints a success message in green when color is available.
 ok() {
   color "32"
   printf '%s' "$*"
@@ -32,11 +37,14 @@ ok() {
   printf '\n'
 }
 
+# This checks whether a command exists in `PATH`.
+# If a tool is missing, the script stops right away because later checks would be misleading.
 need_cmd() {
   local cmd="$1"
   command -v "${cmd}" >/dev/null 2>&1 || die "missing required tool: ${cmd}"
 }
 
+# This verifies the local machine has all of the native tools needed for the project workflow.
 cmd_check() {
   echo "dev-env: checking required tools..."
   need_cmd bash
@@ -66,6 +74,7 @@ cmd_check() {
   echo "  xorriso: $(xorriso -version 2>/dev/null | head -n 1)"
 }
 
+# This prints a short fallback list for users who want native tools instead of the recommended container flow.
 cmd_install_hint() {
   cat <<'EOF'
 This repo's canonical workflow uses the container toolchain (recommended):
@@ -77,6 +86,7 @@ If you still want to install tools natively, you need at least:
 EOF
 }
 
+# This shows the accepted subcommands for this helper script.
 usage() {
   cat <<'EOF'
 Usage:
@@ -85,6 +95,7 @@ Usage:
 EOF
 }
 
+# This picks the requested subcommand and calls the matching helper.
 main() {
   local cmd="${1:-}"
   case "${cmd}" in

@@ -267,11 +267,14 @@ Proof:
 - `bash scripts/check-m6.1-vga.sh i386`
 
 ### Feature M6.2: Newline handling (basic cursor movement)
-Status: ❌ Not started
+Status: ✅ Done
 Evidence:
-- No cursor state or newline handling implementation yet
+- `src/kernel/vga.rs` now tracks cursor state through the shared `VgaCursor` implementation in `src/kernel/vga/vga_impl.rs`
+- `vga_putc` treats `\n` as cursor movement, and `kmain` prints two lines via `vga_puts(b"42\nTHE BEST\0")`
+- Host unit coverage exists in `tests/host_cursor.rs`
 Proof:
-- `rg -n "\\b(cursor|row|col|newline)\\b" -S src || echo "no cursor handling yet"`
+- `bash scripts/check-m6.2-newline.sh i386`
+- `rg -n "\\b(VgaCursor|row|col)\\b|\\\\n" -S src/kernel tests/host_cursor.rs`
 
 ### Feature M6.3: Mandatory output: display `42`
 Status: ✅ Done (printed via VGA module from `kmain`)

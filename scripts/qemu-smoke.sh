@@ -5,11 +5,13 @@ ARCH="${1:-x86_64}"
 TIMEOUT_SECS="${KFS_QEMU_SMOKE_TIMEOUT_SECS:-5}"
 USE_KVM="${KFS_USE_KVM:-0}"
 
+# This prints an error and exits when the smoke test cannot continue safely.
 die() {
   echo "error: $*" >&2
   exit 1
 }
 
+# This chooses the right QEMU program name for the requested architecture.
 qemu_bin() {
   case "${ARCH}" in
     i386) echo "qemu-system-i386" ;;
@@ -18,10 +20,12 @@ qemu_bin() {
   esac
 }
 
+# This returns the path to the ISO image that the smoke test should boot.
 iso_path() {
   echo "build/os-${ARCH}.iso"
 }
 
+# This boots the ISO in QEMU and treats "still running after the timeout" as a pass.
 main() {
   local qemu
   qemu="$(qemu_bin)"

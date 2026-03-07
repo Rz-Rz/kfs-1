@@ -9,17 +9,20 @@ FAIL_RC="${TEST_FAIL_RC:-35}"
 ISO="build/os-${ARCH}-test.iso"
 IMG="build/os-${ARCH}-test.img"
 
+# This prints an error and exits when the QEMU test setup is invalid.
 die() {
   echo "error: $*" >&2
   exit 2
 }
 
+# This decides whether colored output should be used.
 want_color() {
   [[ -z "${NO_COLOR:-}" ]] || return 1
   [[ "${KFS_COLOR:-}" == "1" ]] && return 0
   [[ -t 1 ]]
 }
 
+# This starts a terminal color escape sequence.
 color() {
   local code="$1"
   if want_color; then
@@ -27,16 +30,19 @@ color() {
   fi
 }
 
+# This resets text formatting back to normal.
 reset_color() {
   if want_color; then
     printf '\033[0m'
   fi
 }
 
+# This prints a simple separator line.
 hr() {
   printf '%s\n' "------------------------------------------------------------"
 }
 
+# This prints a success message in green.
 ok() {
   color "32"
   printf '%s' "$*"
@@ -44,6 +50,7 @@ ok() {
   printf '\n'
 }
 
+# This prints a failure message in red.
 bad() {
   color "31"
   printf '%s' "$*"
@@ -51,6 +58,7 @@ bad() {
   printf '\n'
 }
 
+# This prints a plain informational line.
 note() {
   printf '%s\n' "$*"
 }

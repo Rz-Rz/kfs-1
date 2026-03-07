@@ -1,6 +1,7 @@
 include!("../src/kernel/memory/memory_impl.rs");
 
 #[test]
+// This checks that `memcpy` can copy a full buffer from source to destination.
 fn memcpy_basic_copy() {
     let src = [1u8, 2u8, 3u8, 4u8];
     let mut dst = [0u8; 4];
@@ -11,6 +12,7 @@ fn memcpy_basic_copy() {
 }
 
 #[test]
+// This checks that asking to copy zero bytes leaves the destination unchanged.
 fn memcpy_zero_length_keeps_destination() {
     let src = [9u8, 8u8, 7u8];
     let mut dst = [1u8, 2u8, 3u8];
@@ -21,6 +23,7 @@ fn memcpy_zero_length_keeps_destination() {
 }
 
 #[test]
+// This checks that copying into the middle of a buffer does not damage bytes outside the chosen range.
 fn memcpy_preserves_outside_range() {
     let src = [10u8, 11u8, 12u8];
     let mut dst = [0xAAu8, 0xBBu8, 0xCCu8, 0xDDu8, 0xEEu8];
@@ -31,6 +34,7 @@ fn memcpy_preserves_outside_range() {
 }
 
 #[test]
+// This checks that copying a buffer onto itself is harmless in this simple implementation.
 fn memcpy_allows_same_pointer() {
     let mut buf = [1u8, 2u8, 3u8, 4u8];
     let original = buf;
@@ -42,6 +46,7 @@ fn memcpy_allows_same_pointer() {
 }
 
 #[test]
+// This checks that the code still works even when the pointers do not start on a neat machine-word boundary.
 fn memcpy_unaligned_pointers() {
     let src = [0u8, 5u8, 6u8, 7u8, 8u8];
     let mut dst = [0u8, 0u8, 0u8, 0u8, 0u8];
@@ -52,6 +57,7 @@ fn memcpy_unaligned_pointers() {
 }
 
 #[test]
+// This checks that `memset` fills every byte in the buffer with the same value.
 fn memset_basic_fill() {
     let mut buf = [0u8; 6];
     unsafe {
@@ -61,6 +67,7 @@ fn memset_basic_fill() {
 }
 
 #[test]
+// This checks that writing zero bytes does not change the buffer.
 fn memset_zero_length_keeps_buffer() {
     let mut buf = [1u8, 2u8, 3u8];
     unsafe {
@@ -70,6 +77,7 @@ fn memset_zero_length_keeps_buffer() {
 }
 
 #[test]
+// This checks that filling only the middle section leaves the edges alone.
 fn memset_partial_range_preserves_edges() {
     let mut buf = [0x11u8, 0x22u8, 0x33u8, 0x44u8, 0x55u8];
     unsafe {

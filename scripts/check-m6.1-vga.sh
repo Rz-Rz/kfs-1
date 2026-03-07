@@ -4,11 +4,13 @@ set -euo pipefail
 ARCH="${1:-i386}"
 KERNEL="build/kernel-${ARCH}.bin"
 
+# This prints a clean error message and stops the script.
 die() {
   echo "error: $*" >&2
   exit 2
 }
 
+# This searches the source tree for a pattern and supports either `rg` or `grep`.
 find_src_pattern() {
   local pattern="$1"
   if command -v rg >/dev/null 2>&1; then
@@ -18,6 +20,7 @@ find_src_pattern() {
   fi
 }
 
+# This makes sure the VGA writer functions exist in source and also show up as real symbols in the kernel.
 main() {
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
   [[ -r "${KERNEL}" ]] || die "missing artifact: ${KERNEL} (build it with make all/iso arch=${ARCH})"

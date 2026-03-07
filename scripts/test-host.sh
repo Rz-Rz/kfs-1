@@ -9,21 +9,25 @@ TEST_PASS_RC="${TEST_PASS_RC:-33}"
 TEST_FAIL_RC="${TEST_FAIL_RC:-35}"
 KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL:-0}"
 
+# This prints an error and exits so the test run stops at a clear problem.
 die() {
   echo "error: $*" >&2
   exit 2
 }
 
+# This answers a simple yes/no question: is standard output connected to a real terminal?
 is_tty() {
   [[ -t 1 ]]
 }
 
+# This decides whether colored output should be shown for the current run.
 want_color() {
   [[ -z "${NO_COLOR:-}" ]] || return 1
   [[ "${KFS_COLOR:-}" == "1" ]] && return 0
   is_tty
 }
 
+# This starts a terminal color escape sequence when colors are enabled.
 color() {
   local code="$1"
   if want_color; then
@@ -31,16 +35,19 @@ color() {
   fi
 }
 
+# This resets the terminal color back to normal text.
 reset_color() {
   if want_color; then
     printf '\033[0m'
   fi
 }
 
+# This prints a horizontal rule to separate major blocks of output.
 hr() {
   printf '%s\n' "============================================================"
 }
 
+# This prints a banner title with separators so the test output is easier to scan.
 banner() {
   local title="$1"
   hr
@@ -50,28 +57,33 @@ banner() {
   hr
 }
 
+# This prints low-emphasis informational text.
 info() {
   color "2"
   printf '%s' "$*"
   reset_color
 }
 
+# This prints the word `PASS` in success color.
 pass() {
   color "32"
   printf '%s' "PASS"
   reset_color
 }
 
+# This prints the word `FAIL` in failure color.
 fail() {
   color "31"
   printf '%s' "FAIL"
   reset_color
 }
 
+# This indents incoming text so log output sits visually under the test that produced it.
 indent() {
   sed 's/^/  /'
 }
 
+# This runs one test command, captures its output, and prints the log only when needed.
 run_item() {
   local idx="$1"
   local total="$2"
@@ -106,6 +118,7 @@ run_item() {
   return "${rc}"
 }
 
+# This is the same basic runner as `run_item`, but it is kept separate for inline-style test stages.
 run_item_inline() {
   local idx="$1"
   local total="$2"
@@ -158,61 +171,64 @@ run_item 2 2 "Verify tools exist" \
 
 printf '\n'
 color "1;34"; printf '%s\n' "TESTS"; reset_color
-run_item 1 17 "release ISO is bootable" \
+run_item 1 18 "release ISO is bootable" \
   bash scripts/container.sh run -- \
     bash -lc "make -B iso arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.iso && test \$(wc -c < build/os-${ARCH}.iso) -le 10485760 && file build/os-${ARCH}.iso | grep -q 'ISO 9660'"
 
-run_item 2 17 "kmain exists + is called (M4.1)" \
+run_item 2 18 "kmain exists + is called (M4.1)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m4.1-kmain.sh '${ARCH}'"
 
-run_item 3 17 "VGA writer module exists + is used (M6.1)" \
+run_item 3 18 "VGA writer module exists + is used (M6.1)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m6.1-vga.sh '${ARCH}'"
 
-run_item 4 17 "string helpers pass host tests (M5.2)" \
+run_item 4 18 "newline cursor tests pass (M6.2)" \
+  bash scripts/check-m6.2-newline.sh "${ARCH}"
+
+run_item 5 18 "string helpers pass host tests (M5.2)" \
   bash scripts/check-m5.2-string.sh "${ARCH}"
 
-run_item 5 17 "memory helpers pass host tests (M5.3)" \
+run_item 6 18 "memory helpers pass host tests (M5.3)" \
   bash scripts/check-m5.3-memory.sh "${ARCH}"
 
-run_item 6 17 "release IMG is bootable" \
+run_item 7 18 "release IMG is bootable" \
   bash scripts/container.sh run -- \
     bash -lc "make -B img arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
 
-run_item 7 17 "Build test ISO" \
+run_item 8 18 "Build test ISO" \
   bash scripts/container.sh run -- \
     bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item 8 17 "standard sections exist (.text/.rodata/.data/.bss)" \
+run_item 9 18 "standard sections exist (.text/.rodata/.data/.bss)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m3.2-sections.sh '${ARCH}'"
 
-run_item 9 17 "layout symbols exported + referenced (M3.3)" \
+run_item 10 18 "layout symbols exported + referenced (M3.3)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m3.3-layout-symbols.sh '${ARCH}'"
 
-run_item 10 17 "kernel includes ASM+Rust (symbol gate)" \
+run_item 11 18 "kernel includes ASM+Rust (symbol gate)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' langs"
 
-run_item 11 17 "no host libs (ELF checks): no PT_INTERP" \
+run_item 12 18 "no host libs (ELF checks): no PT_INTERP" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' interp"
 
-run_item 12 17 "no host libs (ELF checks): no .interp/.dynamic" \
+run_item 13 18 "no host libs (ELF checks): no .interp/.dynamic" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' dynamic"
 
-run_item 13 17 "no host libs (ELF checks): no undefined symbols" \
+run_item 14 18 "no host libs (ELF checks): no undefined symbols" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' undef"
 
-run_item 14 17 "no host libs (ELF checks): no libc/loader strings" \
+run_item 15 18 "no host libs (ELF checks): no libc/loader strings" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' strings"
 
-run_item_inline 15 17 "GRUB boots test ISO" \
+run_item_inline 16 18 "GRUB boots test ISO" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \
@@ -220,11 +236,11 @@ run_item_inline 15 17 "GRUB boots test ISO" \
     KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
     bash scripts/test-qemu.sh "${ARCH}"
 
-run_item 16 17 "Build test IMG artifact" \
+run_item 17 18 "Build test IMG artifact" \
   bash scripts/container.sh run -- \
     bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item_inline 17 17 "GRUB boots test IMG" \
+run_item_inline 18 18 "GRUB boots test IMG" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \

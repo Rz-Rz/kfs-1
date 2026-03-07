@@ -4,11 +4,14 @@ set -euo pipefail
 ARCH="${1:-i386}"
 CHECK="${2:-all}"
 
+# This stops the script with an error message when a required condition is missing.
 die() {
   echo "error: $*" >&2
   exit 2
 }
 
+# This checks one kernel file for signs that it is truly freestanding.
+# "Freestanding" means the kernel stands on its own instead of depending on the host OS runtime.
 check_file() {
   local kernel="$1"
   [[ -r "${kernel}" ]] || die "missing artifact: ${kernel}"
@@ -81,6 +84,7 @@ check_file() {
   return 0
 }
 
+# This validates the input options, runs the selected checks, and reports whether any failed.
 main() {
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
   case "${CHECK}" in

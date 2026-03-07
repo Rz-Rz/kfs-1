@@ -3,11 +3,14 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 
+# This stops the script with a readable error instead of letting later commands fail in confusing ways.
 die() {
   echo "error: $*" >&2
   exit 2
 }
 
+# This searches the source tree for a text pattern.
+# It prefers `rg` because it is fast, but it can fall back to `grep` when needed.
 find_src_pattern() {
   local pattern="$1"
 
@@ -18,6 +21,7 @@ find_src_pattern() {
   fi
 }
 
+# This checks the built kernel file for the linker symbols that describe important memory boundaries.
 check_kernel() {
   local kernel="$1"
   [[ -r "${kernel}" ]] || die "missing artifact: ${kernel}"
@@ -39,6 +43,7 @@ check_kernel() {
   return 0
 }
 
+# This makes sure the Rust code actually declares and uses the linker symbols, not just the linker script.
 check_rust_references() {
   local missing=0
 
@@ -62,6 +67,7 @@ check_rust_references() {
   return 0
 }
 
+# This validates inputs, runs the binary checks and source checks, and fails if any required proof is missing.
 main() {
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
 

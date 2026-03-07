@@ -8,11 +8,13 @@ TEST_SOURCE="tests/host_string.rs"
 SOURCE_CRATE="src/kernel/string.rs"
 SOURCE_IMPL="src/kernel/string/string_impl.rs"
 
+# This stops the script with a short, direct error message.
 die() {
   echo "error: $*" >&2
   exit 2
 }
 
+# This searches the source tree for a pattern so the script can prove certain Rust functions exist.
 find_src_pattern() {
   local pattern="$1"
   if command -v rg >/dev/null 2>&1; then
@@ -22,6 +24,7 @@ find_src_pattern() {
   fi
 }
 
+# This prints matching source lines when a failure needs extra detail for debugging.
 print_src_pattern() {
   local pattern="$1"
   if command -v rg >/dev/null 2>&1; then
@@ -31,6 +34,7 @@ print_src_pattern() {
   fi
 }
 
+# This builds and runs the host tests for the string helpers, then checks the source and kernel symbols that should exist.
 main() {
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
   [[ -r "${KERNEL}" ]] || die "missing artifact: ${KERNEL} (build it with make all/iso arch=${ARCH})"

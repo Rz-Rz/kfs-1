@@ -3,11 +3,14 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 
+# This stops the script early with a clear error message.
 die() {
   echo "error: $*" >&2
   exit 2
 }
 
+# This looks inside one kernel binary and makes sure the expected output sections are really there.
+# Sections are named chunks inside the final file, like buckets for code, read-only data, writable data, and zeroed memory.
 check_kernel() {
   local kernel="$1"
   [[ -r "${kernel}" ]] || die "missing artifact: ${kernel}"
@@ -45,6 +48,7 @@ check_kernel() {
   return 0
 }
 
+# This picks the right kernel files, runs the section checks, and turns any failure into a non-zero exit code.
 main() {
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
 
@@ -64,4 +68,3 @@ main() {
 }
 
 main "$@"
-

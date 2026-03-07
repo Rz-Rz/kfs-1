@@ -1,4 +1,5 @@
 section .multiboot_header
+; This header tells a Multiboot 2 bootloader that this file is a bootable kernel.
 header_start:
     dd 0xe85250d6                ; magic number (multiboot 2)
     dd 0                         ; architecture 0 (protected mode i386)
