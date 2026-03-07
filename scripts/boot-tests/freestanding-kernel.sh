@@ -3,6 +3,7 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-all}"
+CUSTOM_KERNEL="${KFS_M0_2_KERNEL:-}"
 
 list_cases() {
   cat <<'EOF'
@@ -161,6 +162,20 @@ run_direct() {
   esac
 
   local failures=0
+
+  if [[ -n "${CUSTOM_KERNEL}" ]]; then
+    [[ -r "${CUSTOM_KERNEL}" ]] || die "missing custom kernel artifact: ${CUSTOM_KERNEL}"
+    if [[ "${CASE}" == "all" ]]; then
+      run_all_cases_against_kernel "${CUSTOM_KERNEL}" || failures=$((failures + 1))
+    else
+      run_case_against_kernel "${CUSTOM_KERNEL}" || failures=$((failures + 1))
+    fi
+
+    if [[ "${failures}" -ne 0 ]]; then
+      exit 1
+    fi
+    return 0
+  fi
 
   [[ -r "build/kernel-${ARCH}-test.bin" ]] || die "missing test kernel: build/kernel-${ARCH}-test.bin (build it with make iso-test arch=${ARCH})"
   if [[ "${CASE}" == "all" ]]; then

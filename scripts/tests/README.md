@@ -214,6 +214,7 @@ For quick validation after a rebase:
 bash scripts/tests/kernel-sections.sh --list
 bash scripts/stability-tests/section-stability.sh --list
 bash scripts/rejection-tests/section-rejections.sh --list
+bash scripts/rejection-tests/freestanding-rejections.sh --list
 bash scripts/rejection-tests/layout-symbol-rejections.sh --list
 bash scripts/boot-tests/freestanding-kernel.sh --list
 bash scripts/boot-tests/layout-symbols.sh --list
@@ -226,6 +227,7 @@ And for syntax:
 ```bash
 bash -n scripts/test-host.sh
 bash -n scripts/tests/kernel-sections.sh
+bash -n scripts/rejection-tests/freestanding-rejections.sh
 bash -n scripts/rejection-tests/layout-symbol-rejections.sh
 bash -n scripts/boot-tests/layout-symbols.sh
 ```

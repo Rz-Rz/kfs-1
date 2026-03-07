@@ -108,11 +108,16 @@ Status: ✅ Done (exercised by Rust + enforced via `make test`)
 Evidence:
 - Rust code is compiled and linked into the kernel image (symbol `kfs_rust_marker`).
 - M0.2 is enforced by inspecting the linked ELF (no dynamic loader/sections, no undefined symbols, no libc/loader markers).
+- Dedicated rejection tests now contaminate a real kernel build with hosted-runtime metadata and prove the gate fails.
 Proof:
 - `make test arch=i386` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
 - `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
 - `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"` (release kernel also links Rust)
 - `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/freestanding-kernel.sh i386 all` (checks both test + release kernels)
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 interp-pt-interp-present`
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 dynamic-section-present`
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 unresolved-external-symbol`
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 host-runtime-marker-strings`
 
 ### Feature M0.3: Size discipline baked into workflow
 Status: ✅ Mostly done (image size)
@@ -258,13 +263,21 @@ Epic DoD (M3) complete? ✅
 
 ## Base Epic M4: Minimal Kernel in Your Chosen Language
 
-Status: ⚠️ Partial (`kmain` exists in Rust, is called from ASM, and currently prints `42`)
+Status: ⚠️ Partial
+Evidence:
+- M4.1 is mostly in place: the release kernel exports `kmain`, the release boot entry calls it,
+  and the current Rust entry writes `42`
+- M4.2 is not implemented yet: there is no dedicated runtime early-init that proves BSS zeroing
+  and layout assumptions before continuing
+- M4.3 exists at source level (`hlt` loops in ASM/Rust), but the proof depth is still lighter than
+  the M3.2/M3.3 standard
 Proof:
 - `bash scripts/boot-tests/release-kmain-symbol.sh i386 release-kernel-exports-kmain`
 - `bash scripts/boot-tests/release-kmain-callsite.sh i386 release-boot-calls-kmain`
 - `rg -n "write_volatile|b'4'|b'2'" -S src/kernel/kmain.rs`
 What’s left:
-- Implement the stronger M4.2 early-init/runtime-assumption checks described in `docs/kfs1_epics_features.md`.
+- Add the M4.2 runtime proof path described in `docs/kfs1_epics_features.md`
+- Add stronger adversarial/rejection tests so M4 reaches the same proof standard as M3.2/M3.3
 
 ---
 

@@ -363,6 +363,25 @@ Proof / tests (definition of done):
 - WP-M0.2-4 (no libc/loader strings): `KERNEL=build/kernel-i386.bin; ! strings "$KERNEL" | rg -ni "(glibc|libc\\.so|ld-linux)"`
 - WP-M0.2-5 (build flags present; configuration proof): `rg -n "(ffreestanding|nostdlib|fno-builtin|panic=abort|#!\\[no_std\\])" -S .`
 
+Stability / adversarial proofs (recommended in visible CI output):
+- AT-M0.2-1 (the gate is enforced on an ASM + Rust linked kernel, not ASM-only): `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
+  Why it matters: an ASM-only kernel can accidentally look freestanding while the chosen-language
+  path is missing or not linked at all.
+- AT-M0.2-2 (release artifact can also be checked, not only the fast test artifact): `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/freestanding-kernel.sh i386 all`
+  Why it matters: the daily gate runs on the fresh test kernel, but the release kernel should stay
+  clean as well.
+- AT-M0.2-3 (marker-string checks are defense-in-depth, separate from ELF metadata checks): `bash scripts/boot-tests/freestanding-kernel.sh i386 no-libc-strings`, `bash scripts/boot-tests/freestanding-kernel.sh i386 no-loader-strings`
+  Why it matters: `.interp` / `.dynamic` are the primary proofs. The string checks are additional
+  alarms for hosted-runtime leakage that might otherwise be easy to overlook.
+
+Negative / rejection proofs (real bad-hosted-kernel cases, not mocks):
+- RT-M0.2-1 (rejects forced `.interp` / `PT_INTERP` metadata): `bash scripts/rejection-tests/freestanding-rejections.sh i386 interp-pt-interp-present`
+- RT-M0.2-2 (rejects forced `.dynamic` metadata): `bash scripts/rejection-tests/freestanding-rejections.sh i386 dynamic-section-present`
+- RT-M0.2-3 (rejects an unresolved external symbol): `bash scripts/rejection-tests/freestanding-rejections.sh i386 unresolved-external-symbol`
+- RT-M0.2-4 (rejects libc / dynamic-loader marker strings): `bash scripts/rejection-tests/freestanding-rejections.sh i386 host-runtime-marker-strings`
+  Why they matter: these tests deliberately contaminate an otherwise real kernel build and prove
+  the no-host-libs gate fails for the exact hosted-runtime smells it claims to detect.
+
 ### Feature M0.3: Size discipline baked into the workflow
 Implementation tasks:
 - Prefer stripped/minimal artifacts for the image.
@@ -687,21 +706,55 @@ Negative / rejection proofs (real bad-linker cases, not mocks):
 ## Base Epic M4: Minimal Kernel in Your Chosen Language
 
 ### Feature M4.1: A real `kmain` entry point in the chosen language
+Intent:
+- Prove the real **release** boot path transfers control from the ASM entry point into a
+  Rust-defined kernel entry function named `kmain`.
+- Keep this feature focused on **entry-point identity and reachability** in the final linked
+  kernel image.
+- Do **not** use this feature to prove runtime memory assumptions (M4.2), the screen API (M6),
+  or linker-symbol semantics beyond “the entry point is present and called” (M3.3).
+
 Implementation tasks:
-- Implement `kmain` in C/C++/Rust/etc.
-- Avoid language runtime features that require an allocator or OS support.
+- Implement `#[no_mangle] pub extern "C" fn kmain() -> !` in Rust.
+- Keep `kmain` freestanding: no allocator and no kernel-side assumptions that require an OS/runtime.
+- Make the i386 ASM boot entry (`start`) set up the minimal execution environment and then
+  transfer control directly to `kmain`.
+- Keep the release proof focused on the **release kernel artifact**; test-only fast paths must
+  not be allowed to masquerade as proof that Rust actually ran.
 
 Acceptance criteria:
-- `kmain` runs after boot and can call screen output functions.
+- The final release kernel exports an unmangled text symbol named `kmain`.
+- The ASM boot entry calls `kmain` on the release path, not only in a test-only build.
+- `kmain` is part of the final shipped kernel image and is not dead code or a detached helper.
+- The proof distinguishes “symbol exists” from “boot path actually targets that symbol”.
 
 Implementation scope:
 - `RUST` (+ `ASM` call site)
 
 Proof / tests (definition of done):
-- WP-M4.1-1 (kmain exists as a symbol): `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\bkmain\\b"`
-- WP-M4.1-2 (boot calls into it): `objdump -d build/kernel-i386.bin | rg -n "call.*kmain"`
-- MANUAL-M4.1-1 (observable behavior from kmain): boot in QEMU and confirm output is produced by `kmain` (e.g., prints via the screen module). (Automation: prefer AUTO-M4.1-1)
-- AUTO-M4.1-1 (preferred for CI): print `KMAIN_OK` on serial (Infra I1.1) and exit PASS (Infra I0.1) right after `kmain` runs
+- WP-M4.1-1 (Rust defines the canonical entry signature): `rg -n "#\\[no_mangle\\]|extern\\s+\"C\"\\s+fn\\s+kmain\\s*\\(\\)\\s*->\\s*!" -S src/kernel src/rust`
+- WP-M4.1-2 (release kernel exports `kmain` as text): `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "[[:space:]]T[[:space:]]+kmain$"`
+- WP-M4.1-3 (release boot entry calls `kmain` from `start`): `objdump -d build/kernel-i386.bin | sed -n '/<start>:/,/^$/p' | rg -n "call[[:space:]]+.*<kmain>"`
+- WP-M4.1-4 (repo proof scripts cover the release symbol + callsite): `bash scripts/boot-tests/release-kmain-symbol.sh i386 release-kernel-exports-kmain`, `bash scripts/boot-tests/release-kmain-callsite.sh i386 release-boot-calls-kmain`
+
+Stability / adversarial proofs (recommended in visible CI output):
+- AT-M4.1-1 (release proof is not satisfied by the test-only short-circuit path): `rg -n "%ifdef\\s+KFS_TEST|call\\s+kmain" -n src/arch/i386/boot.asm`
+  Why it matters: the test build exits early through `isa-debug-exit`, so the release proof must
+  explicitly inspect the release kernel instead of assuming any successful QEMU boot means Rust ran.
+- AT-M4.1-2 (entry symbol remains unmangled across toolchain changes): `bash scripts/boot-tests/release-kmain-symbol.sh i386 release-kernel-exports-kmain`
+  Why it matters: freestanding Rust can silently drift into a mangled or optimized-away entry if
+  the ABI markers change.
+- AT-M4.1-3 (callsite remains attached to the real boot entry block): `objdump -d build/kernel-i386.bin | sed -n '/<start>:/,/^$/p'`
+  Why it matters: a loose “somewhere in the ELF there is a call to kmain” check is weaker than a
+  proof that the actual CPU entry block calls into Rust.
+
+Negative / rejection proofs (real bad-entry cases, not mocks):
+- RT-M4.1-1 (rejects missing/unmangled `kmain`): temporarily remove `#[no_mangle]` or rename the symbol and confirm `bash scripts/boot-tests/release-kmain-symbol.sh i386 release-kernel-exports-kmain` fails
+- RT-M4.1-2 (rejects a release boot path that no longer calls Rust): temporarily remove `call kmain` from the release path in `src/arch/i386/boot.asm` and confirm `bash scripts/boot-tests/release-kmain-callsite.sh i386 release-boot-calls-kmain` fails
+- MANUAL-M4.1-1 (observable behavior from Rust entry): boot the release ISO in QEMU and confirm the first visible output is produced by Rust `kmain` rather than by an ASM-only fallback. (Automation: prefer AUTO-M4.1-1)
+- AUTO-M4.1-1 (preferred for CI once Infra I1.1 exists): print a fixed runtime marker such as `KMAIN_OK` on serial and exit PASS via Infra I0.1 immediately after Rust entry is reached
+  Why it matters: the workflow proofs above establish symbol identity and the static call edge. A
+  runtime marker closes the gap and proves the CPU actually executed Rust code after boot.
 
 ### Feature M4.2: Minimal early kernel init validates runtime assumptions before normal work
 Intent:
@@ -711,49 +764,106 @@ Intent:
   boot path’s zero-initialized `.bss` guarantee.
 - Do **not** use this feature to redefine linker symbols (M3.3) or to own the full screen I/O
   API (M6).
+- This is a **runtime-assumption** feature: it must be proved by executing kernel code, not only
+  by inspecting ELF metadata.
 
 Implementation tasks:
-- Add a Rust `.bss` canary object that is expected to start at zero.
-- In early init, read the `.bss` canary before any writes and confirm it is zero.
-- Read the exported layout bounds and derive kernel/BSS spans at runtime.
-- Continue into the normal kernel flow only if those assumptions hold.
+- Add a dedicated Rust early-init step that runs immediately after entering `kmain`, before the
+  “normal” kernel flow.
+- Add a Rust `.bss` canary object that is expected to start at zero on first observation.
+- In early init, read that `.bss` canary before any writes and treat non-zero as a hard failure.
+- Read the exported `kernel_start`, `kernel_end`, `bss_start`, and `bss_end` bounds at runtime and
+  derive spans without hardcoded addresses.
+- Validate the basic ordering/range assumptions in Rust before continuing.
+- Emit fixed success/failure markers so runtime assertions can be automated without depending on
+  free-form text output.
 
 Acceptance criteria:
 - Boot reaches Rust early init after `kmain`.
 - A `.bss` object is observed as zero at runtime before being written.
 - Early init can read the exported kernel/BSS bounds at runtime without hardcoded addresses.
-- Failure is observable if the runtime assumptions do not hold.
+- Early init rejects impossible or suspicious layout ranges instead of silently continuing.
+- Failure is externally observable if the runtime assumptions do not hold.
+- Success is externally observable in an ordered way so tests can distinguish
+  “Rust started” from “Rust validated runtime assumptions”.
 
 Implementation scope:
 - `RUST` (+ `ASM` call site already covered by M2.3 / M4.1)
 
 Proof / tests (definition of done):
-- WP-M4.2-1 (Rust defines a `.bss` zero-init canary): `rg -n "\\bstatic\\s+mut\\b|\\bstatic\\b" -S src | rg -n "BSS|ZERO|CANARY"`
-- WP-M4.2-2 (Rust early init reads exported layout bounds): `rg -n "kernel_start|kernel_end|bss_start|bss_end" -S src`
-- MANUAL-M4.2-1 (runtime): boot and confirm early init reaches the normal output path only after the zero-init and layout checks succeed.
-- AUTO-M4.2-1 (preferred when serial/VGA assertions exist): emit ordered runtime markers such as `BSS_OK` then `LAYOUT_OK` then continue to the next kernel step.
+- WP-M4.2-1 (Rust defines a dedicated zero-init canary in BSS): `rg -n "\\bstatic\\s+mut\\b|\\bstatic\\b" -S src | rg -n "BSS|ZERO|CANARY"`
+- WP-M4.2-2 (Rust early-init code references the exported layout bounds): `rg -n "kernel_start|kernel_end|bss_start|bss_end" -S src`
+- WP-M4.2-3 (boot path reaches a dedicated early-init step before the normal output path): `rg -n "early_init|init" -S src/kernel src/rust`
+
+Stability / adversarial proofs (recommended in visible CI output):
+- AT-M4.2-1 (ordered runtime markers are fixed tokens, not prose): runtime emits machine-checkable tokens such as `KMAIN_OK`, `BSS_OK`, `LAYOUT_OK`, and `EARLY_INIT_OK`
+  Why it matters: free-form boot logs are brittle. Fixed tokens let tests prove exact sequencing.
+- AT-M4.2-2 (layout checks consume exported symbols, not duplicated constants): `rg -n "kernel_start|kernel_end|bss_start|bss_end" -S src | rg -v "linker\\.ld"`
+  Why it matters: this feature is supposed to prove the running kernel can trust M3.3’s exported
+  layout metadata, not reintroduce hardcoded addresses in Rust.
+- AT-M4.2-3 (the BSS canary is read before first write): keep the early-init code structured so a
+  source or trace-based test can show “read/compare first, write later”
+  Why it matters: otherwise the check could self-fulfill by zeroing the canary before observing it.
+
+Negative / rejection proofs (real bad-runtime cases, not mocks):
+- RT-M4.2-1 (rejects non-zero BSS canary): build a dedicated failing test variant that seeds the canary or bypasses zero-init and confirm runtime emits `BSS_FAIL` and exits FAIL via Infra I0.1
+- RT-M4.2-2 (rejects malformed layout ordering at runtime): build a dedicated failing test variant with an impossible span/ordering assumption and confirm runtime emits `LAYOUT_FAIL` and exits FAIL
+- RT-M4.2-3 (rejects continuing past early init after a failed assumption): ensure the failure path does not print the normal success marker or reach the normal screen flow
+- MANUAL-M4.2-1 (runtime): boot and confirm early init reaches the normal output path only after the zero-init and layout checks succeed
+- AUTO-M4.2-1 (preferred when serial/VGA assertions exist): emit ordered runtime markers such as `KMAIN_OK`, `BSS_OK`, `LAYOUT_OK`, then continue to the next kernel step
   Why it matters: M3.3 proves the linker exported sane addresses. This feature proves the
   running kernel can actually depend on those addresses and on zero-init behavior before
   higher-level code starts using globals/statics.
 
 ### Feature M4.3: Clean halt behavior
+Intent:
+- Provide a single, predictable “stop the CPU here” behavior for the minimal kernel once boot
+  work is done or when a fatal condition is reached.
+- Keep this feature focused on **terminal CPU behavior** (`cli`/`hlt` loop or equivalent).
+- Do **not** use this feature to hide missing runtime-exit proofs that should instead use the
+  dedicated CI exit path from Infra I0.1.
+
 Implementation tasks:
 - Provide a consistent halt function (e.g., `cpu_halt_forever()`).
+- Route Rust panic handling and the normal end-of-flow path to the same halt primitive or to
+  equally strict halt semantics.
+- Keep a release/defense-safe infinite halt loop even if CI/test builds use a controlled PASS/FAIL
+  exit path instead.
 
 Acceptance criteria:
 - After printing, kernel halts without rebooting or triple faulting.
+- The halt path does not return to random code.
+- The release build has an explicit halt loop in source and in the linked artifact.
+- CI/test automation can still terminate deterministically without weakening the release halt path.
 
 Implementation scope:
 - `ASM` or `RUST` (but must compile to `cli/hlt` loop)
 
 Proof / tests (definition of done):
-- WP-M4.3-1 (halt loop exists in sources): `rg -n "(cli\\s*;\\s*)?hlt" -S src/arch/i386/boot.asm src`
-- MANUAL-M4.3-1 (no reboot): run QEMU with `-no-reboot -no-shutdown` and confirm it does not reset; it halts as intended. (Automation: prefer AUTO-M4.3-1)
-- AUTO-M4.3-1 (preferred for CI): don’t “hlt forever” in CI—exit PASS via **Infra I0.1** at end-of-test; keep `hlt` loop for the defense build/profile
+- WP-M4.3-1 (halt loop exists in source): `rg -n "(cli\\s*;\\s*)?hlt" -S src/arch/i386/boot.asm src`
+- WP-M4.3-2 (release artifact contains the halt pattern in the boot/Rust path): `objdump -d build/kernel-i386.bin | rg -n "cli|hlt"`
+- WP-M4.3-3 (panic path converges to a halt primitive): `rg -n "panic_handler|halt_forever|hlt" -S src`
+
+Stability / adversarial proofs (recommended in visible CI output):
+- AT-M4.3-1 (release halt path remains separate from the CI PASS/FAIL exit path): `rg -n "KFS_TEST|0xf4|hlt" -S src/arch/i386/boot.asm src`
+  Why it matters: the test harness may intentionally exit QEMU, but the shipped kernel still needs
+  a real halt loop.
+- AT-M4.3-2 (Rust and ASM both end in explicit terminal behavior): inspect `src/kernel/kmain.rs`
+  and `src/arch/i386/boot.asm` for non-returning halt loops
+  Why it matters: if `kmain` ever returns accidentally, the CPU should still land in a safe halt.
+
+Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
+- RT-M4.3-1 (rejects a release path with no halt loop): temporarily remove the halt loop and confirm the source/artifact proof fails
+- RT-M4.3-2 (rejects an unintended reboot/triple-fault path): boot QEMU with `-no-reboot -no-shutdown` and confirm the kernel does not reset when the normal path completes
+- MANUAL-M4.3-1 (no reboot): run QEMU with `-no-reboot -no-shutdown` and confirm it does not reset; it halts as intended
+- AUTO-M4.3-1 (preferred for CI): don’t “hlt forever” in CI; reach a dedicated PASS/FAIL exit via **Infra I0.1** at end-of-test while preserving the halt loop for the release/defense profile
 
 ### Definition of Done (M4)
-- Kernel "main" is in the chosen language, reachable and stable.
-- Kernel does not rely on host runtime libraries.
+- Rust `kmain` is the real release entry target from ASM boot.
+- The running kernel validates its earliest runtime assumptions before normal work.
+- The kernel stops in a predictable, non-returning way at the end of the minimal flow.
+- The epic is backed by multiple proof classes: workflow/artifact checks, runtime proofs,
+  stability/adversarial checks, and explicit rejection/failure tests.
 
 ---
 
