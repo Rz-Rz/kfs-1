@@ -138,6 +138,85 @@ Definition of Done (I3):
 
 ---
 
+## Infra Epic I4: Linker / ELF Hygiene Gates
+
+Goal:
+- Catch subtle linker-layout regressions before they become boot failures or silent ELF baggage.
+
+Motivation:
+- The M3.2 section proofs establish the core layout, but future toolchain changes can still
+  introduce unexpected sections, orphan inputs, or hidden runtime metadata.
+- These checks are hardening gates for CI, not subject-mandated deliverables.
+
+### Feature I4.1: Emit and inspect a linker map file
+Implementation tasks:
+- Ask `ld` to emit a map file for the final kernel link (for example `-Map build/kernel-i386.map`).
+- Preserve the map artifact in `build/` for local inspection and CI debugging.
+- Add at least one host-side assertion that inspects the map and proves key input sections
+  land in the expected output sections.
+
+Acceptance criteria:
+- Every kernel link produces a readable map file.
+- The project can prove exact input-to-output section routing from the linker’s own report.
+
+Implementation scope:
+- `MAKE` + `LD` + `AUTOMATION`
+
+Proof / tests (definition of done):
+- WP-I4.1-1 (link command emits a map file): `make -n all arch=i386 | rg -n -- "-Map\\s+build/kernel-i386\\.map"`
+- WP-I4.1-2 (artifact exists after build): `make all arch=i386 && test -f build/kernel-i386.map`
+- WP-I4.1-3 (map proves a subsection routing example): `rg -n "KFS_RODATA_SUBSECTION_MARKER|\\.rodata\\.kfs_test|\\.rodata" build/kernel-i386.map`
+
+### Feature I4.2: Fail the link on orphan sections
+Implementation tasks:
+- If supported by the project `ld`, add `--orphan-handling=error` to the final kernel link.
+- Document the expected failure mode when a new input section appears without an explicit rule.
+- Add a regression proof that the link command includes the orphan-handling gate.
+
+Acceptance criteria:
+- A newly introduced unmapped input section fails the link immediately instead of silently
+  landing wherever the linker decides.
+
+Implementation scope:
+- `MAKE` + `LD`
+
+Proof / tests (definition of done):
+- WP-I4.2-1 (link command enables orphan rejection): `make -n all arch=i386 | rg -n -- "--orphan-handling=error"`
+- WP-I4.2-2 (negative proof): inject a temporary unmapped input section and confirm the link fails with an orphan-section error
+
+### Feature I4.3: Denylist suspicious ELF baggage sections explicitly
+Implementation tasks:
+- Add a host-side ELF inspection test that fails if the final kernel contains suspicious
+  sections such as:
+  - `.eh_frame`
+  - `.gcc_except_table`
+  - `.init_array`
+  - `.fini_array`
+  - `.got`, `.got.plt`
+  - `.plt`
+  - `.dynamic`, `.interp`
+  - `.rela.*`, `.rel.*`
+  - `.note.gnu.build-id`
+- Keep this denylist separate from the broader allocatable-section allowlist so the failure
+  message names the exact unexpected baggage.
+
+Acceptance criteria:
+- The kernel ELF is free of common hosted-runtime / unwinding / dynamic-link sections that do
+  not belong in a tiny freestanding kernel.
+
+Implementation scope:
+- `AUTOMATION` (+ final kernel artifact)
+
+Proof / tests (definition of done):
+- WP-I4.3-1 (denylist check): `KERNEL=build/kernel-i386.bin; ! readelf -SW "$KERNEL" | rg -n "\\.(eh_frame|gcc_except_table|init_array|fini_array|got|got\\.plt|plt|dynamic|interp|note\\.gnu\\.build-id)\\b|\\.rel\\.|\\.rela\\."`
+- WP-I4.3-2 (daily gate): `make test` includes a visible ELF-baggage denylist step
+
+Definition of Done (I4):
+- The build either rejects or clearly reports unexpected linker/ELF baggage before it can
+  silently ship in the kernel image.
+
+---
+
 ## Verification Conventions (Used In This Backlog)
 
 To make this backlog **TDD-friendly**, each feature below gets appended metadata:
@@ -512,6 +591,26 @@ Proof / tests (definition of done):
 - WP-M3.2-4 (linked initialized writable marker lands in `.data`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]]D[[:space:]]+KFS_DATA_MARKER$"`
 - WP-M3.2-5 (linked zero-initialized marker lands in `.bss`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]][Bb][[:space:]]+KFS_BSS_MARKER$"`
 - WP-M3.2-6 (`.bss` is emitted as zero-init allocated storage): `readelf -SW build/kernel-i386.bin | rg -n "\\.bss\\b.*NOBITS"`
+
+Stability / adversarial proofs (recommended in visible CI output):
+- AT-M3.2-1 (wildcard capture exists for future subsection names): `bash scripts/check-m3.2-stability.sh i386 wildcards`
+  Why it matters: future compiler output often uses names like `.rodata.foo`, `.data.bar`,
+  or `.bss.baz`, not just the bare base names. This proves the linker script keeps wildcard
+  rules and `COMMON` support so later growth does not silently create orphan sections.
+- AT-M3.2-2 (read-only subsection canary still folds into output `.rodata`): `bash scripts/check-m3.2-stability.sh i386 rodata-subsection`
+  Why it matters: proves `*(.rodata .rodata.*)` is doing real work, not just the base
+  `.rodata` case.
+- AT-M3.2-3 (initialized writable subsection canary still folds into output `.data`): `bash scripts/check-m3.2-stability.sh i386 data-subsection`
+  Why it matters: proves `.data.*` inputs remain in initialized writable storage rather than
+  becoming orphans.
+- AT-M3.2-4 (zero-init subsection canary still folds into output `.bss`): `bash scripts/check-m3.2-stability.sh i386 bss-subsection`
+  Why it matters: proves future `.bss.*` globals still end up in real BSS storage.
+- AT-M3.2-5 (`COMMON` symbol is folded into `.bss`): `bash scripts/check-m3.2-stability.sh i386 common-bss`
+  Why it matters: `COMMON` is an older but still real zero-init storage class; without
+  `*(COMMON)`, some toolchains/ASM inputs will not land in `.bss`.
+- AT-M3.2-6 (allocatable section allowlist holds): `bash scripts/check-m3.2-stability.sh i386 alloc-allowlist`
+  Why it matters: catches unexpected loadable sections such as `.eh_frame` before they sneak
+  into the shipped kernel image.
 
 ### Feature M3.3: Export useful layout symbols
 Implementation tasks:

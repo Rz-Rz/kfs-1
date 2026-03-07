@@ -209,10 +209,18 @@ Proof:
 Status: ✅ Done
 Evidence:
 - Linker script defines `.text`, `.rodata`, `.data`, `.bss`
-- The linked kernel contains those sections and includes canary symbols in `.rodata` and `.data`
+- The linked kernel contains those sections and includes canary symbols in `.rodata`, `.data`, and `.bss`
+- Adversarial subsection canaries prove `.rodata.*`, `.data.*`, `.bss.*`, and `COMMON` still fold into the intended output sections
+- Allocatable section allowlist stays clean; unexpected runtime sections like `.eh_frame` are rejected by `make test`
 Proof:
 - `rg -n "^\\s*\\.(text|rodata|data|bss)\\b" -S src/arch/i386/linker.ld`
 - `bash scripts/check-m3.2-sections.sh i386`
+- `bash scripts/check-m3.2-stability.sh i386 wildcards`
+- `bash scripts/check-m3.2-stability.sh i386 rodata-subsection`
+- `bash scripts/check-m3.2-stability.sh i386 data-subsection`
+- `bash scripts/check-m3.2-stability.sh i386 bss-subsection`
+- `bash scripts/check-m3.2-stability.sh i386 common-bss`
+- `bash scripts/check-m3.2-stability.sh i386 alloc-allowlist`
 
 ### Feature M3.3: Export useful layout symbols
 Status: ❌ Not done
@@ -274,7 +282,7 @@ What’s left:
 
 ---
 
-## Infra Epics Status (I0–I3)
+## Infra Epics Status (I0–I4)
 
 Status: ⚠️ Partial
 Evidence:
@@ -283,5 +291,10 @@ Evidence:
   - Proof: `make test arch=i386 KFS_TEST_FORCE_FAIL=1` fails deterministically
 - Infra Epic **I3** (Reproducible Dev Environment): ✅ Done
   - Proof: `make container-env-check`
+- Infra Epic **I4** (Linker / ELF Hygiene Gates): ⚠️ Partial
+  - Proof: `make test arch=i386` includes visible subsection / COMMON / allocatable-section hygiene checks
+  - Gap: no linker map file generation/check yet
+  - Gap: no `--orphan-handling=error` gate yet
+  - Gap: no explicit per-section denylist step yet (current allowlist already caught `.eh_frame`)
 - Infra Epic **I1** (Serial console assertions): ❌ Not done
 - Infra Epic **I2** (VGA memory assertions): ❌ Not done
