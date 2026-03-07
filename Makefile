@@ -99,6 +99,7 @@ build/arch/$(arch)/rust/%.o: src/%.rs
 		--target $(rust_target) \
 		--emit=obj \
 		-C panic=abort \
+		-C force-unwind-tables=no \
 		-C opt-level=z \
 		-C code-model=kernel \
 		-C relocation-model=static \
