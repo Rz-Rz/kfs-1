@@ -263,21 +263,24 @@ Epic DoD (M3) complete? ✅
 
 ## Base Epic M4: Minimal Kernel in Your Chosen Language
 
-Status: ⚠️ Partial
+Status: ✅ Done
 Evidence:
-- M4.1 is mostly in place: the release kernel exports `kmain`, the release boot entry calls it,
-  and the current Rust entry writes `42`
-- M4.2 is not implemented yet: there is no dedicated runtime early-init that proves BSS zeroing
-  and layout assumptions before continuing
-- M4.3 exists at source level (`hlt` loops in ASM/Rust), but the proof depth is still lighter than
-  the M3.2/M3.3 standard
+- M4.1: release ELF exports `kmain`, the real `start` block calls it, and runtime boot tests now
+  prove Rust entry is actually executed
+- M4.2: a dedicated Rust early-init checks the BSS zero canary and exported layout bounds before
+  continuing, with ordered success markers and dedicated runtime rejection tests
+- M4.3: Rust panic/normal flow and ASM boot all converge to explicit halt behavior, while the test
+  build uses a controlled QEMU PASS/FAIL exit instead of weakening the release halt loop
 Proof:
 - `bash scripts/boot-tests/release-kmain-symbol.sh i386 release-kernel-exports-kmain`
 - `bash scripts/boot-tests/release-kmain-callsite.sh i386 release-boot-calls-kmain`
+- `bash scripts/boot-tests/runtime-markers.sh i386 runtime-markers-are-ordered`
+- `bash scripts/rejection-tests/runtime-init-rejections.sh i386 dirty-bss-canary-fails`
+- `bash scripts/rejection-tests/runtime-init-rejections.sh i386 bad-layout-fails`
+- `bash scripts/boot-tests/halt-behavior.sh i386 release-kmain-disassembly-halts`
 - `rg -n "write_volatile|b'4'|b'2'" -S src/kernel/kmain.rs`
-What’s left:
-- Add the M4.2 runtime proof path described in `docs/kfs1_epics_features.md`
-- Add stronger adversarial/rejection tests so M4 reaches the same proof standard as M3.2/M3.3
+
+Epic DoD (M4) complete? ✅
 
 ---
 
