@@ -26,9 +26,9 @@ assert_kmain_callsite() {
   local kernel="$1"
   [[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make all/iso arch=${ARCH})"
 
-  if ! objdump -d "${kernel}" | grep -qE 'call[[:space:]]+.*<kmain>'; then
-    echo "FAIL ${kernel}: no call to kmain found in disassembly"
-    objdump -d "${kernel}" | grep -E '<kmain>' | head -n 20 || true
+  if ! objdump -d "${kernel}" | sed -n '/<start>:/,/^$/p' | grep -qE 'call[[:space:]]+.*<kmain>'; then
+    echo "FAIL ${kernel}: start block does not call kmain"
+    objdump -d "${kernel}" | sed -n '/<start>:/,/^$/p' >&2 || true
     return 1
   fi
 }
