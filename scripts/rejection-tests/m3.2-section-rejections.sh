@@ -4,12 +4,39 @@ set -euo pipefail
 ARCH="${1:-i386}"
 CASE="${2:-}"
 
+list_cases() {
+  cat <<'EOF'
+text-missing
+text-wrong-type
+rodata-missing
+rodata-wrong-type
+data-missing
+data-wrong-type
+bss-missing
+bss-wrong-type
+EOF
+}
+
+describe_case() {
+  case "$1" in
+    text-missing) printf '%s\n' "rejects missing .text section" ;;
+    text-wrong-type) printf '%s\n' "rejects .text with wrong section type" ;;
+    rodata-missing) printf '%s\n' "rejects missing .rodata section" ;;
+    rodata-wrong-type) printf '%s\n' "rejects .rodata with wrong section type" ;;
+    data-missing) printf '%s\n' "rejects missing .data section" ;;
+    data-wrong-type) printf '%s\n' "rejects .data with wrong section type" ;;
+    bss-missing) printf '%s\n' "rejects missing .bss section" ;;
+    bss-wrong-type) printf '%s\n' "rejects .bss with wrong section type" ;;
+    *) return 1 ;;
+  esac
+}
+
 die() {
   echo "error: $*" >&2
   exit 2
 }
 
-write_linker_script() {
+write_invalid_linker_script() {
   local path="$1"
 
   case "${CASE}" in
@@ -18,10 +45,14 @@ write_linker_script() {
 ENTRY(start)
 SECTIONS {
   . = 1M;
+  kernel_start = .;
   .boot : { *(.multiboot_header) }
   .rodata : { *(.text .text.*) *(.rodata .rodata.*) }
   .data : { *(.data .data.*) }
   .bss : { *(.bss .bss.*) *(COMMON) }
+  bss_start = .;
+  bss_end = .;
+  kernel_end = .;
 }
 EOF
       ;;
@@ -30,11 +61,15 @@ EOF
 ENTRY(start)
 SECTIONS {
   . = 1M;
+  kernel_start = .;
   .boot : { *(.multiboot_header) }
   .text (NOLOAD) : { *(.text .text.*) }
   .rodata : { *(.rodata .rodata.*) }
   .data : { *(.data .data.*) }
   .bss : { *(.bss .bss.*) *(COMMON) }
+  bss_start = .;
+  bss_end = .;
+  kernel_end = .;
 }
 EOF
       ;;
@@ -43,10 +78,14 @@ EOF
 ENTRY(start)
 SECTIONS {
   . = 1M;
+  kernel_start = .;
   .boot : { *(.multiboot_header) }
   .text : { *(.text .text.*) *(.rodata .rodata.*) }
   .data : { *(.data .data.*) }
   .bss : { *(.bss .bss.*) *(COMMON) }
+  bss_start = .;
+  bss_end = .;
+  kernel_end = .;
 }
 EOF
       ;;
@@ -55,11 +94,15 @@ EOF
 ENTRY(start)
 SECTIONS {
   . = 1M;
+  kernel_start = .;
   .boot : { *(.multiboot_header) }
   .text : { *(.text .text.*) }
   .rodata (NOLOAD) : { *(.rodata .rodata.*) }
   .data : { *(.data .data.*) }
   .bss : { *(.bss .bss.*) *(COMMON) }
+  bss_start = .;
+  bss_end = .;
+  kernel_end = .;
 }
 EOF
       ;;
@@ -68,10 +111,14 @@ EOF
 ENTRY(start)
 SECTIONS {
   . = 1M;
+  kernel_start = .;
   .boot : { *(.multiboot_header) }
   .text : { *(.text .text.*) }
   .rodata : { *(.rodata .rodata.*) *(.data .data.*) }
   .bss : { *(.bss .bss.*) *(COMMON) }
+  bss_start = .;
+  bss_end = .;
+  kernel_end = .;
 }
 EOF
       ;;
@@ -80,11 +127,15 @@ EOF
 ENTRY(start)
 SECTIONS {
   . = 1M;
+  kernel_start = .;
   .boot : { *(.multiboot_header) }
   .text : { *(.text .text.*) }
   .rodata : { *(.rodata .rodata.*) }
   .data (NOLOAD) : { *(.data .data.*) }
   .bss : { *(.bss .bss.*) *(COMMON) }
+  bss_start = .;
+  bss_end = .;
+  kernel_end = .;
 }
 EOF
       ;;
@@ -93,10 +144,14 @@ EOF
 ENTRY(start)
 SECTIONS {
   . = 1M;
+  kernel_start = .;
   .boot : { *(.multiboot_header) }
   .text : { *(.text .text.*) }
   .rodata : { *(.rodata .rodata.*) }
   .data : { *(.data .data.*) *(.bss .bss.*) *(COMMON) }
+  bss_start = .;
+  bss_end = .;
+  kernel_end = .;
 }
 EOF
       ;;
@@ -105,11 +160,15 @@ EOF
 ENTRY(start)
 SECTIONS {
   . = 1M;
+  kernel_start = .;
   .boot : { *(.multiboot_header) }
   .text : { *(.text .text.*) }
   .rodata : { *(.rodata .rodata.*) }
   .data : { *(.data .data.*) }
   .bss : { BYTE(0); *(.bss .bss.*) *(COMMON) }
+  bss_start = .;
+  bss_end = .;
+  kernel_end = .;
 }
 EOF
       ;;
@@ -133,9 +192,7 @@ expected_message() {
   esac
 }
 
-main() {
-  [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
-
+run_direct_case() {
   local linker="build/m3.2-negative-${CASE}.ld"
   local log="build/m3.2-negative-${CASE}.log"
   local expected
@@ -143,7 +200,7 @@ main() {
 
   make clean >/dev/null 2>&1 || true
   mkdir -p build
-  write_linker_script "${linker}"
+  write_invalid_linker_script "${linker}"
 
   if make -B all arch="${ARCH}" linker_script="${linker}" >"${log}" 2>&1; then
     echo "FAIL ${CASE}: wrong linker script unexpectedly passed the build gate" >&2
@@ -158,6 +215,32 @@ main() {
   fi
 
   echo "PASS ${CASE}"
+}
+
+run_host_case() {
+  bash scripts/container.sh run -- \
+    bash -lc "KFS_HOST_TEST_DIRECT=1 bash scripts/rejection-tests/m3.2-section-rejections.sh '${ARCH}' '${CASE}'"
+}
+
+main() {
+  if [[ "${ARCH}" == "--list" ]]; then
+    list_cases
+    return 0
+  fi
+
+  if [[ "${ARCH}" == "--description" ]]; then
+    describe_case "${CASE}"
+    return 0
+  fi
+
+  [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
+
+  if [[ -n "${CASE}" ]] && describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
+    run_host_case
+    return 0
+  fi
+
+  run_direct_case
 }
 
 main "$@"

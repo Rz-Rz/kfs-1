@@ -65,7 +65,7 @@ $(iso): $(kernel) $(grub_cfg)
 
 $(kernel): $(assembly_object_files) $(rust_object_files) $(linker_script)
 	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(rust_object_files)
-	@KFS_M3_2_KERNEL="$(kernel)" bash scripts/check-m3.2-sections.sh $(arch)
+	@KFS_M3_2_KERNEL="$(kernel)" bash scripts/tests/m3.2-kernel-sections.sh $(arch)
 
 # compile assembly files
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
@@ -88,7 +88,7 @@ $(iso_test): $(kernel_test) $(grub_cfg)
 
 $(kernel_test): $(assembly_object_files_test) $(rust_object_files) $(linker_script)
 	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel_test) $(assembly_object_files_test) $(rust_object_files)
-	@KFS_M3_2_KERNEL="$(kernel_test)" bash scripts/check-m3.2-sections.sh $(arch)
+	@KFS_M3_2_KERNEL="$(kernel_test)" bash scripts/tests/m3.2-kernel-sections.sh $(arch)
 
 build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
@@ -144,7 +144,7 @@ test-qemu: container-image-force
 		TEST_PASS_RC=$(TEST_PASS_RC) \
 		TEST_FAIL_RC=$(TEST_FAIL_RC) \
 		KFS_TEST_FORCE_FAIL=$(KFS_TEST_FORCE_FAIL) \
-		bash scripts/test-qemu.sh $(arch)
+		bash scripts/boot-tests/qemu-boot.sh $(arch)
 
 test:
 	@bash scripts/test-host.sh $(arch)

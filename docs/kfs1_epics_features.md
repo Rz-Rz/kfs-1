@@ -340,7 +340,7 @@ Technical rationale:
 - See `docs/m0_2_freestanding_proofs.md` for why the ELF inspection checks are meaningful proofs of “no host libs”.
 
 Repo enforcement note:
-- The hard gate is `make test arch=i386`, which runs `scripts/check-m0.2-freestanding.sh` on the freshly built
+- The hard gate is `make test arch=i386`, which runs `scripts/boot-tests/m0.2-freestanding-kernel.sh` on the freshly built
   test kernel (`build/kernel-i386-test.bin`).
 - The script requires the symbol `kfs_rust_marker` so the checks are enforced on an **ASM + Rust** linked kernel
   artifact (not ASM-only).
@@ -434,7 +434,7 @@ Proof / tests (definition of done):
 - WP-M1.2-1 (image exists + size): `IMG=build/os-i386.img; test -f "$IMG" && test $(wc -c < "$IMG") -le 10485760`
 - MANUAL-M1.2-1 (boots): `qemu-system-i386 -drive format=raw,file=build/os-i386.img -no-reboot -no-shutdown` and confirm it reaches the kernel. (Automation: prefer AUTO-M1.2-1)
 - AUTO-M1.2-1 (preferred for CI): use **Infra I0.1** as the “boots far enough” gate for the disk-image path
-  - In this repo: `make img-test arch=i386 && bash scripts/test-qemu.sh i386 drive` (PASS via isa-debug-exit)
+  - In this repo: `make img-test arch=i386 && bash scripts/boot-tests/qemu-boot.sh i386 drive` (PASS via isa-debug-exit)
 
 ### Feature M1.3: GRUB config uses a consistent Multiboot version
 Implementation tasks:
@@ -591,54 +591,92 @@ Proof / tests (definition of done):
 - WP-M3.2-4 (linked initialized writable marker lands in `.data`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]]D[[:space:]]+KFS_DATA_MARKER$"`
 - WP-M3.2-5 (linked zero-initialized marker lands in `.bss`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]][Bb][[:space:]]+KFS_BSS_MARKER$"`
 - WP-M3.2-6 (`.bss` is emitted as zero-init allocated storage): `readelf -SW build/kernel-i386.bin | rg -n "\\.bss\\b.*NOBITS"`
-- WP-M3.2-7 (build gate runs immediately after link): `make -n all arch=i386 | rg -n "check-m3\\.2-sections\\.sh"`
+- WP-M3.2-7 (build gate runs immediately after link): `make -n all arch=i386 | rg -n "m3\\.2-kernel-sections\\.sh"`
 
 Stability / adversarial proofs (recommended in visible CI output):
-- AT-M3.2-1 (wildcard capture exists for future subsection names): `bash scripts/check-m3.2-stability.sh i386 wildcards`
+- AT-M3.2-1 (wildcard capture exists for future subsection names): `bash scripts/stability-tests/m3.2-section-stability.sh i386 rodata-wildcard-capture`, `bash scripts/stability-tests/m3.2-section-stability.sh i386 data-wildcard-capture`, `bash scripts/stability-tests/m3.2-section-stability.sh i386 bss-wildcard-capture`, `bash scripts/stability-tests/m3.2-section-stability.sh i386 common-wildcard-capture`
   Why it matters: future compiler output often uses names like `.rodata.foo`, `.data.bar`,
   or `.bss.baz`, not just the bare base names. This proves the linker script keeps wildcard
   rules and `COMMON` support so later growth does not silently create orphan sections.
-- AT-M3.2-2 (read-only subsection canary still folds into output `.rodata`): `bash scripts/check-m3.2-stability.sh i386 rodata-subsection`
+- AT-M3.2-2 (read-only subsection canary still folds into output `.rodata`): `bash scripts/stability-tests/m3.2-section-stability.sh i386 rodata-subsection-marker`
   Why it matters: proves `*(.rodata .rodata.*)` is doing real work, not just the base
   `.rodata` case.
-- AT-M3.2-3 (initialized writable subsection canary still folds into output `.data`): `bash scripts/check-m3.2-stability.sh i386 data-subsection`
+- AT-M3.2-3 (initialized writable subsection canary still folds into output `.data`): `bash scripts/stability-tests/m3.2-section-stability.sh i386 data-subsection-marker`
   Why it matters: proves `.data.*` inputs remain in initialized writable storage rather than
   becoming orphans.
-- AT-M3.2-4 (zero-init subsection canary still folds into output `.bss`): `bash scripts/check-m3.2-stability.sh i386 bss-subsection`
+- AT-M3.2-4 (zero-init subsection canary still folds into output `.bss`): `bash scripts/stability-tests/m3.2-section-stability.sh i386 bss-subsection-marker`
   Why it matters: proves future `.bss.*` globals still end up in real BSS storage.
-- AT-M3.2-5 (`COMMON` symbol is folded into `.bss`): `bash scripts/check-m3.2-stability.sh i386 common-bss`
+- AT-M3.2-5 (`COMMON` symbol is folded into `.bss`): `bash scripts/stability-tests/m3.2-section-stability.sh i386 common-bss-marker`
   Why it matters: `COMMON` is an older but still real zero-init storage class; without
   `*(COMMON)`, some toolchains/ASM inputs will not land in `.bss`.
-- AT-M3.2-6 (allocatable section allowlist holds): `bash scripts/check-m3.2-stability.sh i386 alloc-allowlist`
+- AT-M3.2-6 (allocatable section allowlist holds): `bash scripts/stability-tests/m3.2-section-stability.sh i386 alloc-section-allowlist`
   Why it matters: catches unexpected loadable sections such as `.eh_frame` before they sneak
   into the shipped kernel image.
 
 Negative / rejection proofs (real bad-linker cases, not mocks):
-- RT-M3.2-1 (rejects missing `.text`): `bash scripts/check-m3.2-rejections.sh i386 text-missing`
-- RT-M3.2-2 (rejects wrong `.text` type): `bash scripts/check-m3.2-rejections.sh i386 text-wrong-type`
-- RT-M3.2-3 (rejects missing `.rodata`): `bash scripts/check-m3.2-rejections.sh i386 rodata-missing`
-- RT-M3.2-4 (rejects wrong `.rodata` type): `bash scripts/check-m3.2-rejections.sh i386 rodata-wrong-type`
-- RT-M3.2-5 (rejects missing `.data`): `bash scripts/check-m3.2-rejections.sh i386 data-missing`
-- RT-M3.2-6 (rejects wrong `.data` type): `bash scripts/check-m3.2-rejections.sh i386 data-wrong-type`
-- RT-M3.2-7 (rejects missing `.bss`): `bash scripts/check-m3.2-rejections.sh i386 bss-missing`
-- RT-M3.2-8 (rejects wrong `.bss` type): `bash scripts/check-m3.2-rejections.sh i386 bss-wrong-type`
+- RT-M3.2-1 (rejects missing `.text`): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 text-missing`
+- RT-M3.2-2 (rejects wrong `.text` type): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 text-wrong-type`
+- RT-M3.2-3 (rejects missing `.rodata`): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 rodata-missing`
+- RT-M3.2-4 (rejects wrong `.rodata` type): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 rodata-wrong-type`
+- RT-M3.2-5 (rejects missing `.data`): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 data-missing`
+- RT-M3.2-6 (rejects wrong `.data` type): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 data-wrong-type`
+- RT-M3.2-7 (rejects missing `.bss`): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 bss-missing`
+- RT-M3.2-8 (rejects wrong `.bss` type): `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 bss-wrong-type`
   Why they matter: these tests compile the real kernel with intentionally broken linker scripts
   and prove the build gate rejects malformed ELF layouts immediately after `ld`, rather than only
   detecting them later in a standalone checker run.
 
-### Feature M3.3: Export useful layout symbols
+### Feature M3.3: Export canonical kernel and BSS boundary symbols
+Intent:
+- Extend the custom linker script so the final kernel ELF exports stable boundary symbols for
+  the whole kernel image and the `.bss` region: `kernel_start`, `kernel_end`, `bss_start`,
+  and `bss_end`.
+- Keep this feature focused on **publishing trustworthy layout metadata** from the final link.
+- Do **not** use this feature to prove section materialization/layout itself (M3.2), actual
+  runtime memory initialization (M4.2), or the build’s use of the linker script at all (M7.3).
+
 Implementation tasks:
-- Export symbols like `kernel_start`, `kernel_end`, `bss_start`, `bss_end` (names flexible).
+- Define `kernel_start` before the first emitted kernel section.
+- Define `bss_start` at the beginning of output `.bss`.
+- Define `bss_end` at the end of output `.bss`.
+- Define `kernel_end` at the end of the linked kernel image.
+- Add linker `ASSERT`s that reject impossible layouts:
+  - `kernel_start <= bss_start`
+  - `bss_start <= bss_end`
+  - `bss_end <= kernel_end`
+- Add a Rust-side consumer that references these symbols as addresses and derives kernel/BSS
+  spans without hardcoded constants.
 
 Acceptance criteria:
-- Other kernel code can reference those symbols without hardcoding addresses.
+- The final kernel ELF exports `kernel_start`, `kernel_end`, `bss_start`, and `bss_end`.
+- Rust code can reference those exact symbols and derive kernel/BSS ranges from their addresses.
+- The linker rejects malformed symbol ordering at link time.
+- This feature does not claim to prove `.bss` zeroing or general memory-safety behavior; it
+  only proves the exported layout metadata is present and sane.
 
 Implementation scope:
 - `LD` (+ `RUST`)
 
 Proof / tests (definition of done):
-- WP-M3.3-1 (symbols exist in artifact): `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
-- WP-M3.3-2 (referenced from Rust): `rg -n "extern\\s+\"C\"\\s*\\{[^}]*\\b(kernel_start|kernel_end|bss_start|bss_end)\\b" -S src`
+- WP-M3.3-1 (linker script defines the canonical boundary symbols): `rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b" -S src/arch/i386/linker.ld`
+- WP-M3.3-2 (release artifact exports the boundary symbols): `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
+- WP-M3.3-3 (test artifact exports the boundary symbols): `KERNEL=build/kernel-i386-test.bin; nm -n "$KERNEL" | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
+- WP-M3.3-4 (Rust layout consumer declares and references the symbols): `rg -n "kernel_start|kernel_end|bss_start|bss_end|addr_of!" -S src/rust/layout_symbols.rs`
+- WP-M3.3-5 (repo proof script covers exported symbols): `bash scripts/boot-tests/m3.3-layout-symbols.sh i386`
+
+Stability / adversarial proofs (recommended in visible CI output):
+- AT-M3.3-1 (linker assertions exist for boundary ordering): `rg -n "\\bASSERT\\b" -S src/arch/i386/linker.ld`
+- AT-M3.3-2 (release artifact ordering is monotonic): `bash scripts/boot-tests/m3.3-layout-symbols.sh i386 release-symbol-ordering`
+- AT-M3.3-3 (test artifact ordering is monotonic): `bash scripts/boot-tests/m3.3-layout-symbols.sh i386 test-symbol-ordering`
+  Why they matter: exported symbols are only useful if they describe a sane range. These
+  checks prevent a “symbols exist but are semantically wrong” false green.
+
+Negative / rejection proofs (real bad-linker cases, not mocks):
+- RT-M3.3-1 (rejects `bss_start` before `kernel_start`): `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 bss-before-kernel`
+- RT-M3.3-2 (rejects `bss_end` before `bss_start`): `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 bss-end-before-bss-start`
+- RT-M3.3-3 (rejects `kernel_end` before `bss_end`): `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 kernel-end-before-bss-end`
+  Why they matter: these tests prove the link fails on impossible layouts instead of silently
+  shipping misleading boundary symbols.
 
 ### Definition of Done (M3)
 - Linker script is self-contained, reviewed, and demonstrably used in the build.
@@ -665,21 +703,38 @@ Proof / tests (definition of done):
 - MANUAL-M4.1-1 (observable behavior from kmain): boot in QEMU and confirm output is produced by `kmain` (e.g., prints via the screen module). (Automation: prefer AUTO-M4.1-1)
 - AUTO-M4.1-1 (preferred for CI): print `KMAIN_OK` on serial (Infra I1.1) and exit PASS (Infra I0.1) right after `kmain` runs
 
-### Feature M4.2: Minimal "kernel init" sequence (even if tiny)
+### Feature M4.2: Minimal early kernel init validates runtime assumptions before normal work
+Intent:
+- Establish a minimal Rust-side init step after `kmain` that validates the runtime assumptions
+  the kernel depends on before later features build on them.
+- Keep this feature focused on **runtime use of already-exported layout metadata** and the
+  boot path’s zero-initialized `.bss` guarantee.
+- Do **not** use this feature to redefine linker symbols (M3.3) or to own the full screen I/O
+  API (M6).
+
 Implementation tasks:
-- Establish a minimal init pattern (e.g., `kmain` calls `vga_init`, then prints).
-- Keep it structured for later KFS modules.
+- Add a Rust `.bss` canary object that is expected to start at zero.
+- In early init, read the `.bss` canary before any writes and confirm it is zero.
+- Read the exported layout bounds and derive kernel/BSS spans at runtime.
+- Continue into the normal kernel flow only if those assumptions hold.
 
 Acceptance criteria:
-- Boot-to-output flow is in the chosen language, not only ASM.
+- Boot reaches Rust early init after `kmain`.
+- A `.bss` object is observed as zero at runtime before being written.
+- Early init can read the exported kernel/BSS bounds at runtime without hardcoded addresses.
+- Failure is observable if the runtime assumptions do not hold.
 
 Implementation scope:
-- `RUST` (init orchestration)
+- `RUST` (+ `ASM` call site already covered by M2.3 / M4.1)
 
 Proof / tests (definition of done):
-- WP-M4.2-1 (init sequence exists in code): `rg -n "\\bkmain\\b|\\b(vga|screen)_init\\b" -S src`
-- MANUAL-M4.2-1 (prints from language path): boot and confirm the printed output is produced via Rust screen calls (not a hard-coded ASM VGA store). (Automation: prefer AUTO-M4.2-1)
-- AUTO-M4.2-1 (preferred for CI): log ordered serial markers like `INIT_OK` then `SCREEN_OK` (Infra I1.1), and exit PASS (Infra I0.1); keep MANUAL only if you need the on-screen defense demo
+- WP-M4.2-1 (Rust defines a `.bss` zero-init canary): `rg -n "\\bstatic\\s+mut\\b|\\bstatic\\b" -S src | rg -n "BSS|ZERO|CANARY"`
+- WP-M4.2-2 (Rust early init reads exported layout bounds): `rg -n "kernel_start|kernel_end|bss_start|bss_end" -S src`
+- MANUAL-M4.2-1 (runtime): boot and confirm early init reaches the normal output path only after the zero-init and layout checks succeed.
+- AUTO-M4.2-1 (preferred when serial/VGA assertions exist): emit ordered runtime markers such as `BSS_OK` then `LAYOUT_OK` then continue to the next kernel step.
+  Why it matters: M3.3 proves the linker exported sane addresses. This feature proves the
+  running kernel can actually depend on those addresses and on zero-init behavior before
+  higher-level code starts using globals/statics.
 
 ### Feature M4.3: Clean halt behavior
 Implementation tasks:

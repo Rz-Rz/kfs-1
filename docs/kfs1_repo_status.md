@@ -1,6 +1,6 @@
 # KFS_1 Repo Status vs Subject (Done / Not Done + Priorities)
 
-Snapshot date: March 1, 2026.
+Snapshot date: March 7, 2026.
 
 This file is an analysis of the current repository state against the backlog in:
 - `docs/kfs1_epics_features.md` (baseline spec/backlog)
@@ -13,8 +13,8 @@ As-of snapshot:
 - Kernel artifact present: `build/kernel-i386.bin` (ELF32, Intel 80386)
 - ISO artifact present: `build/os-i386.iso` (bootable ISO9660, <= 10 MB)
 - Disk-image artifact present: `build/os-i386.img` (bootable ISO9660, <= 10 MB; boots via QEMU `-drive`)
-- Sources present in ASM under `src/arch/i386/` and minimal Rust under `src/rust/`
-- Chosen language: **Rust** (started: Rust is compiled/linked into the kernel; `kmain` not implemented yet)
+- Sources present in ASM under `src/arch/i386/` and Rust under `src/rust/` + `src/kernel/`
+- Chosen language: **Rust** (`kmain` exists, is called from ASM, and currently prints `42`)
 
 ---
 
@@ -32,16 +32,16 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `test $(wc -c < build/os-i386.iso) -le 10485760` (<= 10 MB)
   - Proof: `test $(wc -c < build/os-i386.img) -le 10485760` (<= 10 MB)
   - Proof: `make test arch=i386` (checks the tracked release ISO/IMG size/type and boots both test ISO and test IMG headlessly)
-- Base Epic M2 DoD: ❌ NO
-  - Proof: `src/arch/i386/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
-- Base Epic M3 DoD: ❌ NO
-  - Proof: `src/arch/i386/linker.ld` defines standard sections, but exports no layout symbols (M3.3)
+- Base Epic M2 DoD: ✅ YES (header is placed early, ASM sets a stack, and control reaches `kmain`)
+  - Proof: `make test arch=i386` (includes the ASM entry, stack, and `call kmain` path in the release kernel build + boot flow)
+- Base Epic M3 DoD: ✅ YES (custom linker script, standard sections, exported layout symbols)
+  - Proof: `make test arch=i386` (includes M3.2 + M3.3 checks)
 - Base Epic M4 DoD: ⚠️ PARTIAL
-  - Proof: `src/kernel/kmain.rs` defines `#[no_mangle] extern "C" fn kmain() -> !`
+  - Proof: `src/kernel/kmain.rs` defines `#[no_mangle] extern "C" fn kmain() -> !`, but the stronger M4.2 early-init/runtime-assumption checks are not implemented yet
 - Base Epic M5 DoD: ❌ NO
   - Proof: `rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" -S src` -> no matches (no kernel library helpers)
 - Base Epic M6 DoD: ❌ NO
-  - Proof: `src/arch/i386/boot.asm` prints `OK`; `rg -n "\\b42\\b|\\\"42\\\"" -S src` -> no matches
+  - Proof: `src/kernel/kmain.rs` prints `42`, but there is still no reusable screen interface/module as required by M6.1/M6.2
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
   - Proof: `make -n all arch=i386 | rg -n "\\brustc\\b"`
   - Proof: `make all arch=i386 && nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
@@ -74,8 +74,8 @@ Legend:
 
 - Base Epic M0 (i386 + freestanding compliance): ✅
 - Base Epic M1 (GRUB bootable image <= 10 MB): ✅
-- Base Epic M2 (Multiboot header + ASM bootstrap): ❌
-- Base Epic M3 (custom linker script + layout): ❌
+- Base Epic M2 (Multiboot header + ASM bootstrap): ✅
+- Base Epic M3 (custom linker script + layout): ✅
 - Base Epic M4 (kernel in chosen language): ⚠️
 - Base Epic M5 (kernel library types + helpers): ❌
 - Base Epic M6 (screen I/O interface + prints 42): ❌
@@ -112,7 +112,7 @@ Proof:
 - `make test arch=i386` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
 - `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
 - `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"` (release kernel also links Rust)
-- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/check-m0.2-freestanding.sh i386 all` (checks both test + release kernels)
+- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/m0.2-freestanding-kernel.sh i386 all` (checks both test + release kernels)
 
 ### Feature M0.3: Size discipline baked into workflow
 Status: ✅ Mostly done (image size)
@@ -125,7 +125,7 @@ Epic DoD (M0) complete? ✅
 
 Note:
 - M0.1 is complete (i386 toolchain + ELF32).
-- M0.2 is enforced on a Rust-linked kernel artifact via `make test` (Rust is present but `kmain` is still not implemented).
+- M0.2 is enforced on a Rust-linked kernel artifact via `make test` (Rust is present and `kmain` is linked into the release kernel).
 
 ---
 
@@ -149,7 +149,7 @@ Evidence:
 Proof:
 - `make img arch=i386` (produces `build/os-i386.img`)
 - `test $(wc -c < build/os-i386.img) -le 10485760 && echo "IMG <= 10MB"`
-- `make test arch=i386` (includes build + checks + `scripts/test-qemu.sh i386 drive`)
+- `make test arch=i386` (includes build + checks + `scripts/boot-tests/qemu-boot.sh i386 drive`)
 
 ### Feature M1.3: GRUB config uses a consistent Multiboot version
 Status: ✅ Done (Multiboot2 consistently used)
@@ -216,41 +216,55 @@ Evidence:
 - Real bad-linker rejection tests prove the build gate rejects missing/wrong-type `.text`, `.rodata`, `.data`, and `.bss`
 Proof:
 - `rg -n "^\\s*\\.(text|rodata|data|bss)\\b" -S src/arch/i386/linker.ld`
-- `bash scripts/check-m3.2-sections.sh i386`
-- `make -n all arch=i386 | rg -n "check-m3\\.2-sections\\.sh"`
-- `bash scripts/check-m3.2-stability.sh i386 wildcards`
-- `bash scripts/check-m3.2-stability.sh i386 rodata-subsection`
-- `bash scripts/check-m3.2-stability.sh i386 data-subsection`
-- `bash scripts/check-m3.2-stability.sh i386 bss-subsection`
-- `bash scripts/check-m3.2-stability.sh i386 common-bss`
-- `bash scripts/check-m3.2-stability.sh i386 alloc-allowlist`
-- `bash scripts/check-m3.2-rejections.sh i386 text-missing`
-- `bash scripts/check-m3.2-rejections.sh i386 text-wrong-type`
-- `bash scripts/check-m3.2-rejections.sh i386 rodata-missing`
-- `bash scripts/check-m3.2-rejections.sh i386 rodata-wrong-type`
-- `bash scripts/check-m3.2-rejections.sh i386 data-missing`
-- `bash scripts/check-m3.2-rejections.sh i386 data-wrong-type`
-- `bash scripts/check-m3.2-rejections.sh i386 bss-missing`
-- `bash scripts/check-m3.2-rejections.sh i386 bss-wrong-type`
+- `bash scripts/tests/m3.2-kernel-sections.sh i386`
+- `make -n all arch=i386 | rg -n "m3\\.2-kernel-sections\\.sh"`
+- `bash scripts/stability-tests/m3.2-section-stability.sh i386 rodata-wildcard-capture`
+- `bash scripts/stability-tests/m3.2-section-stability.sh i386 data-wildcard-capture`
+- `bash scripts/stability-tests/m3.2-section-stability.sh i386 bss-wildcard-capture`
+- `bash scripts/stability-tests/m3.2-section-stability.sh i386 common-wildcard-capture`
+- `bash scripts/stability-tests/m3.2-section-stability.sh i386 rodata-subsection-marker`
+- `bash scripts/stability-tests/m3.2-section-stability.sh i386 data-subsection-marker`
+- `bash scripts/stability-tests/m3.2-section-stability.sh i386 bss-subsection-marker`
+- `bash scripts/stability-tests/m3.2-section-stability.sh i386 common-bss-marker`
+- `bash scripts/stability-tests/m3.2-section-stability.sh i386 alloc-section-allowlist`
+- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 text-missing`
+- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 text-wrong-type`
+- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 rodata-missing`
+- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 rodata-wrong-type`
+- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 data-missing`
+- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 data-wrong-type`
+- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 bss-missing`
+- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 bss-wrong-type`
 
-### Feature M3.3: Export useful layout symbols
-Status: ❌ Not done
+### Feature M3.3: Export canonical kernel and BSS boundary symbols
+Status: ✅ Done
+Evidence:
+- Linker script exports `kernel_start`, `kernel_end`, `bss_start`, `bss_end`
+- Linker script rejects impossible symbol ordering at link time with `ASSERT`
+- Rust references these layout symbols from `src/rust/layout_symbols.rs`
+- Repo proofs validate symbol ordering and reject malformed linker layouts
 Proof:
-- `nm -n build/kernel-i386.bin | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b" || echo "no layout symbols"`
+- `rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end|ASSERT)\\b" -S src/arch/i386/linker.ld`
+- `nm -n build/kernel-i386.bin | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
+- `rg -n "kernel_start|kernel_end|bss_start|bss_end|addr_of!" -S src/rust/layout_symbols.rs`
+- `bash scripts/boot-tests/m3.3-layout-symbols.sh i386`
+- `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 bss-before-kernel`
+- `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 bss-end-before-bss-start`
+- `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 kernel-end-before-bss-end`
 
-Epic DoD (M3) complete? ❌
+Epic DoD (M3) complete? ✅
 
 ---
 
 ## Base Epic M4: Minimal Kernel in Your Chosen Language
 
-Status: ⚠️ Started (Rust is linked; `kmain` is not implemented yet)
+Status: ⚠️ Partial (`kmain` exists in Rust, is called from ASM, and currently prints `42`)
 Proof:
-- `rg --files src/rust | rg -n "\\.rs\\b"`
-- `rg -n "#!\\[no_std\\]" -S src/rust`
-- `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
+- `nm -n build/kernel-i386.bin | rg -n "\\bkmain\\b"`
+- `objdump -d build/kernel-i386.bin | rg -n "call.*kmain"`
+- `rg -n "write_volatile|b'4'|b'2'" -S src/kernel/kmain.rs`
 What’s left:
-- Implement `kmain` in Rust and transfer control to it from `src/arch/i386/boot.asm`.
+- Implement the stronger M4.2 early-init/runtime-assumption checks described in `docs/kfs1_epics_features.md`.
 
 ---
 
@@ -263,12 +277,12 @@ Status: ❌ Not started
 ## Base Epic M6: Screen I/O Interface + Mandatory Output
 
 ### Feature M6.3: Mandatory output: display `42`
-Status: ❌ Not done
+Status: ✅ Done
 Evidence:
-- Current output is `RS` from Rust (`src/kernel/kmain.rs`), not `42`
+- `kmain` writes `4` then `2` directly to the VGA text buffer
 Proof:
 - `rg -n "0xb8000|write_volatile" -S src/kernel/kmain.rs`
-- `rg -n "\\b42\\b|\\\"42\\\"" -S src || echo "no 42 yet"`
+- `rg -n "b'4'|b'2'" -S src/kernel/kmain.rs`
 
 ---
 
