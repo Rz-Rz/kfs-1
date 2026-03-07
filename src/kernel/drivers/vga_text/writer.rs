@@ -1,6 +1,6 @@
 use super::{vga_text_write_screen, VGA_TEXT_DEFAULT_COLOR};
 use crate::kernel::machine::port::Port;
-use crate::kernel::types::screen::{CursorPos, VGA_TEXT_DIMENSIONS};
+use crate::kernel::types::screen::{ColorCode, CursorPos, VGA_TEXT_DIMENSIONS};
 
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
 const VGA_TEXT_CELL_COUNT: usize = VGA_TEXT_DIMENSIONS.cell_count();
@@ -15,6 +15,7 @@ const VGA_CURSOR_END_SCANLINE: u8 = 0x0F;
 
 static mut VGA_CURSOR: CursorPos = CursorPos::new(0, 0);
 static mut VGA_HARDWARE_CURSOR_ENABLED: bool = false;
+static mut VGA_TEXT_COLOR: ColorCode = VGA_TEXT_DEFAULT_COLOR;
 
 fn vga_cursor_position(cursor: CursorPos) -> u16 {
     ((cursor.row * VGA_TEXT_DIMENSIONS.width()) + cursor.col) as u16
@@ -64,7 +65,7 @@ pub(super) fn write_bytes(bytes: &[u8]) {
             &mut shadow,
             VGA_TEXT_DIMENSIONS,
             VGA_CURSOR,
-            VGA_TEXT_DEFAULT_COLOR,
+            VGA_TEXT_COLOR,
             bytes,
         );
 
@@ -74,4 +75,14 @@ pub(super) fn write_bytes(bytes: &[u8]) {
 
         vga_set_hardware_cursor(VGA_CURSOR);
     }
+}
+
+pub(super) fn set_color(color: ColorCode) {
+    unsafe {
+        VGA_TEXT_COLOR = color;
+    }
+}
+
+pub(super) fn color() -> ColorCode {
+    unsafe { VGA_TEXT_COLOR }
 }

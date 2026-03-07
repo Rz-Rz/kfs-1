@@ -1,12 +1,13 @@
 mod writer;
 
-use crate::kernel::types::screen::{CursorPos, ScreenDimensions};
+use crate::kernel::types::screen::{ColorCode, CursorPos, ScreenDimensions, VgaColor};
 
-pub const VGA_TEXT_DEFAULT_COLOR: u16 = 0x02;
+pub const VGA_TEXT_DEFAULT_COLOR: ColorCode =
+    ColorCode::vga(VgaColor::Green.code(), VgaColor::Black.code());
 const VGA_TEXT_BLANK_BYTE: u8 = b' ';
 
-pub fn vga_text_cell(color: u16, byte: u8) -> u16 {
-    (color << 8) | (byte as u16)
+pub fn vga_text_cell(color: ColorCode, byte: u8) -> u16 {
+    ((color.as_u8() as u16) << 8) | (byte as u16)
 }
 
 pub fn vga_text_normalize_cursor(cursor: usize, cell_count: usize) -> usize {
@@ -17,7 +18,12 @@ pub fn vga_text_normalize_cursor(cursor: usize, cell_count: usize) -> usize {
     cursor
 }
 
-pub fn vga_text_write_cells(buffer: &mut [u16], cursor: usize, color: u16, bytes: &[u8]) -> usize {
+pub fn vga_text_write_cells(
+    buffer: &mut [u16],
+    cursor: usize,
+    color: ColorCode,
+    bytes: &[u8],
+) -> usize {
     if buffer.is_empty() {
         return 0;
     }
@@ -58,7 +64,7 @@ pub fn vga_text_write_screen(
     buffer: &mut [u16],
     dimensions: ScreenDimensions,
     cursor: CursorPos,
-    color: u16,
+    color: ColorCode,
     bytes: &[u8],
 ) -> CursorPos {
     if buffer.is_empty() || dimensions.width() == 0 || dimensions.height() == 0 {
@@ -139,4 +145,12 @@ fn vga_text_scroll_up(buffer: &mut [u16], dimensions: ScreenDimensions, blank: u
 
 pub(crate) fn write_bytes(bytes: &[u8]) {
     writer::write_bytes(bytes);
+}
+
+pub fn vga_text_set_color(foreground: u8, background: u8) {
+    writer::set_color(ColorCode::vga(foreground, background));
+}
+
+pub fn vga_text_get_color() -> ColorCode {
+    writer::color()
 }
