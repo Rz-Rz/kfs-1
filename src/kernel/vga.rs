@@ -9,7 +9,7 @@ mod vga_palette;
 
 use vga_format_impl::{format_usize_decimal, render_printf_with_args, MAX_USIZE_DECIMAL_DIGITS};
 use vga_impl::{scroll_buffer, vga_attribute, VgaCursor, VGA_CELLS, VGA_DEFAULT_ATTRIBUTE, VGA_WIDTH};
-pub use vga_palette::VgaColor;
+pub use vga_palette::{COLOR, BLACK, RED, VgaColor};
 
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
 const VGA_BLANK_BYTE: u8 = b' ';

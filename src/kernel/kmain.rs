@@ -4,7 +4,7 @@
 use core::panic::PanicInfo;
 #[path = "vga/vga_palette.rs"]
 mod vga_palette;
-use vga_palette::VgaColor;
+use vga_palette::{BLACK, COLOR, RED, VgaColor};
 
 // These are Rust names for functions implemented in another module with the C ABI.
 // We declare them here so `kmain` can call them.
@@ -35,10 +35,12 @@ pub extern "C" fn kmain() -> ! {
         vga_init();
         let mut i: usize = 0;
         vga_puts(b"42\nTHE BEST\n\0".as_ptr());
-        vga_puts(b"indexed lines:\n\0".as_ptr());
-        while i < 16 {
-            let color = VgaColor::from_index(i);
-            vga_set_color(color.code(), VgaColor::Black.code());
+        vga_set_color(RED.code(), BLACK.code());
+        vga_puts(b"color cycle demo (fg/bg, 16-color wrap)\n\0".as_ptr());
+        while i < 320 {
+            let foreground = COLOR::from_index(i);
+            let background = COLOR::from_index(i + 8);
+            vga_set_color(foreground.code(), background.code());
             vga_printf(b"line %d\n\0".as_ptr(), i);
             i += 1;
         }

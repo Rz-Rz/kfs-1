@@ -36,3 +36,10 @@ fn enum_from_index_wraps_in_palette_range() {
     assert_eq!(VgaColor::from_index(4).code(), 0x4);
     assert_eq!(VgaColor::from_index(16).code(), 0x0);
 }
+
+#[test]
+// This checks optional aliases requested by users map to the same VGA values.
+fn color_aliases_match_enum_values() {
+    assert_eq!(vga_palette::BLACK.code(), vga_palette::COLOR::Black.code());
+    assert_eq!(vga_palette::RED.code(), 0x4);
+}

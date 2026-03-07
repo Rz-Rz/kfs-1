@@ -49,3 +49,9 @@ impl VgaColor {
         Self::ALL[index & 0x0f]
     }
 }
+
+pub const BLACK: VgaColor = VgaColor::Black;
+pub const RED: VgaColor = VgaColor::Red;
+
+#[allow(non_camel_case_types)]
+pub type COLOR = VgaColor;
