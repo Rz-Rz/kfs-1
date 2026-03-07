@@ -1,13 +1,13 @@
 # KFS_1 Repo Status vs Subject (Done / Not Done + Priorities)
 
-Snapshot date: March 1, 2026.
+Snapshot date: March 7, 2026.
 
 This file is an analysis of the current repository state against the backlog in:
 - `docs/kfs1_epics_features.md` (baseline spec/backlog)
 
 Scope:
 - Focus on **Base (Mandatory)** epics (M0–M8).
-- Bonus epics are listed as deferred (not required right now).
+- Bonus and repo-extension epics (B1–B6) are listed as deferred (not required right now).
 
 As-of snapshot:
 - Kernel artifact present: `build/kernel-i386.bin` (ELF32, Intel 80386)
@@ -40,8 +40,9 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `make test arch=i386` (includes an M4.1 check for `kmain`)
 - Base Epic M5 DoD: ✅ YES (kernel helper layer is present with host-tested string+memory helpers)
   - Proof: `make test arch=i386` (includes M5.2 + M5.3 host helper checks)
-- Base Epic M6 DoD: ❌ NO
-  - Proof: M6.1 + M6.3 are done (`vga_*` module is used by `kmain` and `42` is printed), but M6.2 newline/cursor handling is not implemented
+- Base Epic M6 DoD: ✅ YES (screen interface exists, newline/cursor handling works, and `42` is printed through the VGA module)
+  - Proof: `bash scripts/check-m6.1-vga.sh i386`
+  - Proof: `bash scripts/check-m6.2-newline.sh i386`
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
   - Proof: `make -n all arch=i386 | rg -n "\\brustc\\b"`
   - Proof: `make all arch=i386 && nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
@@ -78,7 +79,7 @@ Legend:
 - Base Epic M3 (custom linker script + layout): ✅
 - Base Epic M4 (kernel in chosen language): ✅
 - Base Epic M5 (kernel library helpers): ✅
-- Base Epic M6 (screen I/O interface + prints 42): ❌
+- Base Epic M6 (screen I/O interface + prints 42): ✅
 - Base Epic M7 (Makefile compiles ASM + language, links, image, run): ✅
 - Base Epic M8 (turn-in packaging): ⚠️
 
@@ -270,7 +271,7 @@ Proof:
 Status: ✅ Done
 Evidence:
 - `src/kernel/vga.rs` now tracks cursor state through the shared `VgaCursor` implementation in `src/kernel/vga/vga_impl.rs`
-- `vga_putc` treats `\n` as cursor movement, and `kmain` prints two lines via `vga_puts(b"42\nTHE BEST\0")`
+- `vga_putc` treats `\n` as cursor movement, and `kmain` exercises the newline path through VGA output calls
 - Host unit coverage exists in `tests/host_cursor.rs`
 Proof:
 - `bash scripts/check-m6.2-newline.sh i386`
@@ -318,3 +319,236 @@ Evidence:
   - Proof: `make container-env-check`
 - Infra Epic **I1** (Serial console assertions): ❌ Not done
 - Infra Epic **I2** (VGA memory assertions): ❌ Not done
+
+---
+
+## Deferred Bonus / Extension Status (B1–B6)
+
+These items are not required for the base KFS_1 subject, but they are now tracked
+explicitly because they match the intended roadmap for the repo.
+
+High-level status:
+- Bonus Epic B1 (scroll + cursor support): ⚠️ Partial
+- Bonus Epic B2 (color support in the screen I/O interface): ⚠️ Partial
+- Bonus Epic B3 (`printk` / formatted printing): ❌ Not started
+- Bonus Epic B4 (keyboard input + echo): ❌ Not started
+- Bonus Epic B5 (multiple screens + keyboard shortcuts): ❌ Not started
+- Bonus Epic B6 (screen geometry / different screen sizes): ❌ Not started
+
+### Bonus Epic B1: Scroll + Cursor Support
+
+Status: ⚠️ Partial
+Evidence:
+- Cursor state exists in `src/kernel/vga/vga_impl.rs` via `VgaCursor { row, col }`
+- Host cursor tests exist in `tests/host_cursor.rs`
+- Bottom-of-screen behavior still wraps back to the top; no scroll operation exists yet
+- No hardware cursor programming path is present
+Proof:
+- `bash scripts/check-m6.2-newline.sh i386`
+- `rg -n "\\b(VgaCursor|row|col)\\b" -S src/kernel/vga.rs src/kernel/vga/vga_impl.rs tests/host_cursor.rs`
+- `rg -n "\\bscroll\\b|0x3D4|0x3D5|outb|inb" -S src tests || echo "no scroll or hardware cursor support yet"`
+
+### Feature B1.1: Maintain cursor state
+Status: ✅ Done
+Evidence:
+- `VgaCursor` tracks `row` and `col` in `src/kernel/vga/vga_impl.rs`
+- `vga_putc` advances the saved cursor state and host tests validate cursor math
+Proof:
+- `bash scripts/check-m6.2-newline.sh i386`
+- `rg -n "\\bstruct VgaCursor\\b|\\brow\\b|\\bcol\\b" -S src/kernel/vga/vga_impl.rs tests/host_cursor.rs`
+
+### Feature B1.2: Implement scrolling at bottom-of-screen
+Status: ❌ Not done
+Evidence:
+- `advance_row()` in `src/kernel/vga/vga_impl.rs` wraps to row `0` once `VGA_HEIGHT` is reached
+- No line-copy / clear-last-line scroll routine exists in the VGA writer
+Proof:
+- `rg -n "wraps back to the top instead of scrolling|row >= VGA_HEIGHT|row = 0" -S src/kernel/vga/vga_impl.rs`
+- `rg -n "\\bscroll\\b|copy.*line|clear.*last line" -S src/kernel tests || echo "no scroll implementation yet"`
+
+### Feature B1.3: Optional hardware cursor programming (VGA ports `0x3D4/0x3D5`)
+Status: ❌ Not done
+Evidence:
+- No port I/O helpers or hardware cursor register writes are present
+Proof:
+- `rg -n "0x3D4|0x3D5|outb|inb|hardware cursor" -S src tests || echo "no hardware cursor support yet"`
+
+Definition of Done (B1):
+- ❌ Not met: basic cursor state exists, but scrolling and optional hardware cursor support are still missing.
+
+---
+
+### Bonus Epic B2: Color Support in the Screen I/O Interface
+
+Status: ⚠️ Partial
+Evidence:
+- The writer uses a fixed attribute constant `VGA_COLOR_LIGHT_GREEN_ON_BLACK` in `src/kernel/vga.rs`
+- There is no public color API, no color state beyond the fixed constant, and no color-focused tests
+Proof:
+- `rg -n "VGA_COLOR_LIGHT_GREEN_ON_BLACK|attribute|color" -S src/kernel/vga.rs`
+- `rg -n "set_color|write_colored|host_color|foreground|background" -S src tests || echo "no configurable color support yet"`
+
+### Feature B2.1: VGA attribute/color model
+Status: ⚠️ Partial
+Evidence:
+- One hard-coded VGA attribute constant exists
+- No reusable foreground/background model or encoding test suite exists yet
+Proof:
+- `rg -n "VGA_COLOR_LIGHT_GREEN_ON_BLACK" -S src/kernel/vga.rs`
+- `rg -n "enum .*Color|const .*COLOR|host_color|attribute encoding" -S src tests || echo "no color model/test coverage yet"`
+
+### Feature B2.2: Screen API to set color per-print or per-screen
+Status: ❌ Not done
+Evidence:
+- The exported VGA API only exposes `vga_init`, `vga_putc`, and `vga_puts`
+- Callers cannot change foreground/background color through the screen interface
+Proof:
+- `rg -n "\\bvga_(init|putc|puts)\\b" -S src/kernel/vga.rs`
+- `rg -n "set_color|write_colored|with_color|foreground|background" -S src/kernel tests || echo "no color API yet"`
+
+Definition of Done (B2):
+- ❌ Not met: the repo has a fixed color constant, but not configurable color support through the I/O interface.
+
+---
+
+### Bonus Epic B3: `printk` / Formatted Printing
+
+Status: ❌ Not started
+Evidence:
+- No formatter implementation or `printk`-style wrapper is present
+Proof:
+- `rg -n "\\bprintk\\b|\\bprintf\\b|format engine|%[scdux%]" -S src tests || echo "no formatted printing yet"`
+
+### Feature B3.1: Minimal format engine (`%s %c %d %u %x %%`)
+Status: ❌ Not done
+Evidence:
+- No formatter module or host formatter tests exist
+Proof:
+- `rg -n "\\bformat\\b|\\bformatter\\b|host_format|%[scdux%]" -S src tests || echo "no format engine yet"`
+
+### Feature B3.2: `printk` wrapper that prints to screen
+Status: ❌ Not done
+Evidence:
+- No `printk`-style API exists in the kernel sources
+Proof:
+- `rg -n "\\bprintk\\b|\\bprint_\\w+\\b" -S src tests || echo "no printk wrapper yet"`
+
+Definition of Done (B3):
+- ❌ Not met: no formatted printing support is implemented.
+
+---
+
+### Bonus Epic B4: Keyboard Input + Echo
+
+Status: ❌ Not started
+Evidence:
+- No PS/2 keyboard read path, scancode mapping, or keyboard echo integration exists in `src/`
+- No keyboard-focused host tests or runtime checks exist
+Proof:
+- `rg -n "keyboard|scancode|ps/2|0x60|0x64|backspace|sendkey" -S src tests scripts || echo "no keyboard support yet"`
+
+### Feature B4.1: Read scancodes (polled or IRQ-driven)
+Status: ❌ Not done
+Evidence:
+- No PS/2 controller port access or scancode capture path exists
+Proof:
+- `rg -n "0x60|0x64|scancode|keyboard|irq1|PS/2|ps2" -S src tests || echo "no scancode reader yet"`
+
+### Feature B4.2: Translate scancodes to key events / printable bytes
+Status: ❌ Not done
+Evidence:
+- No scancode translation tables or key-event abstractions exist
+Proof:
+- `rg -n "scancode.*ascii|key event|KeyEvent|KeyCode|host_scancode" -S src tests || echo "no scancode translation yet"`
+
+### Feature B4.3: Echo typed characters through the screen I/O interface
+Status: ❌ Not done
+Evidence:
+- No code path routes keyboard input into `vga_putc` / `vga_puts`
+- No backspace-handling or keyboard echo tests exist
+Proof:
+- `rg -n "backspace|echo typed|keyboard.*vga|vga_putc\\(" -S src tests || echo "no keyboard echo integration yet"`
+
+### Feature B4.4: Reserve shortcut keys from the text-echo path
+Status: ❌ Not done
+Evidence:
+- No keyboard event router or shortcut interception exists
+Proof:
+- `rg -n "shortcut|Alt|Fn|modifier|key handler|terminal switch" -S src tests || echo "no shortcut routing yet"`
+
+Definition of Done (B4):
+- ❌ Not met: there is no keyboard input stack in the repo yet.
+
+---
+
+### Bonus Epic B5: Multiple Screens + Keyboard Shortcuts
+
+Status: ❌ Not started
+Evidence:
+- No per-terminal buffers, active-terminal state, or terminal switch shortcuts exist
+Proof:
+- `rg -n "virtual terminal|terminal buffer|active terminal|Alt\\+Fn|switch terminal|host_vt" -S src tests || echo "no multi-terminal support yet"`
+
+### Feature B5.1: N virtual terminal buffers
+Status: ❌ Not done
+Evidence:
+- The VGA writer manages one global cursor and writes directly to the visible VGA buffer
+- No off-screen terminal buffer model exists
+Proof:
+- `rg -n "static mut VGA_CURSOR|VGA_TEXT_BUFFER" -S src/kernel/vga.rs`
+- `rg -n "terminal buffer|virtual terminal|host_vt" -S src tests || echo "no virtual terminal buffers yet"`
+
+### Feature B5.2: Keyboard shortcuts to switch the active terminal
+Status: ❌ Not done
+Evidence:
+- No active-terminal selector or shortcut-handling path exists
+Proof:
+- `rg -n "active terminal|switch.*terminal|Alt|Fn|shortcut" -S src tests || echo "no terminal switching shortcuts yet"`
+
+### Feature B5.3: Persist output per terminal across switches
+Status: ❌ Not done
+Evidence:
+- No inactive terminal state is preserved because only the live VGA buffer is written
+Proof:
+- `rg -n "flush.*VGA|restore.*terminal|preserve.*buffer" -S src tests || echo "no per-terminal restore support yet"`
+
+Definition of Done (B5):
+- ❌ Not met: no multiple-screen or shortcut-based terminal switching support exists.
+
+---
+
+### Bonus Epic B6: Screen Geometry / Different Screen Sizes
+
+Status: ❌ Not started
+Evidence:
+- Screen dimensions are hard-coded as `VGA_WIDTH = 80` and `VGA_HEIGHT = 25`
+- No geometry abstraction, alternate preset, or geometry-aware tests exist
+Proof:
+- `rg -n "VGA_WIDTH|VGA_HEIGHT|80|25" -S src/kernel/vga.rs src/kernel/vga/vga_impl.rs`
+- `rg -n "ScreenGeometry|GEOMETRY|host_geometry|preset" -S src tests || echo "no geometry abstraction yet"`
+
+### Feature B6.1: Introduce a geometry abstraction for the screen layer
+Status: ❌ Not done
+Evidence:
+- Cursor math still depends directly on `VGA_WIDTH` / `VGA_HEIGHT`
+Proof:
+- `rg -n "VGA_WIDTH|VGA_HEIGHT" -S src/kernel/vga/vga_impl.rs src/kernel/vga.rs`
+
+### Feature B6.2: Make wrapping, clearing, and scrolling geometry-aware
+Status: ❌ Not done
+Evidence:
+- Wrap behavior uses fixed VGA constants
+- There is no clear/scroll implementation parameterized by screen geometry
+Proof:
+- `rg -n "VGA_WIDTH|VGA_HEIGHT|advance_row" -S src/kernel/vga/vga_impl.rs`
+- `rg -n "clear.*screen|scroll|geometry" -S src tests || echo "no geometry-aware screen operations yet"`
+
+### Feature B6.3: Provide a configurable geometry preset or build-time selection
+Status: ❌ Not done
+Evidence:
+- No configurable screen preset or geometry selection mechanism exists
+Proof:
+- `rg -n "DEFAULT_.*GEOMETRY|GEOMETRY_PRESET|ScreenGeometry|screen preset" -S src tests || echo "no configurable geometry preset yet"`
+
+Definition of Done (B6):
+- ❌ Not met: screen behavior is still hard-coded to one logical size.

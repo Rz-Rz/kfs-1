@@ -191,6 +191,9 @@ Bonus items in the PDF and where they are covered:
 - Keyboard entries and print them -> Bonus Epic B4
 - Multiple screens + shortcuts -> Bonus Epic B5
 
+Repo-extension backlog items:
+- Variable screen sizes / geometry-aware rendering -> Bonus Epic B6
+
 ---
 
 ## Notes About This Repo (Current Gaps vs The PDF)
@@ -835,7 +838,7 @@ Definition of Done (B1):
 
 ---
 
-## Bonus Epic B2: Color Support
+## Bonus Epic B2: Color Support in the Screen I/O Interface
 
 ### Feature B2.1: VGA attribute/color model
 Implementation tasks:
@@ -855,10 +858,12 @@ Proof / tests (definition of done):
 
 ### Feature B2.2: Screen API to set color per-print or per-screen
 Implementation tasks:
-- Add `set_color(fg, bg)` and/or scoped color APIs.
+- Add `set_color(fg, bg)` and/or per-call helpers such as `write_colored(...)`.
+- Keep color selection inside the screen I/O layer so callers do not touch raw VGA attribute bytes.
 
 Acceptance criteria:
 - A caller can change color without touching VGA memory directly.
+- Color survives normal cursor movement, newline handling, and scroll operations.
 
 Implementation scope:
 - `RUST`
@@ -869,7 +874,7 @@ Proof / tests (definition of done):
 - AUTO-B2.2-1 (preferred): keep this automated via UT-B2.2-1; use **Infra I2.1** only if you want end-to-end VGA verification
 
 Definition of Done (B2):
-- Kernel prints at least two different colors reliably.
+- Kernel prints at least two different colors reliably through the public screen I/O API.
 
 ---
 
@@ -926,13 +931,15 @@ Proof / tests (definition of done):
 - MANUAL-B4.1-1 (runtime): boot in QEMU, press keys, and confirm scancode handling path is exercised (e.g., debug print of scancodes). (Automation: see AUTO-B4.1-1 notes; optional)
 - AUTO-B4.1-1 (optional): automation is possible but more work (QEMU monitor/QMP `sendkey` + serial assertions via Infra I1.1); keep MANUAL as the baseline proof
 
-### Feature B4.2: Translate scancodes to ASCII (minimal map)
+### Feature B4.2: Translate scancodes to key events / printable bytes
 Implementation tasks:
 - Implement a minimal scancode→ASCII map for alphanumerics.
 - Handle at least backspace and newline.
+- Track enough modifier state (at least Shift / Alt) to support printable input and future shortcuts.
 
 Acceptance criteria:
-- Common keys translate to expected ASCII.
+- Common printable keys translate to expected bytes.
+- Control keys needed by the screen path (`Enter`, `Backspace`) and shortcut path (`Alt`, function keys or equivalent) are distinguishable.
 
 Implementation scope:
 - `RUST` (pure mapping logic; unit-testable on host)
@@ -940,27 +947,45 @@ Implementation scope:
 Proof / tests (definition of done):
 - UT-B4.2-1 (mapping unit tests): create `tests/host_scancode.rs` and run `rustc --test -o build/ut_scancode tests/host_scancode.rs && ./build/ut_scancode`
 
-### Feature B4.3: Echo typed characters to screen
+### Feature B4.3: Echo typed characters through the screen I/O interface
 Implementation tasks:
-- Integrate keyboard input with the screen writer.
+- Integrate keyboard input with the screen writer / screen I/O API.
 - Implement backspace behavior (erase previous character on screen).
+- Make `Enter` reuse the newline path instead of open-coding row/col movement.
 
 Acceptance criteria:
-- Typed characters appear on screen and backspace behaves correctly.
+- Typed characters appear on screen.
+- Backspace and `Enter` behave correctly.
 
 Implementation scope:
 - `RUST` (keyboard + screen integration)
 
 Proof / tests (definition of done):
-- MANUAL-B4.3-1 (runtime): boot and type; confirm echo + backspace on screen. (Automation: see AUTO-B4.3-1 notes; optional)
+- UT-B4.3-1 (echo-routing tests): host tests validate that printable keys, newline, and backspace call the expected screen operations
+- MANUAL-B4.3-1 (runtime): boot and type; confirm echo + backspace + enter on screen. (Automation: see AUTO-B4.3-1 notes; optional)
 - AUTO-B4.3-1 (optional): use QMP `sendkey` to inject keystrokes and assert echo on serial (Infra I1.1) or VGA memory (Infra I2.1); keep MANUAL as baseline
 
+### Feature B4.4: Reserve shortcut keys from the text-echo path
+Implementation tasks:
+- Route recognized shortcut combos to command handlers instead of echoing raw bytes.
+- Ensure non-printable modifier combinations do not leave junk characters on screen.
+
+Acceptance criteria:
+- Registered shortcut combos trigger actions and are not echoed as text.
+
+Implementation scope:
+- `RUST` (keyboard event routing)
+
+Proof / tests (definition of done):
+- UT-B4.4-1 (shortcut-routing tests): host tests validate printable input is echoed while shortcut combos are intercepted
+- MANUAL-B4.4-1 (runtime): press a shortcut combo and confirm it triggers the expected action without printing garbage. (Automation: optional; same QMP `sendkey` approach as B4.3)
+
 Definition of Done (B4):
-- Key presses appear on screen (at least for alphanumerics and backspace).
+- Key presses appear on screen for common printable keys, and editing / shortcut keys are routed predictably.
 
 ---
 
-## Bonus Epic B5: Multiple Screens + Shortcuts
+## Bonus Epic B5: Multiple Screens + Keyboard Shortcuts
 
 ### Feature B5.1: N virtual terminal buffers
 Implementation tasks:
@@ -975,12 +1000,14 @@ Implementation scope:
 Proof / tests (definition of done):
 - UT-B5.1-1 (buffer isolation tests): create `tests/host_vt.rs` and run `rustc --test -o build/ut_vt tests/host_vt.rs && ./build/ut_vt`
 
-### Feature B5.2: Shortcuts to switch active terminal
+### Feature B5.2: Keyboard shortcuts to switch the active terminal
 Implementation tasks:
 - Detect a shortcut combo (e.g., Alt+Fn) and switch the active terminal.
+- Keep the shortcut mapping isolated from raw scancode handling so it can evolve independently.
 
 Acceptance criteria:
 - Switching changes the visible screen to the selected terminal.
+- Shortcut handling does not print stray characters.
 
 Implementation scope:
 - `RUST` (keyboard + terminal manager)
@@ -1006,4 +1033,57 @@ Proof / tests (definition of done):
 - AUTO-B5.3-1 (preferred): UT-B5.3-1 should lock the state logic; optionally add VGA memory end-to-end assertions via **Infra I2.1** if you want CI coverage
 
 Definition of Done (B5):
-- Switching terminals is reliable and does not corrupt screen state.
+- Switching terminals via keyboard shortcuts is reliable and does not corrupt screen state.
+
+---
+
+## Bonus Epic B6: Screen Geometry / Different Screen Sizes
+
+### Feature B6.1: Introduce a geometry abstraction for the screen layer
+Implementation tasks:
+- Define a `ScreenGeometry` (or equivalent) carrying width and height.
+- Move index math, bounds checks, and buffer sizing to use geometry data instead of hard-coded dimensions.
+
+Acceptance criteria:
+- Screen logic no longer hardcodes `80x25` outside the geometry definition / default preset.
+
+Implementation scope:
+- `RUST` (screen module; unit-testable with a buffer model)
+
+Proof / tests (definition of done):
+- UT-B6.1-1 (geometry unit tests): create `tests/host_geometry.rs` and run `rustc --test -o build/ut_geometry tests/host_geometry.rs && ./build/ut_geometry`
+- WP-B6.1-2 (hard-coded dimensions minimized): `rg -n "\\b80\\b|\\b25\\b" -S src/kernel tests | rg -v "tests?/.*fixtures|docs/"`
+
+### Feature B6.2: Make wrapping, clearing, and scrolling geometry-aware
+Implementation tasks:
+- Make newline, wrap, backspace, clear, and scroll logic derive limits from the active geometry.
+- Ensure buffer flushes and per-terminal restores use the same geometry rules.
+
+Acceptance criteria:
+- The same writer logic behaves correctly for at least two geometries in host tests (for example `80x25` and one alternate geometry).
+
+Implementation scope:
+- `RUST` (screen/buffer model)
+
+Proof / tests (definition of done):
+- UT-B6.2-1 (geometry-aware writer tests): host tests validate wrapping/scrolling/clearing under at least two geometries
+- MANUAL-B6.2-1 (runtime): boot with the default geometry and confirm no regressions in line wrapping, scroll, and screen restore paths. (Automation: prefer UT-B6.2-1; VGA end-to-end assertions via **Infra I2.1** are optional)
+
+### Feature B6.3: Provide a configurable geometry preset or build-time selection
+Implementation tasks:
+- Expose one place to select the default geometry (build-time constant, config module, or terminal preset table).
+- Keep the default runtime preset subject-compatible (`80x25`) unless explicit VGA mode switching is implemented.
+
+Acceptance criteria:
+- The kernel can be built or configured with at least one non-default geometry without rewriting core screen logic.
+
+Implementation scope:
+- `RUST` (configuration) and optional low-level mode setup if true VGA mode switching is attempted
+
+Proof / tests (definition of done):
+- WP-B6.3-1 (preset exists): `rg -n "ScreenGeometry|DEFAULT_.*GEOMETRY|GEOMETRY_PRESET" -S src/kernel`
+- UT-B6.3-2 (preset selection tests): host tests validate selecting an alternate preset changes the derived geometry
+- MANUAL-B6.3-1 (runtime, optional if hardware mode switching is attempted): boot with the selected preset and confirm screen layout remains readable
+
+Definition of Done (B6):
+- Screen code is geometry-aware, tested against more than one logical size, and still defaults to a subject-safe visible mode unless explicit mode switching is added.
