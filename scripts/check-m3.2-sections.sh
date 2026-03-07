@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ARCH="${1:-i386}"
+SINGLE_KERNEL="${KFS_M3_2_KERNEL:-}"
 
 die() {
   echo "error: $*" >&2
@@ -13,18 +14,22 @@ check_kernel() {
   [[ -r "${kernel}" ]] || die "missing artifact: ${kernel}"
 
   local missing=0
+  local expected_type
 
   for section in .text .rodata .data .bss; do
+    expected_type='PROGBITS'
+    if [[ "${section}" == ".bss" ]]; then
+      expected_type='NOBITS'
+    fi
+
     if ! readelf -SW "${kernel}" | grep -qE "[[:space:]]${section}[[:space:]]"; then
       echo "FAIL ${kernel}: missing section ${section}"
       missing=1
+    elif ! readelf -SW "${kernel}" | grep -qE "[[:space:]]${section}[[:space:]].*[[:space:]]${expected_type}[[:space:]]"; then
+      echo "FAIL ${kernel}: ${section} exists but is not ${expected_type}"
+      missing=1
     fi
   done
-
-  if ! readelf -SW "${kernel}" | grep -qE '[[:space:]]\.bss[[:space:]].*[[:space:]]NOBITS[[:space:]]'; then
-    echo "FAIL ${kernel}: .bss exists but is not NOBITS"
-    missing=1
-  fi
 
   if ! nm -n "${kernel}" | grep -qE '[[:space:]]R[[:space:]]+KFS_RODATA_MARKER$'; then
     echo "FAIL ${kernel}: expected read-only marker missing or not in rodata (nm type R): KFS_RODATA_MARKER"
@@ -52,6 +57,11 @@ check_kernel() {
 
 main() {
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
+
+  if [[ -n "${SINGLE_KERNEL}" ]]; then
+    check_kernel "${SINGLE_KERNEL}"
+    return 0
+  fi
 
   local failures=0
 

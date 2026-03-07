@@ -210,17 +210,28 @@ Status: ✅ Done
 Evidence:
 - Linker script defines `.text`, `.rodata`, `.data`, `.bss`
 - The linked kernel contains those sections and includes canary symbols in `.rodata`, `.data`, and `.bss`
+- The M3.2 checker now runs immediately after the kernel link step, so `make all` / `make iso` reject malformed ELF layouts before image creation
 - Adversarial subsection canaries prove `.rodata.*`, `.data.*`, `.bss.*`, and `COMMON` still fold into the intended output sections
 - Allocatable section allowlist stays clean; unexpected runtime sections like `.eh_frame` are rejected by `make test`
+- Real bad-linker rejection tests prove the build gate rejects missing/wrong-type `.text`, `.rodata`, `.data`, and `.bss`
 Proof:
 - `rg -n "^\\s*\\.(text|rodata|data|bss)\\b" -S src/arch/i386/linker.ld`
 - `bash scripts/check-m3.2-sections.sh i386`
+- `make -n all arch=i386 | rg -n "check-m3\\.2-sections\\.sh"`
 - `bash scripts/check-m3.2-stability.sh i386 wildcards`
 - `bash scripts/check-m3.2-stability.sh i386 rodata-subsection`
 - `bash scripts/check-m3.2-stability.sh i386 data-subsection`
 - `bash scripts/check-m3.2-stability.sh i386 bss-subsection`
 - `bash scripts/check-m3.2-stability.sh i386 common-bss`
 - `bash scripts/check-m3.2-stability.sh i386 alloc-allowlist`
+- `bash scripts/check-m3.2-rejections.sh i386 text-missing`
+- `bash scripts/check-m3.2-rejections.sh i386 text-wrong-type`
+- `bash scripts/check-m3.2-rejections.sh i386 rodata-missing`
+- `bash scripts/check-m3.2-rejections.sh i386 rodata-wrong-type`
+- `bash scripts/check-m3.2-rejections.sh i386 data-missing`
+- `bash scripts/check-m3.2-rejections.sh i386 data-wrong-type`
+- `bash scripts/check-m3.2-rejections.sh i386 bss-missing`
+- `bash scripts/check-m3.2-rejections.sh i386 bss-wrong-type`
 
 ### Feature M3.3: Export useful layout symbols
 Status: ❌ Not done

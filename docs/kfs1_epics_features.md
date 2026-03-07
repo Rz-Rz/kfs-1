@@ -591,6 +591,7 @@ Proof / tests (definition of done):
 - WP-M3.2-4 (linked initialized writable marker lands in `.data`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]]D[[:space:]]+KFS_DATA_MARKER$"`
 - WP-M3.2-5 (linked zero-initialized marker lands in `.bss`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]][Bb][[:space:]]+KFS_BSS_MARKER$"`
 - WP-M3.2-6 (`.bss` is emitted as zero-init allocated storage): `readelf -SW build/kernel-i386.bin | rg -n "\\.bss\\b.*NOBITS"`
+- WP-M3.2-7 (build gate runs immediately after link): `make -n all arch=i386 | rg -n "check-m3\\.2-sections\\.sh"`
 
 Stability / adversarial proofs (recommended in visible CI output):
 - AT-M3.2-1 (wildcard capture exists for future subsection names): `bash scripts/check-m3.2-stability.sh i386 wildcards`
@@ -611,6 +612,19 @@ Stability / adversarial proofs (recommended in visible CI output):
 - AT-M3.2-6 (allocatable section allowlist holds): `bash scripts/check-m3.2-stability.sh i386 alloc-allowlist`
   Why it matters: catches unexpected loadable sections such as `.eh_frame` before they sneak
   into the shipped kernel image.
+
+Negative / rejection proofs (real bad-linker cases, not mocks):
+- RT-M3.2-1 (rejects missing `.text`): `bash scripts/check-m3.2-rejections.sh i386 text-missing`
+- RT-M3.2-2 (rejects wrong `.text` type): `bash scripts/check-m3.2-rejections.sh i386 text-wrong-type`
+- RT-M3.2-3 (rejects missing `.rodata`): `bash scripts/check-m3.2-rejections.sh i386 rodata-missing`
+- RT-M3.2-4 (rejects wrong `.rodata` type): `bash scripts/check-m3.2-rejections.sh i386 rodata-wrong-type`
+- RT-M3.2-5 (rejects missing `.data`): `bash scripts/check-m3.2-rejections.sh i386 data-missing`
+- RT-M3.2-6 (rejects wrong `.data` type): `bash scripts/check-m3.2-rejections.sh i386 data-wrong-type`
+- RT-M3.2-7 (rejects missing `.bss`): `bash scripts/check-m3.2-rejections.sh i386 bss-missing`
+- RT-M3.2-8 (rejects wrong `.bss` type): `bash scripts/check-m3.2-rejections.sh i386 bss-wrong-type`
+  Why they matter: these tests compile the real kernel with intentionally broken linker scripts
+  and prove the build gate rejects malformed ELF layouts immediately after `ld`, rather than only
+  detecting them later in a standalone checker run.
 
 ### Feature M3.3: Export useful layout symbols
 Implementation tasks:
