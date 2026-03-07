@@ -138,6 +138,85 @@ Definition of Done (I3):
 
 ---
 
+## Infra Epic I4: Linker / ELF Hygiene Gates
+
+Goal:
+- Catch subtle linker-layout regressions before they become boot failures or silent ELF baggage.
+
+Motivation:
+- The M3.2 section proofs establish the core layout, but future toolchain changes can still
+  introduce unexpected sections, orphan inputs, or hidden runtime metadata.
+- These checks are hardening gates for CI, not subject-mandated deliverables.
+
+### Feature I4.1: Emit and inspect a linker map file
+Implementation tasks:
+- Ask `ld` to emit a map file for the final kernel link (for example `-Map build/kernel-i386.map`).
+- Preserve the map artifact in `build/` for local inspection and CI debugging.
+- Add at least one host-side assertion that inspects the map and proves key input sections
+  land in the expected output sections.
+
+Acceptance criteria:
+- Every kernel link produces a readable map file.
+- The project can prove exact input-to-output section routing from the linker’s own report.
+
+Implementation scope:
+- `MAKE` + `LD` + `AUTOMATION`
+
+Proof / tests (definition of done):
+- WP-I4.1-1 (link command emits a map file): `make -n all arch=i386 | rg -n -- "-Map\\s+build/kernel-i386\\.map"`
+- WP-I4.1-2 (artifact exists after build): `make all arch=i386 && test -f build/kernel-i386.map`
+- WP-I4.1-3 (map proves a subsection routing example): `rg -n "KFS_RODATA_SUBSECTION_MARKER|\\.rodata\\.kfs_test|\\.rodata" build/kernel-i386.map`
+
+### Feature I4.2: Fail the link on orphan sections
+Implementation tasks:
+- If supported by the project `ld`, add `--orphan-handling=error` to the final kernel link.
+- Document the expected failure mode when a new input section appears without an explicit rule.
+- Add a regression proof that the link command includes the orphan-handling gate.
+
+Acceptance criteria:
+- A newly introduced unmapped input section fails the link immediately instead of silently
+  landing wherever the linker decides.
+
+Implementation scope:
+- `MAKE` + `LD`
+
+Proof / tests (definition of done):
+- WP-I4.2-1 (link command enables orphan rejection): `make -n all arch=i386 | rg -n -- "--orphan-handling=error"`
+- WP-I4.2-2 (negative proof): inject a temporary unmapped input section and confirm the link fails with an orphan-section error
+
+### Feature I4.3: Denylist suspicious ELF baggage sections explicitly
+Implementation tasks:
+- Add a host-side ELF inspection test that fails if the final kernel contains suspicious
+  sections such as:
+  - `.eh_frame`
+  - `.gcc_except_table`
+  - `.init_array`
+  - `.fini_array`
+  - `.got`, `.got.plt`
+  - `.plt`
+  - `.dynamic`, `.interp`
+  - `.rela.*`, `.rel.*`
+  - `.note.gnu.build-id`
+- Keep this denylist separate from the broader allocatable-section allowlist so the failure
+  message names the exact unexpected baggage.
+
+Acceptance criteria:
+- The kernel ELF is free of common hosted-runtime / unwinding / dynamic-link sections that do
+  not belong in a tiny freestanding kernel.
+
+Implementation scope:
+- `AUTOMATION` (+ final kernel artifact)
+
+Proof / tests (definition of done):
+- WP-I4.3-1 (denylist check): `KERNEL=build/kernel-i386.bin; ! readelf -SW "$KERNEL" | rg -n "\\.(eh_frame|gcc_except_table|init_array|fini_array|got|got\\.plt|plt|dynamic|interp|note\\.gnu\\.build-id)\\b|\\.rel\\.|\\.rela\\."`
+- WP-I4.3-2 (daily gate): `make test` includes a visible ELF-baggage denylist step
+
+Definition of Done (I4):
+- The build either rejects or clearly reports unexpected linker/ELF baggage before it can
+  silently ship in the kernel image.
+
+---
+
 ## Verification Conventions (Used In This Backlog)
 
 To make this backlog **TDD-friendly**, each feature below gets appended metadata:
@@ -447,38 +526,105 @@ Proof / tests (definition of done):
 ## Base Epic M3: Custom Linker Script + Memory Layout
 
 ### Feature M3.1: Custom `linker.ld` (do not use host scripts)
+Intent:
+- Provide the project-owned linker script required by the subject instead of relying on a
+  host default `.ld` file.
+- Keep this feature focused on the **existence and baseline structure** of the linker
+  script itself.
+- Do **not** use this feature to prove the whole kernel link command or boot path; those
+  belong to M7.3 and boot features.
+
 Implementation tasks:
-- `ENTRY(start)` (or your chosen entry).
-- Load address starts at 1 MiB (`. = 1M;`).
-- Section ordering puts Multiboot header early.
+- Create `src/arch/i386/linker.ld`.
+- Define `ENTRY(start)` (or the chosen kernel entry symbol).
+- Set the kernel load address to 1 MiB (`. = 1M;`).
+- Place the Multiboot header early in the image through the linker layout.
 
 Acceptance criteria:
-- Kernel links via `ld -T linker.ld` and boots under GRUB.
+- The repo contains its own linker script for the kernel.
+- The script defines the entry point and base load address needed by the kernel layout.
+- The script places the Multiboot header before the main code region.
 
 Implementation scope:
-- `LD` (+ `MAKE`)
+- `LD`
 
 Proof / tests (definition of done):
 - WP-M3.1-1 (linker script exists + has required directives): `rg -n "^(ENTRY\\(|SECTIONS\\s*\\{|\\s*\\.\\s*=\\s*1M;)" -S src/arch/i386/linker.ld`
-- WP-M3.1-2 (build uses your script, not host defaults): `make -n all arch=i386 | rg -n "\\bld\\b" | rg -q "\\s-T\\s+src/arch/i386/linker\\.ld"`
-- MANUAL-M3.1-1 (boots): `make run arch=i386` and confirm GRUB loads the kernel and reaches `start`. (Automation: prefer AUTO-M3.1-1)
-- AUTO-M3.1-1 (preferred for CI): use **Infra I0.1** as the boot gate (if kernel exits PASS, link+load address+entry all worked)
+- WP-M3.1-2 (Multiboot header is explicitly placed early by the linker script): `rg -n "\\*\\(\\.multiboot_header\\)" -S src/arch/i386/linker.ld`
 
-### Feature M3.2: Provide standard sections for growth
+### Feature M3.2: Standard data sections are explicitly mapped in the custom linker script
+Intent:
+- Extend the custom kernel linker script so the final kernel ELF explicitly supports the
+  standard non-code sections emitted by ASM/Rust objects: `.rodata`, `.data`, and `.bss`.
+- Keep this feature focused on **section layout/materialization** inside our own
+  `linker.ld`.
+- Do **not** use this feature to prove that the repo uses a custom linker script at all,
+  or that the kernel boots; those concerns belong to M3.1 and M7.3.
+
 Implementation tasks:
-- Define `.text`, `.rodata`, `.data`, `.bss`.
-- Ensure `.bss` is allocated properly (and can be zeroed later if needed).
+- Define output sections for `.rodata`, `.data`, and `.bss` in `src/arch/i386/linker.ld`.
+- Collect matching input sections, including wildcard variants:
+  - `.rodata`, `.rodata.*`
+  - `.data`, `.data.*`
+  - `.bss`, `.bss.*`
+- Include `COMMON` storage in `.bss`.
+- Add linked marker symbols so the final ELF can prove:
+  - read-only data lands in `.rodata`
+  - initialized writable data lands in `.data`
+  - zero-initialized writable data lands in `.bss`
 
 Acceptance criteria:
-- Adding a C/Rust module does not require reworking the whole linker layout.
+- The custom linker script explicitly defines `.rodata`, `.data`, and `.bss`.
+- The final kernel ELF contains `.text`, `.rodata`, `.data`, and `.bss`.
+- A linked read-only symbol is placed in `.rodata`.
+- A linked initialized writable symbol is placed in `.data`.
+- A linked zero-initialized writable symbol is placed in `.bss`.
+- `.bss` is emitted as `NOBITS` in the final ELF.
 
 Implementation scope:
 - `LD` (+ `RUST`)
 
 Proof / tests (definition of done):
-- WP-M3.2-1 (linker defines standard output sections): `rg -n "^\\s*\\.(text|rodata|data|bss)\\b" -S src/arch/i386/linker.ld`
+- WP-M3.2-1 (linker script defines the required sections): `rg -n "^\\s*\\.(rodata|data|bss)\\b" -S src/arch/i386/linker.ld`
 - WP-M3.2-2 (artifact contains the expected sections): `KERNEL=build/kernel-i386.bin; readelf -SW "$KERNEL" | rg -n "\\.(text|rodata|data|bss)\\b"`
-- WP-M3.2-3 (growth smoke test): add a tiny module that puts data in `.rodata` and `.bss`, then `make arch=i386` still links without linker-script edits (TDD target for this feature)
+- WP-M3.2-3 (linked read-only marker lands in `.rodata`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]]R[[:space:]]+KFS_RODATA_MARKER$"`
+- WP-M3.2-4 (linked initialized writable marker lands in `.data`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]]D[[:space:]]+KFS_DATA_MARKER$"`
+- WP-M3.2-5 (linked zero-initialized marker lands in `.bss`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]][Bb][[:space:]]+KFS_BSS_MARKER$"`
+- WP-M3.2-6 (`.bss` is emitted as zero-init allocated storage): `readelf -SW build/kernel-i386.bin | rg -n "\\.bss\\b.*NOBITS"`
+- WP-M3.2-7 (build gate runs immediately after link): `make -n all arch=i386 | rg -n "check-m3\\.2-sections\\.sh"`
+
+Stability / adversarial proofs (recommended in visible CI output):
+- AT-M3.2-1 (wildcard capture exists for future subsection names): `bash scripts/check-m3.2-stability.sh i386 wildcards`
+  Why it matters: future compiler output often uses names like `.rodata.foo`, `.data.bar`,
+  or `.bss.baz`, not just the bare base names. This proves the linker script keeps wildcard
+  rules and `COMMON` support so later growth does not silently create orphan sections.
+- AT-M3.2-2 (read-only subsection canary still folds into output `.rodata`): `bash scripts/check-m3.2-stability.sh i386 rodata-subsection`
+  Why it matters: proves `*(.rodata .rodata.*)` is doing real work, not just the base
+  `.rodata` case.
+- AT-M3.2-3 (initialized writable subsection canary still folds into output `.data`): `bash scripts/check-m3.2-stability.sh i386 data-subsection`
+  Why it matters: proves `.data.*` inputs remain in initialized writable storage rather than
+  becoming orphans.
+- AT-M3.2-4 (zero-init subsection canary still folds into output `.bss`): `bash scripts/check-m3.2-stability.sh i386 bss-subsection`
+  Why it matters: proves future `.bss.*` globals still end up in real BSS storage.
+- AT-M3.2-5 (`COMMON` symbol is folded into `.bss`): `bash scripts/check-m3.2-stability.sh i386 common-bss`
+  Why it matters: `COMMON` is an older but still real zero-init storage class; without
+  `*(COMMON)`, some toolchains/ASM inputs will not land in `.bss`.
+- AT-M3.2-6 (allocatable section allowlist holds): `bash scripts/check-m3.2-stability.sh i386 alloc-allowlist`
+  Why it matters: catches unexpected loadable sections such as `.eh_frame` before they sneak
+  into the shipped kernel image.
+
+Negative / rejection proofs (real bad-linker cases, not mocks):
+- RT-M3.2-1 (rejects missing `.text`): `bash scripts/check-m3.2-rejections.sh i386 text-missing`
+- RT-M3.2-2 (rejects wrong `.text` type): `bash scripts/check-m3.2-rejections.sh i386 text-wrong-type`
+- RT-M3.2-3 (rejects missing `.rodata`): `bash scripts/check-m3.2-rejections.sh i386 rodata-missing`
+- RT-M3.2-4 (rejects wrong `.rodata` type): `bash scripts/check-m3.2-rejections.sh i386 rodata-wrong-type`
+- RT-M3.2-5 (rejects missing `.data`): `bash scripts/check-m3.2-rejections.sh i386 data-missing`
+- RT-M3.2-6 (rejects wrong `.data` type): `bash scripts/check-m3.2-rejections.sh i386 data-wrong-type`
+- RT-M3.2-7 (rejects missing `.bss`): `bash scripts/check-m3.2-rejections.sh i386 bss-missing`
+- RT-M3.2-8 (rejects wrong `.bss` type): `bash scripts/check-m3.2-rejections.sh i386 bss-wrong-type`
+  Why they matter: these tests compile the real kernel with intentionally broken linker scripts
+  and prove the build gate rejects malformed ELF layouts immediately after `ld`, rather than only
+  detecting them later in a standalone checker run.
 
 ### Feature M3.3: Export useful layout symbols
 Implementation tasks:
@@ -693,19 +839,30 @@ Proof / tests (definition of done):
 - WP-M7.2-3 (artifact has no dynamic loader): `KERNEL=build/kernel-i386.bin; ! readelf -lW "$KERNEL" | rg -n "INTERP"`
 
 ### Feature M7.3: Link all objects with custom linker script
+Intent:
+- Wire the build so all kernel objects are linked into the final kernel binary using the
+  project linker script.
+- Keep this feature focused on the **actual link command in the build workflow**, not on
+  linker-script contents (M3.1/M3.2) and not on ASM bootstrap behavior (M2).
+
 Implementation tasks:
-- Use `ld -T linker.ld` (and `-m elf_i386` for i386).
+- Invoke `ld` from the build with `-T src/arch/i386/linker.ld`.
+- Use the correct linker mode for i386 (`-m elf_i386`).
+- Link ASM and chosen-language objects into one final kernel artifact.
 
 Acceptance criteria:
-- The produced kernel boots via GRUB.
+- The Makefile links the final kernel with the project linker script.
+- The link command includes both ASM objects and chosen-language objects.
+- The produced kernel artifact boots through the normal GRUB workflow.
 
 Implementation scope:
 - `MAKE` + `LD`
 
 Proof / tests (definition of done):
-- WP-M7.3-1 (ld uses -m elf_i386 and your script): `make -n all arch=i386 | rg -n "\\bld\\b" | rg -q "(-m\\s+elf_i386).*\\s-T\\s+src/arch/i386/linker\\.ld"`
+- WP-M7.3-1 (ld uses -m elf_i386 and the project script): `make -n all arch=i386 | rg -n "\\bld\\b" | rg -q "(-m\\s+elf_i386).*\\s-T\\s+src/arch/i386/linker\\.ld"`
+- WP-M7.3-2 (link command includes ASM and chosen-language objects): `make -n all arch=i386 | rg -n "build/arch/i386/.*\\.o.*build/arch/i386/rust/.*\\.o|build/arch/i386/rust/.*\\.o.*build/arch/i386/.*\\.o"`
 - MANUAL-M7.3-1 (boots): `make run arch=i386` and confirm GRUB loads the kernel and reaches your entry. (Automation: prefer AUTO-M7.3-1)
-- AUTO-M7.3-1 (preferred for CI): use **Infra I0.1** as the boot gate; if it exits PASS, the link+GRUB load path succeeded
+- AUTO-M7.3-1 (preferred for CI): use **Infra I0.1** as the boot gate; if kernel exits PASS, the link + GRUB load path succeeded
 
 ### Feature M7.4: Provide standard targets (`all`, `clean`, `iso`, `run`)
 Acceptance criteria:

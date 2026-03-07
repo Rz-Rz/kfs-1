@@ -1,6 +1,6 @@
 # KFS_1 Repo Status vs Subject (Done / Not Done + Priorities)
 
-Snapshot date: February 22, 2026.
+Snapshot date: March 1, 2026.
 
 This file is an analysis of the current repository state against the backlog in:
 - `docs/kfs1_epics_features.md` (baseline spec/backlog)
@@ -35,7 +35,7 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M2 DoD: ❌ NO
   - Proof: `src/arch/i386/boot.asm` has no stack init and no `kmain` call; ends with `hlt`
 - Base Epic M3 DoD: ❌ NO
-  - Proof: `src/arch/i386/linker.ld` defines only `.boot` and `.text`, and exports no layout symbols
+  - Proof: `src/arch/i386/linker.ld` defines standard sections, but exports no layout symbols (M3.3)
 - Base Epic M4 DoD: ⚠️ PARTIAL
   - Proof: `src/kernel/kmain.rs` defines `#[no_mangle] extern "C" fn kmain() -> !`
 - Base Epic M5 DoD: ❌ NO
@@ -206,11 +206,32 @@ Proof:
 - `rg -n "\\bld\\b.*\\s-T\\s+src/arch/\\$\\(arch\\)/linker\\.ld" -S Makefile`
 
 ### Feature M3.2: Provide standard sections for growth
-Status: ❌ Not done
+Status: ✅ Done
 Evidence:
-- Linker script defines only `.boot` and `.text`
+- Linker script defines `.text`, `.rodata`, `.data`, `.bss`
+- The linked kernel contains those sections and includes canary symbols in `.rodata`, `.data`, and `.bss`
+- The M3.2 checker now runs immediately after the kernel link step, so `make all` / `make iso` reject malformed ELF layouts before image creation
+- Adversarial subsection canaries prove `.rodata.*`, `.data.*`, `.bss.*`, and `COMMON` still fold into the intended output sections
+- Allocatable section allowlist stays clean; unexpected runtime sections like `.eh_frame` are rejected by `make test`
+- Real bad-linker rejection tests prove the build gate rejects missing/wrong-type `.text`, `.rodata`, `.data`, and `.bss`
 Proof:
-- `rg -n "^\\s*\\.(rodata|data|bss)\\b" -S src/arch/i386/linker.ld || echo "missing rodata/data/bss"`
+- `rg -n "^\\s*\\.(text|rodata|data|bss)\\b" -S src/arch/i386/linker.ld`
+- `bash scripts/check-m3.2-sections.sh i386`
+- `make -n all arch=i386 | rg -n "check-m3\\.2-sections\\.sh"`
+- `bash scripts/check-m3.2-stability.sh i386 wildcards`
+- `bash scripts/check-m3.2-stability.sh i386 rodata-subsection`
+- `bash scripts/check-m3.2-stability.sh i386 data-subsection`
+- `bash scripts/check-m3.2-stability.sh i386 bss-subsection`
+- `bash scripts/check-m3.2-stability.sh i386 common-bss`
+- `bash scripts/check-m3.2-stability.sh i386 alloc-allowlist`
+- `bash scripts/check-m3.2-rejections.sh i386 text-missing`
+- `bash scripts/check-m3.2-rejections.sh i386 text-wrong-type`
+- `bash scripts/check-m3.2-rejections.sh i386 rodata-missing`
+- `bash scripts/check-m3.2-rejections.sh i386 rodata-wrong-type`
+- `bash scripts/check-m3.2-rejections.sh i386 data-missing`
+- `bash scripts/check-m3.2-rejections.sh i386 data-wrong-type`
+- `bash scripts/check-m3.2-rejections.sh i386 bss-missing`
+- `bash scripts/check-m3.2-rejections.sh i386 bss-wrong-type`
 
 ### Feature M3.3: Export useful layout symbols
 Status: ❌ Not done
@@ -272,7 +293,7 @@ What’s left:
 
 ---
 
-## Infra Epics Status (I0–I3)
+## Infra Epics Status (I0–I4)
 
 Status: ⚠️ Partial
 Evidence:
@@ -281,5 +302,10 @@ Evidence:
   - Proof: `make test arch=i386 KFS_TEST_FORCE_FAIL=1` fails deterministically
 - Infra Epic **I3** (Reproducible Dev Environment): ✅ Done
   - Proof: `make container-env-check`
+- Infra Epic **I4** (Linker / ELF Hygiene Gates): ⚠️ Partial
+  - Proof: `make test arch=i386` includes visible subsection / COMMON / allocatable-section hygiene checks
+  - Gap: no linker map file generation/check yet
+  - Gap: no `--orphan-handling=error` gate yet
+  - Gap: no explicit per-section denylist step yet (current allowlist already caught `.eh_frame`)
 - Infra Epic **I1** (Serial console assertions): ❌ Not done
 - Infra Epic **I2** (VGA memory assertions): ❌ Not done

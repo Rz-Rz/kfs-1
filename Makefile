@@ -65,6 +65,7 @@ $(iso): $(kernel) $(grub_cfg)
 
 $(kernel): $(assembly_object_files) $(rust_object_files) $(linker_script)
 	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(rust_object_files)
+	@KFS_M3_2_KERNEL="$(kernel)" bash scripts/check-m3.2-sections.sh $(arch)
 
 # compile assembly files
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
@@ -87,6 +88,7 @@ $(iso_test): $(kernel_test) $(grub_cfg)
 
 $(kernel_test): $(assembly_object_files_test) $(rust_object_files) $(linker_script)
 	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel_test) $(assembly_object_files_test) $(rust_object_files)
+	@KFS_M3_2_KERNEL="$(kernel_test)" bash scripts/check-m3.2-sections.sh $(arch)
 
 build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
@@ -99,6 +101,7 @@ build/arch/$(arch)/rust/%.o: src/%.rs
 		--target $(rust_target) \
 		--emit=obj \
 		-C panic=abort \
+		-C force-unwind-tables=no \
 		-C opt-level=z \
 		-C code-model=kernel \
 		-C relocation-model=static \
