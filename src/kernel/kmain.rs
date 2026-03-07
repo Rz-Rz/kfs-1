@@ -7,6 +7,8 @@ use core::panic::PanicInfo;
 // We declare them here so `kmain` can call them.
 unsafe extern "C" {
     fn vga_init();
+    //fn vga_printf_args(format: *const u8, args: *const usize, arg_count: usize);
+    fn vga_printf(format: *const u8, value: usize);
     fn vga_puts(text: *const u8);
 }
 
@@ -27,8 +29,13 @@ fn panic(_info: &PanicInfo) -> ! {
 pub extern "C" fn kmain() -> ! {
     unsafe {
         vga_init();
+        let mut i: usize = 0;
         vga_puts(b"42\nTHE BEST\n\0".as_ptr());
-        vga_puts(b"third line\0".as_ptr());
+        vga_puts(b"indexed lines:\n\0".as_ptr());
+        while i < 26 {
+            vga_printf(b"line %d\n\0".as_ptr(), i);
+            i += 1;
+        }
     }
     halt_forever()
 }

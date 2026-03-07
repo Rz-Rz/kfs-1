@@ -15,15 +15,19 @@ main() {
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
   [[ -r "${KERNEL}" ]] || die "missing artifact: ${KERNEL} (build it with make all/iso arch=${ARCH})"
 
-  if ! nm -n "${KERNEL}" | grep -qE '[[:space:]]T[[:space:]]+kmain$'; then
+  local kernel_symbols
+  kernel_symbols="$(nm -n "${KERNEL}")"
+  if ! grep -qE '[[:space:]]T[[:space:]]+kmain$' <<<"${kernel_symbols}"; then
     echo "FAIL ${KERNEL}: missing Rust entry symbol (expected: T kmain)"
-    nm -n "${KERNEL}" | grep -E '\\bkmain\\b' || true
+    grep -E '\\bkmain\\b' <<<"${kernel_symbols}" || true
     exit 1
   fi
 
-  if ! objdump -d "${KERNEL}" | grep -qE 'call[[:space:]]+.*<kmain>'; then
+  local disassembly
+  disassembly="$(objdump -d "${KERNEL}")"
+  if ! grep -qE 'call[[:space:]]+.*<kmain>' <<<"${disassembly}"; then
     echo "FAIL ${KERNEL}: no call to kmain found in disassembly"
-    objdump -d "${KERNEL}" | grep -E '<kmain>' | head -n 20 || true
+    grep -E '<kmain>' <<<"${disassembly}" | head -n 20 || true
     exit 1
   fi
 

@@ -16,25 +16,29 @@ check_kernel() {
   [[ -r "${kernel}" ]] || die "missing artifact: ${kernel}"
 
   local missing=0
+  local section_headers
+  local kernel_symbols
+  section_headers="$(readelf -SW "${kernel}")"
+  kernel_symbols="$(nm -n "${kernel}")"
 
   for section in .text .rodata .data .bss; do
-    if ! readelf -SW "${kernel}" | grep -qE "[[:space:]]${section}[[:space:]]"; then
+    if ! grep -qE "[[:space:]]${section}[[:space:]]" <<<"${section_headers}"; then
       echo "FAIL ${kernel}: missing section ${section}"
       missing=1
     fi
   done
 
-  if ! readelf -SW "${kernel}" | grep -qE '[[:space:]]\.bss[[:space:]].*[[:space:]]NOBITS[[:space:]]'; then
+  if ! grep -qE '[[:space:]]\.bss[[:space:]].*[[:space:]]NOBITS[[:space:]]' <<<"${section_headers}"; then
     echo "FAIL ${kernel}: .bss exists but is not NOBITS"
     missing=1
   fi
 
-  if ! nm -n "${kernel}" | grep -qE '[[:space:]]R[[:space:]]+KFS_RODATA_MARKER$'; then
+  if ! grep -qE '[[:space:]]R[[:space:]]+KFS_RODATA_MARKER$' <<<"${kernel_symbols}"; then
     echo "FAIL ${kernel}: expected read-only marker missing or not in rodata (nm type R): KFS_RODATA_MARKER"
     missing=1
   fi
 
-  if ! nm -n "${kernel}" | grep -qE '[[:space:]]D[[:space:]]+KFS_DATA_MARKER$'; then
+  if ! grep -qE '[[:space:]]D[[:space:]]+KFS_DATA_MARKER$' <<<"${kernel_symbols}"; then
     echo "FAIL ${kernel}: expected writable marker missing or not in data (nm type D): KFS_DATA_MARKER"
     missing=1
   fi

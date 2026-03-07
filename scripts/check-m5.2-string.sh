@@ -56,9 +56,11 @@ main() {
     exit 1
   fi
 
-  if ! nm -n "${KERNEL}" | grep -qE '[[:space:]]T[[:space:]]+kfs_string_helpers_marker$'; then
+  local kernel_symbols
+  kernel_symbols="$(nm -n "${KERNEL}")"
+  if ! grep -qE '[[:space:]]T[[:space:]]+kfs_string_helpers_marker$' <<<"${kernel_symbols}"; then
     echo "FAIL ${KERNEL}: missing marker symbol kfs_string_helpers_marker"
-    nm -n "${KERNEL}" | grep -E 'kfs_string_helpers_marker|string' || true
+    grep -E 'kfs_string_helpers_marker|string' <<<"${kernel_symbols}" || true
     exit 1
   fi
 

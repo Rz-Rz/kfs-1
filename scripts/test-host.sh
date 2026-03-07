@@ -171,64 +171,70 @@ run_item 2 2 "Verify tools exist" \
 
 printf '\n'
 color "1;34"; printf '%s\n' "TESTS"; reset_color
-run_item 1 18 "release ISO is bootable" \
+run_item 1 20 "release ISO is bootable" \
   bash scripts/container.sh run -- \
     bash -lc "make -B iso arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.iso && test \$(wc -c < build/os-${ARCH}.iso) -le 10485760 && file build/os-${ARCH}.iso | grep -q 'ISO 9660'"
 
-run_item 2 18 "kmain exists + is called (M4.1)" \
+run_item 2 20 "kmain exists + is called (M4.1)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m4.1-kmain.sh '${ARCH}'"
 
-run_item 3 18 "VGA writer module exists + is used (M6.1)" \
+run_item 3 20 "VGA writer module exists + is used (M6.1)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m6.1-vga.sh '${ARCH}'"
 
-run_item 4 18 "newline cursor tests pass (M6.2)" \
+run_item 4 20 "newline cursor tests pass (M6.2)" \
   bash scripts/check-m6.2-newline.sh "${ARCH}"
 
-run_item 5 18 "string helpers pass host tests (M5.2)" \
+run_item 5 20 "scroll tests pass (B1.2)" \
+  bash scripts/check-b1.2-scroll.sh "${ARCH}"
+
+run_item 6 20 "basic printf format tests pass (B3.1)" \
+  bash scripts/check-b3.1-format.sh "${ARCH}"
+
+run_item 7 20 "string helpers pass host tests (M5.2)" \
   bash scripts/check-m5.2-string.sh "${ARCH}"
 
-run_item 6 18 "memory helpers pass host tests (M5.3)" \
+run_item 8 20 "memory helpers pass host tests (M5.3)" \
   bash scripts/check-m5.3-memory.sh "${ARCH}"
 
-run_item 7 18 "release IMG is bootable" \
+run_item 9 20 "release IMG is bootable" \
   bash scripts/container.sh run -- \
     bash -lc "make -B img arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
 
-run_item 8 18 "Build test ISO" \
+run_item 10 20 "Build test ISO" \
   bash scripts/container.sh run -- \
     bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item 9 18 "standard sections exist (.text/.rodata/.data/.bss)" \
+run_item 11 20 "standard sections exist (.text/.rodata/.data/.bss)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m3.2-sections.sh '${ARCH}'"
 
-run_item 10 18 "layout symbols exported + referenced (M3.3)" \
+run_item 12 20 "layout symbols exported + referenced (M3.3)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m3.3-layout-symbols.sh '${ARCH}'"
 
-run_item 11 18 "kernel includes ASM+Rust (symbol gate)" \
+run_item 13 20 "kernel includes ASM+Rust (symbol gate)" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' langs"
 
-run_item 12 18 "no host libs (ELF checks): no PT_INTERP" \
+run_item 14 20 "no host libs (ELF checks): no PT_INTERP" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' interp"
 
-run_item 13 18 "no host libs (ELF checks): no .interp/.dynamic" \
+run_item 15 20 "no host libs (ELF checks): no .interp/.dynamic" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' dynamic"
 
-run_item 14 18 "no host libs (ELF checks): no undefined symbols" \
+run_item 16 20 "no host libs (ELF checks): no undefined symbols" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' undef"
 
-run_item 15 18 "no host libs (ELF checks): no libc/loader strings" \
+run_item 17 20 "no host libs (ELF checks): no libc/loader strings" \
   bash scripts/container.sh run -- \
     bash -lc "bash scripts/check-m0.2-freestanding.sh '${ARCH}' strings"
 
-run_item_inline 16 18 "GRUB boots test ISO" \
+run_item_inline 18 20 "GRUB boots test ISO" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \
@@ -236,11 +242,11 @@ run_item_inline 16 18 "GRUB boots test ISO" \
     KFS_TEST_FORCE_FAIL="${KFS_TEST_FORCE_FAIL}" \
     bash scripts/test-qemu.sh "${ARCH}"
 
-run_item 17 18 "Build test IMG artifact" \
+run_item 19 20 "Build test IMG artifact" \
   bash scripts/container.sh run -- \
     bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL}' >/dev/null"
 
-run_item_inline 18 18 "GRUB boots test IMG" \
+run_item_inline 20 20 "GRUB boots test IMG" \
   bash scripts/container.sh run -- env \
     TEST_TIMEOUT_SECS="${TEST_TIMEOUT_SECS}" \
     TEST_PASS_RC="${TEST_PASS_RC}" \

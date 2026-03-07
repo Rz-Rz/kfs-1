@@ -341,12 +341,13 @@ Status: ⚠️ Partial
 Evidence:
 - Cursor state exists in `src/kernel/vga/vga_impl.rs` via `VgaCursor { row, col }`
 - Host cursor tests exist in `tests/host_cursor.rs`
-- Bottom-of-screen behavior still wraps back to the top; no scroll operation exists yet
+- Bottom-of-screen behavior now scrolls the visible text buffer up by one row and clears the last row
 - No hardware cursor programming path is present
 Proof:
 - `bash scripts/check-m6.2-newline.sh i386`
+- `bash scripts/check-b1.2-scroll.sh i386`
 - `rg -n "\\b(VgaCursor|row|col)\\b" -S src/kernel/vga.rs src/kernel/vga/vga_impl.rs tests/host_cursor.rs`
-- `rg -n "\\bscroll\\b|0x3D4|0x3D5|outb|inb" -S src tests || echo "no scroll or hardware cursor support yet"`
+- `rg -n "\\bscroll_buffer\\b|\\bscrolled\\b|0x3D4|0x3D5|outb|inb" -S src tests || echo "no scroll or hardware cursor support yet"`
 
 ### Feature B1.1: Maintain cursor state
 Status: ✅ Done
@@ -358,13 +359,14 @@ Proof:
 - `rg -n "\\bstruct VgaCursor\\b|\\brow\\b|\\bcol\\b" -S src/kernel/vga/vga_impl.rs tests/host_cursor.rs`
 
 ### Feature B1.2: Implement scrolling at bottom-of-screen
-Status: ❌ Not done
+Status: ✅ Done
 Evidence:
-- `advance_row()` in `src/kernel/vga/vga_impl.rs` wraps to row `0` once `VGA_HEIGHT` is reached
-- No line-copy / clear-last-line scroll routine exists in the VGA writer
+- `VgaCursor::put_byte()` reports when the cursor advancement should scroll
+- `scroll_buffer()` shifts the visible text buffer up by one row and blanks the last row
+- `vga_putc()` performs the physical VGA scroll when the cursor reports `scrolled = true`
 Proof:
-- `rg -n "wraps back to the top instead of scrolling|row >= VGA_HEIGHT|row = 0" -S src/kernel/vga/vga_impl.rs`
-- `rg -n "\\bscroll\\b|copy.*line|clear.*last line" -S src/kernel tests || echo "no scroll implementation yet"`
+- `bash scripts/check-b1.2-scroll.sh i386`
+- `rg -n "\\bscroll_buffer\\b|\\bscrolled\\b|VGA_CELLS" -S src/kernel/vga.rs src/kernel/vga/vga_impl.rs tests/host_scroll.rs`
 
 ### Feature B1.3: Optional hardware cursor programming (VGA ports `0x3D4/0x3D5`)
 Status: ❌ Not done
@@ -374,7 +376,7 @@ Proof:
 - `rg -n "0x3D4|0x3D5|outb|inb|hardware cursor" -S src tests || echo "no hardware cursor support yet"`
 
 Definition of Done (B1):
-- ❌ Not met: basic cursor state exists, but scrolling and optional hardware cursor support are still missing.
+- ✅ Met for software cursor + scrolling behavior; optional hardware cursor support (B1.3) is still not implemented.
 
 ---
 

@@ -1,5 +1,12 @@
 pub const VGA_WIDTH: usize = 80;
 pub const VGA_HEIGHT: usize = 25;
+pub const VGA_CELLS: usize = VGA_WIDTH * VGA_HEIGHT;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct VgaPutResult {
+    pub cell_index: Option<usize>,
+    pub scrolled: bool,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VgaCursor {
@@ -17,19 +24,26 @@ impl VgaCursor {
     ///
     /// For normal text, it returns the screen cell that should be written.
     /// For a newline, it only moves the cursor and returns `None`.
-    pub fn put_byte(&mut self, byte: u8) -> Option<usize> {
+    pub fn put_byte(&mut self, byte: u8) -> VgaPutResult {
         if byte == b'\n' {
-            self.advance_row();
-            return None;
+            return VgaPutResult {
+                cell_index: None,
+                scrolled: self.advance_row(),
+            };
         }
 
         let cell_index = self.cell_index();
         self.col += 1;
-        if self.col >= VGA_WIDTH {
-            self.advance_row();
-        }
+        let scrolled = if self.col >= VGA_WIDTH {
+            self.advance_row()
+        } else {
+            false
+        };
 
-        Some(cell_index)
+        VgaPutResult {
+            cell_index: Some(cell_index),
+            scrolled,
+        }
     }
 
     /// This turns the current row and column into one flat screen index.
@@ -42,13 +56,33 @@ impl VgaCursor {
 
     /// This moves the cursor to the start of the next row.
     ///
-    /// When the cursor goes past the bottom of the screen, it wraps back to
-    /// the top instead of scrolling.
-    fn advance_row(&mut self) {
+    /// When the cursor goes past the bottom of the screen, it stays on the
+    /// last row and tells the caller that the visible buffer must scroll.
+    fn advance_row(&mut self) -> bool {
         self.col = 0;
-        self.row += 1;
-        if self.row >= VGA_HEIGHT {
-            self.row = 0;
+        if self.row + 1 >= VGA_HEIGHT {
+            self.row = VGA_HEIGHT - 1;
+            return true;
         }
+        self.row += 1;
+        false
+    }
+}
+
+/// This scrolls a text buffer up by one row and clears the last row.
+pub fn scroll_buffer<T: Copy>(buffer: &mut [T], blank: T) {
+    if buffer.len() < VGA_CELLS {
+        return;
+    }
+
+    let mut idx: usize = 0;
+    while idx + VGA_WIDTH < VGA_CELLS {
+        buffer[idx] = buffer[idx + VGA_WIDTH];
+        idx += 1;
+    }
+
+    while idx < VGA_CELLS {
+        buffer[idx] = blank;
+        idx += 1;
     }
 }

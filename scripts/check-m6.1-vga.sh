@@ -30,14 +30,18 @@ main() {
     exit 1
   fi
 
+  local kernel_symbols
+  kernel_symbols="$(nm -n "${KERNEL}")"
   for symbol in vga_init vga_putc vga_puts; do
-    if ! nm -n "${KERNEL}" | grep -qE "[[:space:]]T[[:space:]]+${symbol}$"; then
+    if ! grep -qE "[[:space:]]T[[:space:]]+${symbol}$" <<<"${kernel_symbols}"; then
       echo "FAIL ${KERNEL}: missing symbol ${symbol}"
       exit 1
     fi
   done
 
-  if ! objdump -d "${KERNEL}" | grep -qE 'call[[:space:]]+.*<(vga_init|vga_puts)>'; then
+  local disassembly
+  disassembly="$(objdump -d "${KERNEL}")"
+  if ! grep -qE 'call[[:space:]]+.*<(vga_init|vga_puts)>' <<<"${disassembly}"; then
     echo "FAIL ${KERNEL}: kmain does not appear to call vga_init/vga_puts"
     exit 1
   fi
