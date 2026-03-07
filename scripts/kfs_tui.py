@@ -1,0 +1,1002 @@
+#!/usr/bin/env python3
+"""
+KFS TUI — Retro terminal test runner
+
+Usage:
+  python3 scripts/kfs_tui.py
+  python3 scripts/kfs_tui.py --arch i386
+  python3 scripts/kfs_tui.py --demo
+  cat test_output.txt | python3 scripts/kfs_tui.py --stdin
+"""
+
+from __future__ import annotations
+
+import argparse
+import math
+import os
+import re
+import subprocess
+import sys
+import time
+from dataclasses import dataclass, field
+from typing import Optional
+
+from rich.text import Text
+from textual import work
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Grid, Horizontal, Vertical, VerticalScroll
+from textual.widgets import Static
+
+AMBER = "#FFB300"
+AMBER_DIM = "#7A5500"
+AMBER_FAINT = "#3A2800"
+AMBER_GLOW = "#FFCC44"
+ORANGE_ACTIVE = "#FFB300"
+ORANGE_BASE = "#5A3200"
+ORANGE_HEAD = "#FFCC44"
+RED_BRIGHT = "#FF3333"
+RED_DIM = "#881111"
+GREEN_OK = "#44FF88"
+BLACK = "#000000"
+ACTIVE_CYCLE_SECS = 5.0
+ACTIVE_SEGMENT_RATIO = 0.10
+RUNNER_TICK_SECS = 0.05
+EKG_TICK_SECS = 0.12
+MAX_ACTIVE_CELLS = 128
+
+CSS = f"""
+Screen {{
+    background: {BLACK};
+    color: {AMBER};
+}}
+
+#topbar {{
+    height: 3;
+    border-bottom: solid {AMBER_DIM};
+    padding: 0 2;
+}}
+
+#title {{
+    width: 30;
+    color: {AMBER_GLOW};
+    text-style: bold;
+}}
+
+#progress_bar {{
+    width: 1fr;
+}}
+
+#counter {{
+    width: 24;
+    text-align: right;
+    color: {AMBER_DIM};
+}}
+
+#grid {{
+    grid-size: 2 2;
+    grid-gutter: 1;
+    padding: 0 1;
+    height: 1fr;
+}}
+
+.panel {{
+    border: solid {AMBER_DIM};
+    padding: 0 1;
+    layers: base overlay;
+}}
+
+.panel:hover {{
+    border: solid {AMBER};
+}}
+
+.panel.expanded {{
+    border: double {AMBER_GLOW};
+}}
+
+.panel-active {{
+    border: double {ORANGE_ACTIVE};
+}}
+
+.panel-pass {{
+    border: solid {GREEN_OK};
+}}
+
+.panel-fail {{
+    border: solid {RED_BRIGHT};
+}}
+
+.panel.expanded.panel-active {{
+    border: double {ORANGE_ACTIVE};
+}}
+
+.panel.expanded.panel-pass {{
+    border: double {GREEN_OK};
+}}
+
+.panel.expanded.panel-fail {{
+    border: double {RED_BRIGHT};
+}}
+
+.panel-scroll {{
+    height: 1fr;
+    padding: 1 1 1 1;
+    layer: base;
+}}
+
+.active-runner-cell {{
+    position: absolute;
+    layer: overlay;
+    width: 1;
+    height: 1;
+    background: transparent;
+    display: none;
+}}
+
+#ekg_bar {{
+    height: 7;
+    border-top: solid {AMBER_DIM};
+    padding: 0 0;
+}}
+
+#boot_overlay {{
+    layer: overlay;
+    width: 100%;
+    height: 100%;
+    align: center middle;
+    background: {BLACK};
+}}
+
+#panic_overlay {{
+    layer: overlay;
+    width: 100%;
+    height: 100%;
+    align: center middle;
+    background: {RED_DIM};
+    display: none;
+}}
+"""
+
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+EVENT_PREFIX = "KFS_EVENT|"
+KNOWN_SECTIONS = {"SETUP", "TESTS", "STABILITY TESTS", "REJECTION TESTS", "BOOT TESTS"}
+SECTION_TO_PANEL = {
+    "SETUP": 0,
+    "TESTS": 1,
+    "STABILITY TESTS": 2,
+    "REJECTION TESTS": 2,
+    "BOOT TESTS": 3,
+}
+PANEL_TITLES = ["SETUP", "TESTS", "STABILITY / REJECTION", "BOOT TESTS"]
+PANEL_SECTIONS = {
+    0: ["SETUP"],
+    1: ["TESTS"],
+    2: ["STABILITY TESTS", "REJECTION TESTS"],
+    3: ["BOOT TESTS"],
+}
+SECTION_LABELS = {
+    "SETUP": "SETUP",
+    "TESTS": "TESTS",
+    "STABILITY TESTS": "STABILITY",
+    "REJECTION TESTS": "REJECTION",
+    "BOOT TESTS": "BOOT",
+}
+EKG_MIN_WIDTH = 32
+EKG_ROWS = 5
+EKG_SUBROWS_PER_ROW = 4
+EKG_ZERO_THRESHOLD = 0.02
+HEARTBEAT_KERNEL = [
+    0, 0, 0, 0, 0, 0,
+    -1, -2, -1, 0,
+    1, 0, 2, 1, 3, 2, 4, 3, 2, 1,
+    3, 2, 1, 0, 2, 1, 0, 1, 0,
+    0, 0, 0, 0, 0, 0,
+]
+BOOT_FRAMES = [
+    """\
+╔══════════════════════════════════════════╗
+║         KFS KERNEL TEST SYSTEM           ║
+║         BIOS v2.0 — POST CHECK           ║
+╚══════════════════════════════════════════╝
+
+  Detecting CPU ........ i686 OK
+  Memory check ......... 640K OK
+  Storage .............. /dev/sda OK
+  Loading GRUB ......... ▓░░░░░░░░░
+""",
+    """\
+╔══════════════════════════════════════════╗
+║         KFS KERNEL TEST SYSTEM           ║
+║      *** LAUNCHING TEST SUITE ***        ║
+╚══════════════════════════════════════════╝
+
+  arch: i386
+  mode: AUTOMATED TEST RUN
+""",
+]
+PANIC_ART = """\
+ ██╗  ██╗███████╗██████╗ ███╗   ██╗███████╗██╗
+ ██║ ██╔╝██╔════╝██╔══██╗████╗  ██║██╔════╝██║
+ █████╔╝ █████╗  ██████╔╝██╔██╗ ██║█████╗  ██║
+ ██╔═██╗ ██╔══╝  ██╔══██╗██║╚██╗██║██╔══╝  ██║
+ ██║  ██╗███████╗██║  ██║██║ ╚████║███████╗███████╗
+ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝
+
+        !! TEST SUITE FAILURE DETECTED !!
+"""
+
+DEMO_LINES = """KFS_EVENT|suite|i386
+KFS_EVENT|suite_total|4
+KFS_EVENT|section_total|SETUP|2
+KFS_EVENT|section_total|BOOT TESTS|2
+KFS_EVENT|declare|SETUP|Rebuild the container toolchain image
+KFS_EVENT|declare|SETUP|Verify tools exist
+KFS_EVENT|declare|BOOT TESTS|runtime reaches Rust kmain
+KFS_EVENT|declare|BOOT TESTS|runtime markers appear in the expected order
+KFS_EVENT|section|SETUP
+KFS_EVENT|start|SETUP|Rebuild the container toolchain image
+Rebuild the container toolchain image PASS
+KFS_EVENT|result|SETUP|Rebuild the container toolchain image|pass
+KFS_EVENT|start|SETUP|Verify tools exist
+Verify tools exist PASS
+KFS_EVENT|result|SETUP|Verify tools exist|pass
+KFS_EVENT|section|BOOT TESTS
+KFS_EVENT|start|BOOT TESTS|runtime reaches Rust kmain
+runtime reaches Rust kmain PASS
+KFS_EVENT|result|BOOT TESTS|runtime reaches Rust kmain|pass
+KFS_EVENT|start|BOOT TESTS|runtime markers appear in the expected order
+runtime markers appear in the expected order PASS
+KFS_EVENT|result|BOOT TESTS|runtime markers appear in the expected order|pass
+KFS_EVENT|summary|pass""".splitlines()
+
+
+def strip_ansi(value: str) -> str:
+    return ANSI_ESCAPE.sub("", value)
+
+
+def _wrapped_phase_distance(phase: float, center: float) -> float:
+    delta = phase - center
+    if delta > 0.5:
+        delta -= 1.0
+    elif delta < -0.5:
+        delta += 1.0
+    return delta
+
+
+def _gaussian_pulse(phase: float, center: float, width: float, amplitude: float) -> float:
+    delta = _wrapped_phase_distance(phase, center)
+    sigma = max(width, 1e-6)
+    return amplitude * math.exp(-0.5 * (delta / sigma) ** 2)
+
+
+def heartbeat_sample(phase: float) -> float:
+    wrapped = phase % 1.0
+    value = 0.0
+    value += _gaussian_pulse(wrapped, center=0.18, width=0.028, amplitude=0.10)   # P
+    value += _gaussian_pulse(wrapped, center=0.33, width=0.014, amplitude=-0.22)  # Q
+    value += _gaussian_pulse(wrapped, center=0.38, width=0.020, amplitude=0.98)   # R
+    value += _gaussian_pulse(wrapped, center=0.46, width=0.018, amplitude=-0.42)  # S
+    value += _gaussian_pulse(wrapped, center=0.79, width=0.045, amplitude=0.14)   # T
+
+    recovery_phase = wrapped - 0.49
+    if 0.0 <= recovery_phase <= 0.23:
+        envelope = math.exp(-recovery_phase * 9.0)
+        value += 0.18 * envelope * math.sin(2.0 * math.pi * 11.0 * recovery_phase)
+
+    return max(-1.0, min(1.0, value))
+
+
+def render_ekg(samples: list[float], width: int) -> str:
+    chart_width = max(width, EKG_MIN_WIDTH)
+    display = list(samples)[-chart_width:]
+    if len(display) < chart_width:
+        display = ([0.0] * (chart_width - len(display))) + display
+
+    total_subrows = EKG_ROWS * EKG_SUBROWS_PER_ROW
+    center_subrow = total_subrows // 2
+    if not display:
+        return ""
+
+    positions: list[float] = []
+    for value in display:
+        clamped = max(-1.0, min(1.0, value))
+        if abs(clamped) < EKG_ZERO_THRESHOLD:
+            clamped = 0.0
+        positions.append(center_subrow - (clamped * (center_subrow - 1)))
+
+    rows: list[str] = []
+    baseline_cell_row = center_subrow // EKG_SUBROWS_PER_ROW
+    for cell_row in range(EKG_ROWS):
+        line_chars: list[str] = []
+        for x in range(chart_width):
+            position = max(0.0, min(float(total_subrows - 1), positions[x]))
+            cell_position = position / EKG_SUBROWS_PER_ROW
+            point_row = int(cell_position)
+            frac = cell_position - point_row
+
+            if cell_row == baseline_cell_row and abs(position - center_subrow) < 0.55:
+                line_chars.append("▀")
+            elif cell_row != point_row:
+                line_chars.append(" ")
+            elif frac < 0.34:
+                line_chars.append("▀")
+            elif frac > 0.66:
+                line_chars.append("▄")
+            else:
+                prev_pos = positions[x - 1] if x > 0 else position
+                next_pos = positions[x + 1] if x + 1 < chart_width else position
+                if next_pos > prev_pos:
+                    line_chars.append("▐")
+                elif next_pos < prev_pos:
+                    line_chars.append("▌")
+                else:
+                    line_chars.append("▀" if cell_row <= baseline_cell_row else "▄")
+        rows.append("".join(line_chars))
+
+    rendered = "\n".join(rows)
+    return f"[bold {AMBER_GLOW}]{rendered}[/]"
+
+
+@dataclass
+class TestItem:
+    section: str
+    name: str
+    status: str = "wait"
+    error_log: list[str] = field(default_factory=list)
+
+
+class BootOverlay(Static):
+    def compose(self) -> ComposeResult:
+        yield Static("", id="boot_text")
+
+    def set_frame(self, text: str) -> None:
+        self.query_one("#boot_text", Static).update(f"[{AMBER}]{text}[/]")
+
+
+class PanicOverlay(Static):
+    def compose(self) -> ComposeResult:
+        yield Static(f"[{RED_BRIGHT}]{PANIC_ART}[/]")
+
+
+class TestPanel(Vertical):
+    can_focus = True
+
+    def __init__(self, panel_id: int, title: str, **kwargs):
+        super().__init__(**kwargs)
+        self.panel_id = panel_id
+        self.base_title = title
+        self.items: list[TestItem] = []
+        self.visual_state = "idle"
+        self.heading = self.base_title
+        self.summary_lines: list[str] = []
+        self.border_title = self._format_heading(self.heading)
+        self.border_subtitle = self._format_summary(self.summary_lines)
+
+    def _state_color(self) -> str:
+        if self.visual_state == "active":
+            return ORANGE_ACTIVE
+        if self.visual_state == "pass":
+            return GREEN_OK
+        if self.visual_state == "fail":
+            return RED_BRIGHT
+        return AMBER_GLOW
+
+    def _summary_color(self) -> str:
+        if self.visual_state == "active":
+            return ORANGE_ACTIVE
+        if self.visual_state == "pass":
+            return GREEN_OK
+        if self.visual_state == "fail":
+            return RED_BRIGHT
+        return AMBER_DIM
+
+    def _format_heading(self, heading: str) -> Text:
+        if not heading:
+            return Text("")
+        color = self._state_color()
+        return Text.from_markup(f"[{BLACK} on {color}][b] {heading} [/b][/]")
+
+    def _format_summary(self, summary_lines: list[str]) -> Text:
+        if not summary_lines:
+            return Text("")
+        color = self._summary_color()
+        plain_summary = "   ".join(summary_lines)
+        return Text.from_markup(f"[{color}]{plain_summary}[/]")
+
+    def _apply_visual_state(self) -> None:
+        for class_name in ("panel-active", "panel-pass", "panel-fail"):
+            self.remove_class(class_name)
+
+        if self.visual_state == "active":
+            self.add_class("panel-active")
+        elif self.visual_state == "pass":
+            self.add_class("panel-pass")
+        elif self.visual_state == "fail":
+            self.add_class("panel-fail")
+
+        self._apply_border_style()
+        self.border_title = self._format_heading(self.heading)
+        self.border_subtitle = self._format_summary(self.summary_lines)
+
+    def _apply_border_style(self) -> None:
+        if self.visual_state == "active":
+            style = "double"
+            color = ORANGE_BASE
+        elif self.visual_state == "pass":
+            style = "solid"
+            color = GREEN_OK
+        elif self.visual_state == "fail":
+            style = "solid"
+            color = RED_BRIGHT
+        else:
+            style = "solid"
+            color = AMBER_DIM
+
+        self.styles.border_top = (style, color)
+        self.styles.border_right = (style, color)
+        self.styles.border_bottom = (style, color)
+        self.styles.border_left = (style, color)
+
+    def compose(self) -> ComposeResult:
+        with VerticalScroll(id=f"panel_scroll_{self.panel_id}", classes="panel-scroll"):
+            yield Static("", id=f"panel_content_{self.panel_id}")
+
+    def declare_item(self, section: str, name: str) -> bool:
+        if self._find_item(section, name) is None:
+            self.items.append(TestItem(section=section, name=name))
+            self._refresh()
+            return True
+        return False
+
+    def mark_running(self, section: str, name: str) -> None:
+        item = self._get_or_create(section, name)
+        item.status = "run"
+        self._refresh()
+        self._scroll_to_item(section, name)
+
+    def complete_item(self, section: str, name: str, passed: bool, error_log: list[str]) -> None:
+        item = self._get_or_create(section, name)
+        item.status = "pass" if passed else "fail"
+        item.error_log = error_log
+        self._refresh()
+        self._scroll_to_item(section, name)
+
+    def update_stats(self, heading: str, summary_lines: list[str], state: str) -> None:
+        self.heading = heading
+        self.summary_lines = list(summary_lines)
+        self.visual_state = state
+        self._apply_visual_state()
+
+    def _find_item(self, section: str, name: str) -> Optional[TestItem]:
+        for item in self.items:
+            if item.section == section and item.name == name:
+                return item
+        return None
+
+    def _get_or_create(self, section: str, name: str) -> TestItem:
+        item = self._find_item(section, name)
+        if item is None:
+            item = TestItem(section=section, name=name)
+            self.items.append(item)
+        return item
+
+    def _scroll_to_item(self, section: str, name: str) -> None:
+        line_index = self._line_index_for_item(section, name)
+        if line_index is None:
+            return
+
+        scroll = self.query_one(f"#panel_scroll_{self.panel_id}", VerticalScroll)
+        scroll_to = max(line_index - 1, 0)
+        scroll.call_after_refresh(
+            scroll.scroll_to,
+            y=scroll_to,
+            animate=False,
+            force=True,
+            immediate=True,
+        )
+
+    def _line_index_for_item(self, section: str, name: str) -> Optional[int]:
+        line_index = 0
+        current_section = None
+
+        for item in self.items:
+            if item.section != current_section:
+                if current_section is not None:
+                    line_index += 1
+                current_section = item.section
+                line_index += 1
+
+            if item.section == section and item.name == name:
+                return line_index
+
+            line_index += 1
+            if item.status == "fail":
+                line_index += len(item.error_log)
+
+        return None
+
+    def _refresh(self) -> None:
+        lines = []
+        current_section = None
+        for item in self.items:
+            if item.section != current_section:
+                current_section = item.section
+                if lines:
+                    lines.append("")
+                lines.append(f"[{AMBER_DIM}]{SECTION_LABELS.get(item.section, item.section)}[/]")
+            if item.status == "wait":
+                lines.append(f"[{AMBER_DIM}]· {item.name}[/]")
+            elif item.status == "run":
+                lines.append(f"[{AMBER}]▶ {item.name}[/]")
+            elif item.status == "pass":
+                lines.append(f"[{GREEN_OK}]✓[/] [{AMBER}]{item.name}[/]")
+            else:
+                lines.append(f"[{RED_BRIGHT}]✗[/] [{RED_BRIGHT}]{item.name}[/]")
+                for line in item.error_log:
+                    lines.append(f"  [{RED_DIM}]{line}[/]")
+
+        self.query_one(f"#panel_content_{self.panel_id}", Static).update(
+            "\n".join(lines) if lines else f"[{AMBER_DIM}]Waiting...[/]"
+        )
+
+    def on_click(self) -> None:
+        self.app.toggle_panel(self.panel_id)
+
+
+class EKGBar(Static):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.samples: list[float] = []
+        self.phase = 0.0
+        self.elapsed = 0.0
+        self.event_nudge = 0.0
+
+    def _chart_width(self) -> int:
+        return max(int(self.size.width), EKG_MIN_WIDTH)
+
+    def _append_sample(self, value: float) -> None:
+        self.samples.append(max(-1.2, min(1.2, value)))
+        keep = self._chart_width() * 4
+        if len(self.samples) > keep:
+            self.samples = self.samples[-keep:]
+
+    def _next_sample(self) -> float:
+        # Slow sweep so the analytic waveform leaves long flat baseline sections.
+        beat_period = 3.8
+        beat_gain = 1.0
+
+        self.phase = (self.phase + (RUNNER_TICK_SECS / max(beat_period, 0.7))) % 1.0
+        base = heartbeat_sample(self.phase)
+        baseline_wander = 0.0
+
+        value = (base * beat_gain) + baseline_wander + self.event_nudge
+        self.event_nudge *= 0.65
+        self.elapsed += RUNNER_TICK_SECS
+        return value
+
+    def _redraw(self) -> None:
+        self.update(render_ekg(self.samples, self._chart_width()))
+
+    def add_result(self, passed: bool) -> None:
+        self.event_nudge += 0.005 if passed else -0.015
+        self._append_sample(self._next_sample())
+        self._redraw()
+
+    def tick(self) -> None:
+        self._append_sample(self._next_sample())
+        self._redraw()
+
+
+class KFSApp(App):
+    CSS = CSS
+    BINDINGS = [Binding("q", "quit", "Quit"), Binding("escape", "quit", "Quit")]
+
+    def __init__(self, mode: str, arch: str, make_target: str, **kwargs):
+        super().__init__(**kwargs)
+        self.mode = mode
+        self.arch = arch
+        self.make_target = make_target
+        self.current_section: Optional[str] = None
+        self.suite_total = 0
+        self.discovered_total = 0
+        self.passed = 0
+        self.failed = 0
+        self.active_runner_started_at: Optional[float] = None
+        self.active_panel: Optional[int] = None
+        self.expanded_panel: Optional[int] = None
+        self.done = False
+        self.boot_done = False
+        self.last_failed_item: Optional[tuple[int, str, str]] = None
+        self.pending_error_log: list[str] = []
+        self.section_totals: dict[str, int] = {}
+        self.section_done: dict[str, int] = {}
+        self.section_passed: dict[str, int] = {}
+        self.section_failed: dict[str, int] = {}
+        self.active_cells: list[Static] = []
+        self.ekg_tick_accum = 0.0
+
+    def compose(self) -> ComposeResult:
+        with Horizontal(id="topbar"):
+            yield Static("◈ KFS TEST RUNNER", id="title")
+            yield Static("", id="progress_bar")
+            yield Static("", id="counter")
+        with Grid(id="grid"):
+            for index, title in enumerate(PANEL_TITLES):
+                yield TestPanel(index, title, id=f"panel_{index}", classes="panel")
+        for index in range(MAX_ACTIVE_CELLS):
+            yield Static("", id=f"active_cell_{index}", classes="active-runner-cell")
+        yield EKGBar(id="ekg_bar")
+        yield BootOverlay(id="boot_overlay")
+        yield PanicOverlay(id="panic_overlay")
+
+    def on_mount(self) -> None:
+        self.active_cells = [self.query_one(f"#active_cell_{index}", Static) for index in range(MAX_ACTIVE_CELLS)]
+        self.set_interval(RUNNER_TICK_SECS, self._tick)
+        self._boot_and_run()
+
+    @work(thread=True)
+    def _boot_and_run(self) -> None:
+        overlay = self.query_one("#boot_overlay", BootOverlay)
+        for frame in BOOT_FRAMES:
+            self.call_from_thread(overlay.set_frame, frame)
+            time.sleep(0.45)
+        manifest_loaded = False
+        if self.mode == "make":
+            manifest_loaded = self._prefetch_manifest()
+        self.call_from_thread(self._hide_boot)
+        time.sleep(0.2)
+
+        if self.mode == "demo":
+            self._consume_lines(DEMO_LINES)
+        elif self.mode == "stdin":
+            self._consume_lines(sys.stdin)
+        else:
+            env = os.environ.copy()
+            env["KFS_TUI_PROTOCOL"] = "1"
+            env["KFS_COLOR"] = "0"
+            if manifest_loaded:
+                env["KFS_TUI_SKIP_MANIFEST"] = "1"
+            process = subprocess.Popen(
+                ["make", self.make_target, f"arch={self.arch}"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                env=env,
+            )
+            assert process.stdout is not None
+            self._consume_lines(process.stdout)
+            rc = process.wait()
+            if not self.done:
+                self.call_from_thread(self._finish, rc == 0)
+
+    def _prefetch_manifest(self) -> bool:
+        env = os.environ.copy()
+        env["KFS_TUI_PROTOCOL"] = "1"
+        env["KFS_COLOR"] = "0"
+
+        process = subprocess.run(
+            ["bash", "scripts/test-host.sh", "--manifest", self.arch],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            env=env,
+            check=False,
+        )
+
+        for line in process.stdout.splitlines():
+            self._process_line(line)
+
+        return process.returncode == 0
+
+    def _hide_boot(self) -> None:
+        self.query_one("#boot_overlay").display = False
+        self.boot_done = True
+
+    def _consume_lines(self, stream) -> None:
+        for raw_line in stream:
+            self._process_line(raw_line.rstrip("\n"))
+        self._flush_pending_item()
+
+    def _process_line(self, raw: str) -> None:
+        line = strip_ansi(raw)
+
+        if line.startswith(EVENT_PREFIX):
+            self._process_event(line)
+            return
+
+        if line.startswith("  ") and self.last_failed_item is not None:
+            detail = line.strip()
+            if detail:
+                self.pending_error_log.append(detail)
+            return
+
+        self._flush_pending_item()
+
+        stripped = line.strip()
+        if not stripped or stripped.startswith("=") or stripped == "KFS TESTS" or stripped.startswith("arch:"):
+            return
+
+        if stripped.endswith(" PASS") or stripped.endswith(" FAIL"):
+            passed = stripped.endswith(" PASS")
+            name = stripped[:-5].strip()
+            section = self.current_section or "SETUP"
+            panel_index = SECTION_TO_PANEL.get(self.current_section or "SETUP", 0)
+            if passed:
+                self.call_from_thread(self._complete_item, panel_index, section, name, True, [])
+            else:
+                self.last_failed_item = (panel_index, section, name)
+                self.pending_error_log = []
+            return
+
+        if stripped in KNOWN_SECTIONS:
+            self.current_section = stripped
+
+    def _process_event(self, line: str) -> None:
+        parts = line.split("|")
+        kind = parts[1] if len(parts) > 1 else ""
+
+        if kind == "suite":
+            if len(parts) >= 4:
+                self.call_from_thread(self._set_suite_total, int(parts[3]))
+            return
+        if kind == "suite_total" and len(parts) >= 3:
+            self.call_from_thread(self._set_suite_total, int(parts[2]))
+            return
+        if kind == "section_total" and len(parts) >= 4:
+            self.call_from_thread(self._set_section_total, parts[2], int(parts[3]))
+            return
+        if kind == "section" and len(parts) >= 3:
+            self.current_section = parts[2]
+            return
+        if kind == "declare" and len(parts) >= 4:
+            section, name = parts[2], parts[3]
+            self.current_section = section
+            self.call_from_thread(self._declare_item, SECTION_TO_PANEL.get(section, 0), section, name)
+            return
+        if kind == "start" and len(parts) >= 4:
+            section, name = parts[2], parts[3]
+            self.current_section = section
+            self.call_from_thread(self._mark_running, SECTION_TO_PANEL.get(section, 0), section, name)
+            return
+        if kind == "result" and len(parts) >= 5:
+            section, name, status = parts[2], parts[3], parts[4]
+            self.current_section = section
+            if status == "pass":
+                self.call_from_thread(self._complete_item, SECTION_TO_PANEL.get(section, 0), section, name, True, [])
+            return
+        if kind == "summary" and len(parts) >= 3:
+            self.call_from_thread(self._finish, parts[2] == "pass")
+
+    def _flush_pending_item(self) -> None:
+        if self.last_failed_item is None:
+            return
+        panel_index, section, name = self.last_failed_item
+        log = list(self.pending_error_log)
+        self.last_failed_item = None
+        self.pending_error_log = []
+        self.call_from_thread(self._complete_item, panel_index, section, name, False, log)
+
+    def _set_suite_total(self, total: int) -> None:
+        self.suite_total = total
+        self._update_bar()
+        self._update_panel_summaries()
+
+    def _set_section_total(self, section: str, total: int) -> None:
+        self.section_totals[section] = total
+        self._update_bar()
+        self._update_panel_summaries()
+
+    def _declare_item(self, panel_index: int, section: str, name: str) -> None:
+        created = self.query_one(f"#panel_{panel_index}", TestPanel).declare_item(section, name)
+        if created:
+            self.discovered_total += 1
+            if section not in self.section_totals:
+                self.section_totals[section] = self.section_totals.get(section, 0) + 1
+            self._update_bar()
+            self._update_panel_summaries()
+
+    def _current_runner_progress(self) -> float:
+        if self.active_runner_started_at is None:
+            return 0.0
+        return ((time.monotonic() - self.active_runner_started_at) / ACTIVE_CYCLE_SECS) % 1.0
+
+    def _hide_active_runner(self) -> None:
+        for cell in self.active_cells:
+            cell.display = False
+
+    def _runner_path(self, width: int, height: int) -> list[tuple[int, int]]:
+        path: list[tuple[int, int]] = []
+        for x in range(width):
+            path.append((x, 0))
+        for y in range(1, height):
+            path.append((width - 1, y))
+        for x in range(width - 2, -1, -1):
+            path.append((x, height - 1))
+        for y in range(height - 2, 0, -1):
+            path.append((0, y))
+        return path
+
+    def _sync_active_runner(self) -> None:
+        if not self.active_cells:
+            return
+
+        if self.active_panel is None:
+            self._hide_active_runner()
+            return
+
+        try:
+            panel = self.query_one(f"#panel_{self.active_panel}", TestPanel)
+        except Exception:
+            self._hide_active_runner()
+            return
+        if not panel.display or panel.visual_state != "active":
+            self._hide_active_runner()
+            return
+
+        width = int(panel.region.width)
+        height = int(panel.region.height)
+        if width < 2 or height < 2:
+            self._hide_active_runner()
+            return
+
+        path = self._runner_path(width, height)
+        perimeter = len(path)
+        if perimeter <= 0:
+            self._hide_active_runner()
+            return
+
+        segment_len = min(MAX_ACTIVE_CELLS, max(8, int(perimeter * ACTIVE_SEGMENT_RATIO)))
+        lead_len = max(2, segment_len // 5)
+        head = int(self._current_runner_progress() * perimeter) % perimeter
+
+        points: list[tuple[int, int]] = []
+        for offset in range(segment_len):
+            points.append(path[(head + offset) % perimeter])
+
+        base_x = int(panel.region.x)
+        base_y = int(panel.region.y)
+        for index, cell in enumerate(self.active_cells):
+            if index >= len(points):
+                cell.display = False
+                continue
+
+            x, y = points[index]
+            glyph = "█" if index < lead_len else "▓"
+            color = ORANGE_HEAD if index < lead_len else ORANGE_ACTIVE
+            cell.styles.offset = (base_x + x, base_y + y)
+            cell.update(f"[bold {color}]{glyph}[/]")
+            cell.display = True
+
+    def _mark_running(self, panel_index: int, section: str, name: str) -> None:
+        if self.active_panel != panel_index or self.active_runner_started_at is None:
+            self.active_runner_started_at = time.monotonic()
+        self.active_panel = panel_index
+        self.query_one(f"#panel_{panel_index}", TestPanel).mark_running(section, name)
+        self._update_panel_summaries()
+        self._sync_active_runner()
+
+    def _complete_item(self, panel_index: int, section: str, name: str, passed: bool, error_log: list[str]) -> None:
+        panel = self.query_one(f"#panel_{panel_index}", TestPanel)
+        item = panel._find_item(section, name)
+        previous_status = item.status if item is not None else None
+        panel.complete_item(section, name, passed, error_log)
+        if previous_status not in {"pass", "fail"}:
+            if passed:
+                self.passed += 1
+                self.section_passed[section] = self.section_passed.get(section, 0) + 1
+            else:
+                self.failed += 1
+                self.section_failed[section] = self.section_failed.get(section, 0) + 1
+            self.section_done[section] = self.section_done.get(section, 0) + 1
+            self.query_one("#ekg_bar", EKGBar).add_result(passed)
+            self._update_bar()
+            self._update_panel_summaries()
+
+    def _update_bar(self) -> None:
+        total = max(self.suite_total or self.discovered_total, self.passed + self.failed, 1)
+        done = self.passed + self.failed
+        filled = int((done / total) * 40)
+        pct = int((done / total) * 100)
+        color = RED_BRIGHT if self.failed else GREEN_OK if done == total and total > 0 else AMBER
+        self.query_one("#progress_bar", Static).update(
+            f"[{color}]{'▓' * filled}{'░' * (40 - filled)}[/] [{AMBER}]{pct}%[/]"
+        )
+        fail_part = f"  [{RED_BRIGHT}]{self.failed} fail[/]" if self.failed else ""
+        self.query_one("#counter", Static).update(
+            f"[{AMBER}]{done}/{total} complete[/]  [{GREEN_OK}]{self.passed} pass[/]{fail_part}"
+        )
+
+    def _update_panel_summaries(self) -> None:
+        for panel_index, sections in PANEL_SECTIONS.items():
+            panel_total = sum(self.section_totals.get(section, 0) for section in sections)
+            panel_done = sum(self.section_done.get(section, 0) for section in sections)
+            panel_pct = int((panel_done / panel_total) * 100) if panel_total else 0
+            heading = f"{PANEL_TITLES[panel_index]} [{panel_done}/{panel_total} {panel_pct}%]"
+            panel_failed = sum(self.section_failed.get(section, 0) for section in sections)
+
+            if panel_failed > 0:
+                state = "fail"
+            elif panel_total > 0 and panel_done == panel_total:
+                state = "pass"
+            elif self.active_panel == panel_index:
+                state = "active"
+            else:
+                state = "idle"
+
+            summary_lines = []
+            for section in sections:
+                total = self.section_totals.get(section, 0)
+                done = self.section_done.get(section, 0)
+                pct = int((done / total) * 100) if total else 0
+                summary_lines.append(f"{SECTION_LABELS.get(section, section)} {done}/{total} {pct}%")
+
+            self.query_one(f"#panel_{panel_index}", TestPanel).update_stats(heading, summary_lines, state)
+
+    def _finish(self, passed: bool) -> None:
+        self.done = True
+        self.active_runner_started_at = None
+        self.active_panel = None
+        self._update_panel_summaries()
+        self._sync_active_runner()
+        if not passed:
+            self.query_one("#panic_overlay").display = True
+
+    def _tick(self) -> None:
+        if self.boot_done and not self.done:
+            self.ekg_tick_accum += RUNNER_TICK_SECS
+            if self.ekg_tick_accum >= EKG_TICK_SECS:
+                self.ekg_tick_accum -= EKG_TICK_SECS
+                try:
+                    self.query_one("#ekg_bar", EKGBar).tick()
+                except Exception:
+                    return
+            self._sync_active_runner()
+
+    def toggle_panel(self, panel_id: int) -> None:
+        grid = self.query_one("#grid", Grid)
+        if self.expanded_panel == panel_id:
+            self.expanded_panel = None
+            for index in range(4):
+                panel = self.query_one(f"#panel_{index}", TestPanel)
+                panel.display = True
+                panel.remove_class("expanded")
+                panel.styles.column_span = 1
+                panel.styles.row_span = 1
+            self.call_after_refresh(self._sync_active_runner)
+            return
+
+        self.expanded_panel = panel_id
+        for index in range(4):
+            panel = self.query_one(f"#panel_{index}", TestPanel)
+            if index == panel_id:
+                panel.display = True
+                panel.add_class("expanded")
+                panel.styles.column_span = 2
+                panel.styles.row_span = 2
+            else:
+                panel.display = False
+        self.call_after_refresh(self._sync_active_runner)
+
+    def action_quit(self) -> None:
+        self.exit()
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="KFS retro Textual test runner")
+    parser.add_argument("--arch", default="i386")
+    parser.add_argument("--demo", action="store_true")
+    parser.add_argument("--stdin", action="store_true")
+    parser.add_argument("--make-target", default="test-plain")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    mode = "demo" if args.demo else "stdin" if args.stdin else "make"
+    app = KFSApp(mode=mode, arch=args.arch, make_target=args.make_target)
+    app.run()
+
+
+if __name__ == "__main__":
+    main()

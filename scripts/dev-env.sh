@@ -72,6 +72,10 @@ This repo's canonical workflow uses the container toolchain (recommended):
   make container-image
   make container-env-check
 
+Optional host-side TUI dependencies:
+  python3, python3-venv
+  make test-ui-bootstrap
+
 If you still want to install tools natively, you need at least:
   nasm, qemu-system-i386, grub-mkrescue, xorriso, mtools, make, binutils
 EOF

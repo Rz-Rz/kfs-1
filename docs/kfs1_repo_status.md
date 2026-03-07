@@ -37,7 +37,7 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M3 DoD: ✅ YES (custom linker script, standard sections, exported layout symbols)
   - Proof: `make test arch=i386` (includes M3.2 + M3.3 checks)
 - Base Epic M4 DoD: ⚠️ PARTIAL
-  - Proof: `src/kernel/kmain.rs` defines `#[no_mangle] extern "C" fn kmain() -> !`, but the stronger M4.2 early-init/runtime-assumption checks are not implemented yet
+  - Proof: `make test arch=i386` (includes release-kernel M4.1 checks for `kmain`; stronger M4.2 early-init/runtime-assumption checks are not implemented yet)
 - Base Epic M5 DoD: ❌ NO
   - Proof: `rg -n "\\b(strlen|strcmp|memcpy|memset)\\b" -S src` -> no matches (no kernel library helpers)
 - Base Epic M6 DoD: ❌ NO
@@ -108,11 +108,16 @@ Status: ✅ Done (exercised by Rust + enforced via `make test`)
 Evidence:
 - Rust code is compiled and linked into the kernel image (symbol `kfs_rust_marker`).
 - M0.2 is enforced by inspecting the linked ELF (no dynamic loader/sections, no undefined symbols, no libc/loader markers).
+- Dedicated rejection tests now contaminate a real kernel build with hosted-runtime metadata and prove the gate fails.
 Proof:
 - `make test arch=i386` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
 - `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
 - `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"` (release kernel also links Rust)
-- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/m0.2-freestanding-kernel.sh i386 all` (checks both test + release kernels)
+- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/freestanding-kernel.sh i386 all` (checks both test + release kernels)
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 interp-pt-interp-present`
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 dynamic-section-present`
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 unresolved-external-symbol`
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 host-runtime-marker-strings`
 
 ### Feature M0.3: Size discipline baked into workflow
 Status: ✅ Mostly done (image size)
@@ -216,25 +221,25 @@ Evidence:
 - Real bad-linker rejection tests prove the build gate rejects missing/wrong-type `.text`, `.rodata`, `.data`, and `.bss`
 Proof:
 - `rg -n "^\\s*\\.(text|rodata|data|bss)\\b" -S src/arch/i386/linker.ld`
-- `bash scripts/tests/m3.2-kernel-sections.sh i386`
+- `bash scripts/tests/kernel-sections.sh i386`
 - `make -n all arch=i386 | rg -n "m3\\.2-kernel-sections\\.sh"`
-- `bash scripts/stability-tests/m3.2-section-stability.sh i386 rodata-wildcard-capture`
-- `bash scripts/stability-tests/m3.2-section-stability.sh i386 data-wildcard-capture`
-- `bash scripts/stability-tests/m3.2-section-stability.sh i386 bss-wildcard-capture`
-- `bash scripts/stability-tests/m3.2-section-stability.sh i386 common-wildcard-capture`
-- `bash scripts/stability-tests/m3.2-section-stability.sh i386 rodata-subsection-marker`
-- `bash scripts/stability-tests/m3.2-section-stability.sh i386 data-subsection-marker`
-- `bash scripts/stability-tests/m3.2-section-stability.sh i386 bss-subsection-marker`
-- `bash scripts/stability-tests/m3.2-section-stability.sh i386 common-bss-marker`
-- `bash scripts/stability-tests/m3.2-section-stability.sh i386 alloc-section-allowlist`
-- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 text-missing`
-- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 text-wrong-type`
-- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 rodata-missing`
-- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 rodata-wrong-type`
-- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 data-missing`
-- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 data-wrong-type`
-- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 bss-missing`
-- `bash scripts/rejection-tests/m3.2-section-rejections.sh i386 bss-wrong-type`
+- `bash scripts/stability-tests/section-stability.sh i386 rodata-wildcard-capture`
+- `bash scripts/stability-tests/section-stability.sh i386 data-wildcard-capture`
+- `bash scripts/stability-tests/section-stability.sh i386 bss-wildcard-capture`
+- `bash scripts/stability-tests/section-stability.sh i386 common-wildcard-capture`
+- `bash scripts/stability-tests/section-stability.sh i386 rodata-subsection-marker`
+- `bash scripts/stability-tests/section-stability.sh i386 data-subsection-marker`
+- `bash scripts/stability-tests/section-stability.sh i386 bss-subsection-marker`
+- `bash scripts/stability-tests/section-stability.sh i386 common-bss-marker`
+- `bash scripts/stability-tests/section-stability.sh i386 alloc-section-allowlist`
+- `bash scripts/rejection-tests/section-rejections.sh i386 text-missing`
+- `bash scripts/rejection-tests/section-rejections.sh i386 text-wrong-type`
+- `bash scripts/rejection-tests/section-rejections.sh i386 rodata-missing`
+- `bash scripts/rejection-tests/section-rejections.sh i386 rodata-wrong-type`
+- `bash scripts/rejection-tests/section-rejections.sh i386 data-missing`
+- `bash scripts/rejection-tests/section-rejections.sh i386 data-wrong-type`
+- `bash scripts/rejection-tests/section-rejections.sh i386 bss-missing`
+- `bash scripts/rejection-tests/section-rejections.sh i386 bss-wrong-type`
 
 ### Feature M3.3: Export canonical kernel and BSS boundary symbols
 Status: ✅ Done
@@ -247,10 +252,10 @@ Proof:
 - `rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end|ASSERT)\\b" -S src/arch/i386/linker.ld`
 - `nm -n build/kernel-i386.bin | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
 - `rg -n "kernel_start|kernel_end|bss_start|bss_end|addr_of!" -S src/rust/layout_symbols.rs`
-- `bash scripts/boot-tests/m3.3-layout-symbols.sh i386`
-- `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 bss-before-kernel`
-- `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 bss-end-before-bss-start`
-- `bash scripts/rejection-tests/m3.3-layout-symbol-rejections.sh i386 kernel-end-before-bss-end`
+- `bash scripts/boot-tests/layout-symbols.sh i386`
+- `bash scripts/rejection-tests/layout-symbol-rejections.sh i386 bss-before-kernel`
+- `bash scripts/rejection-tests/layout-symbol-rejections.sh i386 bss-end-before-bss-start`
+- `bash scripts/rejection-tests/layout-symbol-rejections.sh i386 kernel-end-before-bss-end`
 
 Epic DoD (M3) complete? ✅
 
@@ -258,13 +263,24 @@ Epic DoD (M3) complete? ✅
 
 ## Base Epic M4: Minimal Kernel in Your Chosen Language
 
-Status: ⚠️ Partial (`kmain` exists in Rust, is called from ASM, and currently prints `42`)
+Status: ✅ Done
+Evidence:
+- M4.1: release ELF exports `kmain`, the real `start` block calls it, and runtime boot tests now
+  prove Rust entry is actually executed
+- M4.2: a dedicated Rust early-init checks the BSS zero canary and exported layout bounds before
+  continuing, with ordered success markers and dedicated runtime rejection tests
+- M4.3: Rust panic/normal flow and ASM boot all converge to explicit halt behavior, while the test
+  build uses a controlled QEMU PASS/FAIL exit instead of weakening the release halt loop
 Proof:
-- `nm -n build/kernel-i386.bin | rg -n "\\bkmain\\b"`
-- `objdump -d build/kernel-i386.bin | rg -n "call.*kmain"`
+- `bash scripts/boot-tests/release-kmain-symbol.sh i386 release-kernel-exports-kmain`
+- `bash scripts/boot-tests/release-kmain-callsite.sh i386 release-boot-calls-kmain`
+- `bash scripts/boot-tests/runtime-markers.sh i386 runtime-markers-are-ordered`
+- `bash scripts/rejection-tests/runtime-init-rejections.sh i386 dirty-bss-canary-fails`
+- `bash scripts/rejection-tests/runtime-init-rejections.sh i386 bad-layout-fails`
+- `bash scripts/boot-tests/halt-behavior.sh i386 release-kmain-disassembly-halts`
 - `rg -n "write_volatile|b'4'|b'2'" -S src/kernel/kmain.rs`
-What’s left:
-- Implement the stronger M4.2 early-init/runtime-assumption checks described in `docs/kfs1_epics_features.md`.
+
+Epic DoD (M4) complete? ✅
 
 ---
 

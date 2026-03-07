@@ -19,15 +19,21 @@ These checks do **not** guarantee:
 - The kernel is “correct” or safe—only that it is **self-contained** from a dynamic-linking standpoint.
 
 ### Where the checks run
-- Script: `scripts/boot-tests/m0.2-freestanding-kernel.sh`
+- Script: `scripts/boot-tests/freestanding-kernel.sh`
 - Hard gate: `make test arch=i386`
 
 The hard gate (`make test arch=i386`) checks:
 - `build/kernel-i386-test.bin` (fresh test kernel built by `make iso-test`)
 
 Optional (manual) check for the release kernel:
-- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/m0.2-freestanding-kernel.sh i386 all`
+- `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/freestanding-kernel.sh i386 all`
   (also checks `build/kernel-i386.bin`)
+
+Adversarial / rejection suite:
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 interp-pt-interp-present`
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 dynamic-section-present`
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 unresolved-external-symbol`
+- `bash scripts/rejection-tests/freestanding-rejections.sh i386 host-runtime-marker-strings`
 
 ### Why the tests require a Rust marker symbol
 KFS_1 requires at least two languages (ASM + the chosen language). An ASM-only kernel can
@@ -109,3 +115,11 @@ pulling in hosted assumptions). It is not the primary proof; it is an additional
 ## Notes for later (Rust/C)
 When the chosen language (Rust) is integrated (M4/M7), these same artifact checks remain valid.
 They must continue to pass for the Rust-linked kernel image.
+
+The rejection suite complements the positive proofs above:
+- `.interp` / `PT_INTERP` and `.dynamic` cases prove the ELF-metadata checks really trip on
+  hosted-runtime baggage.
+- The unresolved-symbol case proves a host-dependent external reference is rejected even before a
+  runnable kernel artifact can be produced.
+- The libc/loader string case proves the heuristic marker checks are wired and fail loudly when
+  host-runtime identifiers leak into the image.

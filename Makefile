@@ -1,4 +1,5 @@
 arch ?= i386
+PYTHON ?= python3
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
 img := build/os-$(arch).img
@@ -20,21 +21,32 @@ rust_object_files := $(patsubst src/%.rs, \
 	build/arch/$(arch)/rust/%.o, $(rust_source_files))
 
 KFS_TEST_FORCE_FAIL ?= 0
+KFS_TEST_DIRTY_BSS ?= 0
+KFS_TEST_BAD_LAYOUT ?= 0
 
 TEST_ASM_DEFS := -DKFS_TEST=1
 ifeq ($(KFS_TEST_FORCE_FAIL),1)
 TEST_ASM_DEFS += -DKFS_TEST_FORCE_FAIL=1
 endif
+ifeq ($(KFS_TEST_DIRTY_BSS),1)
+TEST_ASM_DEFS += -DKFS_TEST_DIRTY_BSS=1
+endif
+ifeq ($(KFS_TEST_BAD_LAYOUT),1)
+TEST_ASM_DEFS += -DKFS_TEST_BAD_LAYOUT=1
+endif
 
 TEST_TIMEOUT_SECS ?= 10
 TEST_PASS_RC ?= 33
 TEST_FAIL_RC ?= 35
+test_ui_venv := .venv-test-ui
+test_ui_python := $(if $(wildcard $(test_ui_venv)/bin/python),$(test_ui_venv)/bin/python,$(PYTHON))
 
 .PHONY: all clean run iso \
 	container-image container-image-force container-shell container-env-check \
 	container-all container-iso container-run container-qemu-smoke \
 	container-bootstrap container-smoke \
-	test dev iso-in-container run-in-container \
+	test test-plain test-ui test-ui-demo test-ui-bootstrap \
+	dev iso-in-container run-in-container \
 	iso-test test-qemu \
 	img img-test run-img
 
@@ -65,7 +77,7 @@ $(iso): $(kernel) $(grub_cfg)
 
 $(kernel): $(assembly_object_files) $(rust_object_files) $(linker_script)
 	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(rust_object_files)
-	@KFS_M3_2_KERNEL="$(kernel)" bash scripts/tests/m3.2-kernel-sections.sh $(arch)
+	@KFS_M3_2_KERNEL="$(kernel)" bash scripts/tests/kernel-sections.sh $(arch)
 
 # compile assembly files
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
@@ -88,7 +100,7 @@ $(iso_test): $(kernel_test) $(grub_cfg)
 
 $(kernel_test): $(assembly_object_files_test) $(rust_object_files) $(linker_script)
 	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel_test) $(assembly_object_files_test) $(rust_object_files)
-	@KFS_M3_2_KERNEL="$(kernel_test)" bash scripts/tests/m3.2-kernel-sections.sh $(arch)
+	@KFS_M3_2_KERNEL="$(kernel_test)" bash scripts/tests/kernel-sections.sh $(arch)
 
 build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)
@@ -147,7 +159,34 @@ test-qemu: container-image-force
 		bash scripts/boot-tests/qemu-boot.sh $(arch)
 
 test:
+	@bash -lc 'set -euo pipefail; \
+		mode="$${KFS_TEST_UI:-auto}"; \
+		if [[ "$${mode}" == "0" ]] || [[ -n "$${CI:-}" ]] || [[ -n "$${GITHUB_ACTIONS:-}" ]] || [[ ! -t 1 ]]; then \
+			exec bash scripts/test-host.sh $(arch); \
+		fi; \
+		if "$(test_ui_python)" -c "import textual" >/dev/null 2>&1; then \
+			exec "$(test_ui_python)" scripts/kfs_tui.py --arch "$(arch)" --make-target test-plain; \
+		fi; \
+		if [[ "$${mode}" == "1" ]]; then \
+			echo "error: Textual is not installed. Run '\''make test-ui-bootstrap'\'' first." >&2; \
+			exit 2; \
+		fi; \
+		echo "warn: Textual UI dependencies missing; falling back to plain test output. Run '\''make test-ui-bootstrap'\'' to enable the TUI." >&2; \
+		exec bash scripts/test-host.sh $(arch)'
+
+test-plain:
 	@bash scripts/test-host.sh $(arch)
+
+test-ui:
+	@KFS_TEST_UI=1 $(MAKE) --no-print-directory test arch=$(arch)
+
+test-ui-demo:
+	@"$(test_ui_python)" scripts/kfs_tui.py --demo
+
+test-ui-bootstrap:
+	@$(PYTHON) -m venv "$(test_ui_venv)"
+	@"$(test_ui_venv)/bin/python" -m pip install --upgrade pip
+	@"$(test_ui_venv)/bin/pip" install -r requirements.txt
 
 dev: container-shell
 	@true

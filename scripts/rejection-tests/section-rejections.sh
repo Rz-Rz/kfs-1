@@ -219,7 +219,7 @@ run_direct_case() {
 
 run_host_case() {
   bash scripts/container.sh run -- \
-    bash -lc "KFS_HOST_TEST_DIRECT=1 bash scripts/rejection-tests/m3.2-section-rejections.sh '${ARCH}' '${CASE}'"
+    bash -lc "KFS_HOST_TEST_DIRECT=1 bash scripts/rejection-tests/section-rejections.sh '${ARCH}' '${CASE}'"
 }
 
 main() {
