@@ -1,4 +1,5 @@
 arch ?= i386
+PYTHON ?= python3
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
 img := build/os-$(arch).img
@@ -37,12 +38,15 @@ endif
 TEST_TIMEOUT_SECS ?= 10
 TEST_PASS_RC ?= 33
 TEST_FAIL_RC ?= 35
+test_ui_venv := .venv-test-ui
+test_ui_python := $(if $(wildcard $(test_ui_venv)/bin/python),$(test_ui_venv)/bin/python,$(PYTHON))
 
 .PHONY: all clean run iso \
 	container-image container-image-force container-shell container-env-check \
 	container-all container-iso container-run container-qemu-smoke \
 	container-bootstrap container-smoke \
-	test dev iso-in-container run-in-container \
+	test test-plain test-ui test-ui-demo test-ui-bootstrap \
+	dev iso-in-container run-in-container \
 	iso-test test-qemu \
 	img img-test run-img
 
@@ -155,7 +159,34 @@ test-qemu: container-image-force
 		bash scripts/boot-tests/qemu-boot.sh $(arch)
 
 test:
+	@bash -lc 'set -euo pipefail; \
+		mode="$${KFS_TEST_UI:-auto}"; \
+		if [[ "$${mode}" == "0" ]] || [[ -n "$${CI:-}" ]] || [[ -n "$${GITHUB_ACTIONS:-}" ]] || [[ ! -t 1 ]]; then \
+			exec bash scripts/test-host.sh $(arch); \
+		fi; \
+		if "$(test_ui_python)" -c "import textual" >/dev/null 2>&1; then \
+			exec "$(test_ui_python)" scripts/kfs_tui.py --arch "$(arch)" --make-target test-plain; \
+		fi; \
+		if [[ "$${mode}" == "1" ]]; then \
+			echo "error: Textual is not installed. Run '\''make test-ui-bootstrap'\'' first." >&2; \
+			exit 2; \
+		fi; \
+		echo "warn: Textual UI dependencies missing; falling back to plain test output. Run '\''make test-ui-bootstrap'\'' to enable the TUI." >&2; \
+		exec bash scripts/test-host.sh $(arch)'
+
+test-plain:
 	@bash scripts/test-host.sh $(arch)
+
+test-ui:
+	@KFS_TEST_UI=1 $(MAKE) --no-print-directory test arch=$(arch)
+
+test-ui-demo:
+	@"$(test_ui_python)" scripts/kfs_tui.py --demo
+
+test-ui-bootstrap:
+	@$(PYTHON) -m venv "$(test_ui_venv)"
+	@"$(test_ui_venv)/bin/python" -m pip install --upgrade pip
+	@"$(test_ui_venv)/bin/pip" install -r requirements.txt
 
 dev: container-shell
 	@true

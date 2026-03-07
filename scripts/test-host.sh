@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+MODE="run"
 ARCH="${1:-i386}"
 VERBOSE="${KFS_VERBOSE:-0}"
+TUI_PROTOCOL="${KFS_TUI_PROTOCOL:-0}"
+SKIP_TUI_MANIFEST="${KFS_TUI_SKIP_MANIFEST:-0}"
 SCRIPT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ "${ARCH}" == "--manifest" ]]; then
+  MODE="manifest"
+  ARCH="${2:-i386}"
+fi
 
 die() {
   echo "error: $*" >&2
@@ -68,9 +76,85 @@ indent() {
   sed 's/^/  /'
 }
 
-run_item() {
-  local title="$1"
+emit_event() {
+  if [[ "${MODE}" != "manifest" && "${TUI_PROTOCOL}" != "1" ]]; then
+    return 0
+  fi
+
+  local kind="$1"
   shift
+
+  printf 'KFS_EVENT|%s' "${kind}"
+  while [[ "$#" -gt 0 ]]; do
+    printf '|%s' "$1"
+    shift
+  done
+  printf '\n'
+}
+
+collect_section_entries() {
+  local title="$1"
+  local dir="$2"
+  local entries="$3"
+  local path
+  local test_case
+  local description
+
+  [[ -d "${dir}" ]] || die "missing test directory: ${dir}"
+
+  while IFS= read -r path; do
+    [[ -n "${path}" ]] || continue
+    while IFS= read -r test_case; do
+      [[ -n "${test_case}" ]] || continue
+
+      description="$(bash "${path}" --description "${test_case}")"
+      [[ -n "${description}" ]] || die "missing description in ${path} for case ${test_case}"
+      printf '%s\t%s\t%s\t%s\n' "${title}" "${path}" "${test_case}" "${description}" >>"${entries}"
+    done < <(bash "${path}" --list)
+  done < <(find "${dir}" -maxdepth 1 -type f -name '*.sh' | sort)
+}
+
+build_manifest() {
+  local entries="$1"
+
+  : >"${entries}"
+  printf '%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "Rebuild the container toolchain image" >>"${entries}"
+  printf '%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "Verify tools exist" >>"${entries}"
+  collect_section_entries "TESTS" "${SCRIPT_ROOT}/tests" "${entries}"
+  collect_section_entries "STABILITY TESTS" "${SCRIPT_ROOT}/stability-tests" "${entries}"
+  collect_section_entries "REJECTION TESTS" "${SCRIPT_ROOT}/rejection-tests" "${entries}"
+  collect_section_entries "BOOT TESTS" "${SCRIPT_ROOT}/boot-tests" "${entries}"
+}
+
+emit_manifest() {
+  local entries="$1"
+  local total
+  local section
+  local count
+  local current_section
+  local path
+  local test_case
+  local description
+
+  total="$(wc -l <"${entries}")"
+  emit_event "suite" "${ARCH}" "${total}"
+
+  for section in "SETUP" "TESTS" "STABILITY TESTS" "REJECTION TESTS" "BOOT TESTS"; do
+    count="$(awk -F'\t' -v section="${section}" '$1 == section { count += 1 } END { print count + 0 }' "${entries}")"
+    emit_event "section_total" "${section}" "${count}"
+  done
+
+  while IFS=$'\t' read -r current_section path test_case description; do
+    emit_event "declare" "${current_section}" "${description}"
+  done <"${entries}"
+}
+
+run_item() {
+  local section="$1"
+  local title="$2"
+  shift 2
+
+  emit_event "start" "${section}" "${title}"
 
   color "1;34"
   printf '%s ' "${title}"
@@ -86,6 +170,7 @@ run_item() {
   if [[ "${rc}" -eq 0 ]]; then
     pass
     printf '\n'
+    emit_event "result" "${section}" "${title}" "pass"
     if [[ "${VERBOSE}" == "1" ]]; then
       cat "${log}" | indent
     fi
@@ -95,6 +180,7 @@ run_item() {
 
   fail
   printf '\n'
+  emit_event "result" "${section}" "${title}" "fail"
   cat "${log}" | indent
   rm -f "${log}"
   return "${rc}"
@@ -102,30 +188,31 @@ run_item() {
 
 run_section() {
   local title="$1"
-  local dir="$2"
+  local entries="$2"
   local printed=0
+  local section
   local path
   local test_case
   local description
 
-  [[ -d "${dir}" ]] || die "missing test directory: ${dir}"
+  if ! awk -F'\t' -v title="${title}" '$1 == title { found = 1 } END { exit(found ? 0 : 1) }' "${entries}"; then
+    return 0
+  fi
 
-  while IFS= read -r path; do
-    [[ -n "${path}" ]] || continue
-    while IFS= read -r test_case; do
-      [[ -n "${test_case}" ]] || continue
+  if [[ "${printed}" -eq 0 ]]; then
+    printf '\n'
+    color "1;34"; printf '%s\n' "${title}"; reset_color
+    printed=1
+    emit_event "section" "${title}"
+  fi
 
-      if [[ "${printed}" -eq 0 ]]; then
-        printf '\n'
-        color "1;34"; printf '%s\n' "${title}"; reset_color
-        printed=1
-      fi
-
-      description="$(bash "${path}" --description "${test_case}")"
-      [[ -n "${description}" ]] || die "missing description in ${path} for case ${test_case}"
-      run_item "${description}" bash "${path}" "${ARCH}" "${test_case}"
-    done < <(bash "${path}" --list)
-  done < <(find "${dir}" -maxdepth 1 -type f -name '*.sh' | sort)
+  while IFS=$'\t' read -r section path test_case description; do
+    [[ "${section}" == "${title}" ]] || continue
+    if ! run_item "${title}" "${description}" bash "${path}" "${ARCH}" "${test_case}"; then
+      emit_event "summary" "fail"
+      exit 1
+    fi
+  done <"${entries}"
 }
 
 [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
@@ -133,22 +220,42 @@ run_section() {
 export KFS_CONTAINER_TTY=0
 is_tty && export KFS_CONTAINER_TTY=1
 
+entries="$(mktemp -t kfs-manifest.XXXXXX)"
+trap 'rm -f "${entries}"' EXIT
+build_manifest "${entries}"
+
+if [[ "${MODE}" == "manifest" ]]; then
+  emit_manifest "${entries}"
+  exit 0
+fi
+
 banner "KFS TESTS"
 info "arch: ${ARCH}"
 printf '\n'
+if [[ "${SKIP_TUI_MANIFEST}" != "1" ]]; then
+  emit_manifest "${entries}"
+fi
 
 color "1;34"; printf '%s\n' "SETUP"; reset_color
-run_item "Rebuild the container toolchain image" \
-  env KFS_FORCE_IMAGE_BUILD=1 bash scripts/container.sh build-image
+emit_event "section" "SETUP"
+if ! run_item "SETUP" "Rebuild the container toolchain image" \
+  env KFS_FORCE_IMAGE_BUILD=1 bash scripts/container.sh build-image; then
+  emit_event "summary" "fail"
+  exit 1
+fi
 
-run_item "Verify tools exist" \
-  bash scripts/container.sh env-check
+if ! run_item "SETUP" "Verify tools exist" \
+  bash scripts/container.sh env-check; then
+  emit_event "summary" "fail"
+  exit 1
+fi
 
-run_section "TESTS" "${SCRIPT_ROOT}/tests"
-run_section "STABILITY TESTS" "${SCRIPT_ROOT}/stability-tests"
-run_section "REJECTION TESTS" "${SCRIPT_ROOT}/rejection-tests"
-run_section "BOOT TESTS" "${SCRIPT_ROOT}/boot-tests"
+run_section "TESTS" "${entries}"
+run_section "STABILITY TESTS" "${entries}"
+run_section "REJECTION TESTS" "${entries}"
+run_section "BOOT TESTS" "${entries}"
 
 printf '\n'
 pass
 printf ' %s\n' "SUMMARY PASS"
+emit_event "summary" "pass"

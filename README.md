@@ -7,6 +7,9 @@ Workflow: build and test using the container toolchain so Fedora and Ubuntu WSL 
 One command:
 - `make test`
 
+Optional:
+- `make test-ui-bootstrap` installs the host-side Python TUI dependencies into `.venv-test-ui`
+
 What it does:
 - Rebuilds the dev image
 - Checks required tools inside the container
@@ -36,6 +39,10 @@ It also includes runtime serial-marker proofs for M4 under QEMU.
 
 - `make test`
   - Use when: daily red or green gate
+- `make test-ui`
+  - Use when: force the retro Textual TUI on an interactive host terminal
+- `make test-plain`
+  - Use when: force the plain shell output even on an interactive terminal
 - `make dev`
   - Use when: interactive shell inside the toolchain container
 - `make iso-in-container`
@@ -54,3 +61,4 @@ Optional: if your host has KVM and you want acceleration
 - `KFS_CONTAINER_ENGINE=docker|podman` forces the container engine
 - `KFS_USE_KVM=1` enables KVM if `/dev/kvm` exists
 - `KFS_QEMU_SMOKE_TIMEOUT_SECS=5` sets the smoke duration in seconds
+- `KFS_TEST_UI=0|1|auto` forces plain tests, forces the TUI, or auto-selects based on TTY/CI (default: `auto`)
