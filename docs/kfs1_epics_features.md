@@ -447,38 +447,71 @@ Proof / tests (definition of done):
 ## Base Epic M3: Custom Linker Script + Memory Layout
 
 ### Feature M3.1: Custom `linker.ld` (do not use host scripts)
+Intent:
+- Provide the project-owned linker script required by the subject instead of relying on a
+  host default `.ld` file.
+- Keep this feature focused on the **existence and baseline structure** of the linker
+  script itself.
+- Do **not** use this feature to prove the whole kernel link command or boot path; those
+  belong to M7.3 and boot features.
+
 Implementation tasks:
-- `ENTRY(start)` (or your chosen entry).
-- Load address starts at 1 MiB (`. = 1M;`).
-- Section ordering puts Multiboot header early.
+- Create `src/arch/i386/linker.ld`.
+- Define `ENTRY(start)` (or the chosen kernel entry symbol).
+- Set the kernel load address to 1 MiB (`. = 1M;`).
+- Place the Multiboot header early in the image through the linker layout.
 
 Acceptance criteria:
-- Kernel links via `ld -T linker.ld` and boots under GRUB.
+- The repo contains its own linker script for the kernel.
+- The script defines the entry point and base load address needed by the kernel layout.
+- The script places the Multiboot header before the main code region.
 
 Implementation scope:
-- `LD` (+ `MAKE`)
+- `LD`
 
 Proof / tests (definition of done):
 - WP-M3.1-1 (linker script exists + has required directives): `rg -n "^(ENTRY\\(|SECTIONS\\s*\\{|\\s*\\.\\s*=\\s*1M;)" -S src/arch/i386/linker.ld`
-- WP-M3.1-2 (build uses your script, not host defaults): `make -n all arch=i386 | rg -n "\\bld\\b" | rg -q "\\s-T\\s+src/arch/i386/linker\\.ld"`
-- MANUAL-M3.1-1 (boots): `make run arch=i386` and confirm GRUB loads the kernel and reaches `start`. (Automation: prefer AUTO-M3.1-1)
-- AUTO-M3.1-1 (preferred for CI): use **Infra I0.1** as the boot gate (if kernel exits PASS, link+load address+entry all worked)
+- WP-M3.1-2 (Multiboot header is explicitly placed early by the linker script): `rg -n "\\*\\(\\.multiboot_header\\)" -S src/arch/i386/linker.ld`
 
-### Feature M3.2: Provide standard sections for growth
+### Feature M3.2: Standard data sections are explicitly mapped in the custom linker script
+Intent:
+- Extend the custom kernel linker script so the final kernel ELF explicitly supports the
+  standard non-code sections emitted by ASM/Rust objects: `.rodata`, `.data`, and `.bss`.
+- Keep this feature focused on **section layout/materialization** inside our own
+  `linker.ld`.
+- Do **not** use this feature to prove that the repo uses a custom linker script at all,
+  or that the kernel boots; those concerns belong to M3.1 and M7.3.
+
 Implementation tasks:
-- Define `.text`, `.rodata`, `.data`, `.bss`.
-- Ensure `.bss` is allocated properly (and can be zeroed later if needed).
+- Define output sections for `.rodata`, `.data`, and `.bss` in `src/arch/i386/linker.ld`.
+- Collect matching input sections, including wildcard variants:
+  - `.rodata`, `.rodata.*`
+  - `.data`, `.data.*`
+  - `.bss`, `.bss.*`
+- Include `COMMON` storage in `.bss`.
+- Add linked marker symbols so the final ELF can prove:
+  - read-only data lands in `.rodata`
+  - initialized writable data lands in `.data`
+  - zero-initialized writable data lands in `.bss`
 
 Acceptance criteria:
-- Adding a C/Rust module does not require reworking the whole linker layout.
+- The custom linker script explicitly defines `.rodata`, `.data`, and `.bss`.
+- The final kernel ELF contains `.text`, `.rodata`, `.data`, and `.bss`.
+- A linked read-only symbol is placed in `.rodata`.
+- A linked initialized writable symbol is placed in `.data`.
+- A linked zero-initialized writable symbol is placed in `.bss`.
+- `.bss` is emitted as `NOBITS` in the final ELF.
 
 Implementation scope:
 - `LD` (+ `RUST`)
 
 Proof / tests (definition of done):
-- WP-M3.2-1 (linker defines standard output sections): `rg -n "^\\s*\\.(text|rodata|data|bss)\\b" -S src/arch/i386/linker.ld`
+- WP-M3.2-1 (linker script defines the required sections): `rg -n "^\\s*\\.(rodata|data|bss)\\b" -S src/arch/i386/linker.ld`
 - WP-M3.2-2 (artifact contains the expected sections): `KERNEL=build/kernel-i386.bin; readelf -SW "$KERNEL" | rg -n "\\.(text|rodata|data|bss)\\b"`
-- WP-M3.2-3 (growth smoke test): add a tiny module that puts data in `.rodata` and `.bss`, then `make arch=i386` still links without linker-script edits (TDD target for this feature)
+- WP-M3.2-3 (linked read-only marker lands in `.rodata`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]]R[[:space:]]+KFS_RODATA_MARKER$"`
+- WP-M3.2-4 (linked initialized writable marker lands in `.data`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]]D[[:space:]]+KFS_DATA_MARKER$"`
+- WP-M3.2-5 (linked zero-initialized marker lands in `.bss`): `nm -n build/kernel-i386.bin | rg -n "[[:space:]][Bb][[:space:]]+KFS_BSS_MARKER$"`
+- WP-M3.2-6 (`.bss` is emitted as zero-init allocated storage): `readelf -SW build/kernel-i386.bin | rg -n "\\.bss\\b.*NOBITS"`
 
 ### Feature M3.3: Export useful layout symbols
 Implementation tasks:
@@ -693,19 +726,30 @@ Proof / tests (definition of done):
 - WP-M7.2-3 (artifact has no dynamic loader): `KERNEL=build/kernel-i386.bin; ! readelf -lW "$KERNEL" | rg -n "INTERP"`
 
 ### Feature M7.3: Link all objects with custom linker script
+Intent:
+- Wire the build so all kernel objects are linked into the final kernel binary using the
+  project linker script.
+- Keep this feature focused on the **actual link command in the build workflow**, not on
+  linker-script contents (M3.1/M3.2) and not on ASM bootstrap behavior (M2).
+
 Implementation tasks:
-- Use `ld -T linker.ld` (and `-m elf_i386` for i386).
+- Invoke `ld` from the build with `-T src/arch/i386/linker.ld`.
+- Use the correct linker mode for i386 (`-m elf_i386`).
+- Link ASM and chosen-language objects into one final kernel artifact.
 
 Acceptance criteria:
-- The produced kernel boots via GRUB.
+- The Makefile links the final kernel with the project linker script.
+- The link command includes both ASM objects and chosen-language objects.
+- The produced kernel artifact boots through the normal GRUB workflow.
 
 Implementation scope:
 - `MAKE` + `LD`
 
 Proof / tests (definition of done):
-- WP-M7.3-1 (ld uses -m elf_i386 and your script): `make -n all arch=i386 | rg -n "\\bld\\b" | rg -q "(-m\\s+elf_i386).*\\s-T\\s+src/arch/i386/linker\\.ld"`
+- WP-M7.3-1 (ld uses -m elf_i386 and the project script): `make -n all arch=i386 | rg -n "\\bld\\b" | rg -q "(-m\\s+elf_i386).*\\s-T\\s+src/arch/i386/linker\\.ld"`
+- WP-M7.3-2 (link command includes ASM and chosen-language objects): `make -n all arch=i386 | rg -n "build/arch/i386/.*\\.o.*build/arch/i386/rust/.*\\.o|build/arch/i386/rust/.*\\.o.*build/arch/i386/.*\\.o"`
 - MANUAL-M7.3-1 (boots): `make run arch=i386` and confirm GRUB loads the kernel and reaches your entry. (Automation: prefer AUTO-M7.3-1)
-- AUTO-M7.3-1 (preferred for CI): use **Infra I0.1** as the boot gate; if it exits PASS, the link+GRUB load path succeeded
+- AUTO-M7.3-1 (preferred for CI): use **Infra I0.1** as the boot gate; if kernel exits PASS, the link + GRUB load path succeeded
 
 ### Feature M7.4: Provide standard targets (`all`, `clean`, `iso`, `run`)
 Acceptance criteria:
