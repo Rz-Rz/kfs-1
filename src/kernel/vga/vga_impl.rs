@@ -1,6 +1,20 @@
 pub const VGA_WIDTH: usize = 80;
 pub const VGA_HEIGHT: usize = 25;
 pub const VGA_CELLS: usize = VGA_WIDTH * VGA_HEIGHT;
+pub const VGA_DEFAULT_FOREGROUND: u8 = 0x02;
+pub const VGA_DEFAULT_BACKGROUND: u8 = 0x00;
+pub const VGA_DEFAULT_ATTRIBUTE: u8 =
+    vga_attribute(VGA_DEFAULT_FOREGROUND, VGA_DEFAULT_BACKGROUND);
+
+/// This keeps only the low 4 bits used by VGA color values.
+pub const fn vga_color_nibble(color: u8) -> u8 {
+    color & 0x0f
+}
+
+/// This packs VGA foreground/background colors into one attribute byte.
+pub const fn vga_attribute(foreground: u8, background: u8) -> u8 {
+    (vga_color_nibble(background) << 4) | vga_color_nibble(foreground)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VgaPutResult {

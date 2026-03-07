@@ -2,11 +2,15 @@
 #![no_main]
 
 use core::panic::PanicInfo;
+#[path = "vga/vga_palette.rs"]
+mod vga_palette;
+use vga_palette::VgaColor;
 
 // These are Rust names for functions implemented in another module with the C ABI.
 // We declare them here so `kmain` can call them.
 unsafe extern "C" {
     fn vga_init();
+    fn vga_set_color(foreground: u8, background: u8);
     //fn vga_printf_args(format: *const u8, args: *const usize, arg_count: usize);
     fn vga_printf(format: *const u8, value: usize);
     fn vga_puts(text: *const u8);
@@ -32,10 +36,13 @@ pub extern "C" fn kmain() -> ! {
         let mut i: usize = 0;
         vga_puts(b"42\nTHE BEST\n\0".as_ptr());
         vga_puts(b"indexed lines:\n\0".as_ptr());
-        while i < 26 {
+        while i < 16 {
+            let color = VgaColor::from_index(i);
+            vga_set_color(color.code(), VgaColor::Black.code());
             vga_printf(b"line %d\n\0".as_ptr(), i);
             i += 1;
         }
+        vga_set_color(VgaColor::LightGreen.code(), VgaColor::Black.code());
     }
     halt_forever()
 }

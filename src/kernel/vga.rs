@@ -4,12 +4,14 @@
 mod vga_format_impl;
 #[path = "vga/vga_impl.rs"]
 mod vga_impl;
+#[path = "vga/vga_palette.rs"]
+mod vga_palette;
 
 use vga_format_impl::{format_usize_decimal, render_printf_with_args, MAX_USIZE_DECIMAL_DIGITS};
-use vga_impl::{scroll_buffer, VgaCursor, VGA_CELLS, VGA_WIDTH};
+use vga_impl::{scroll_buffer, vga_attribute, VgaCursor, VGA_CELLS, VGA_DEFAULT_ATTRIBUTE, VGA_WIDTH};
+pub use vga_palette::VgaColor;
 
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
-const VGA_COLOR_LIGHT_GREEN_ON_BLACK: u16 = 0x02;
 const VGA_BLANK_BYTE: u8 = b' ';
 const VGA_CRTC_ADDR_PORT: u16 = 0x3D4;
 const VGA_CRTC_DATA_PORT: u16 = 0x3D5;
@@ -21,10 +23,11 @@ const VGA_CURSOR_START_SCANLINE: u8 = 0x00;
 const VGA_CURSOR_END_SCANLINE: u8 = 0x0F;
 
 static mut VGA_CURSOR: VgaCursor = VgaCursor::new();
+static mut VGA_ATTRIBUTE: u8 = VGA_DEFAULT_ATTRIBUTE;
 
 #[inline(always)]
-const fn vga_cell_value(byte: u8) -> u16 {
-    (VGA_COLOR_LIGHT_GREEN_ON_BLACK << 8) | (byte as u16)
+const fn vga_cell_value(byte: u8, attribute: u8) -> u16 {
+    ((attribute as u16) << 8) | (byte as u16)
 }
 
 #[inline(always)]
@@ -32,15 +35,17 @@ const fn vga_cell_value(byte: u8) -> u16 {
 ///
 /// The screen is just a block of memory where each cell stores a color byte
 /// and a character byte together.
-unsafe fn vga_write_cell(cell_index: usize, byte: u8) {
-    unsafe { core::ptr::write_volatile(VGA_TEXT_BUFFER.add(cell_index), vga_cell_value(byte)) };
+unsafe fn vga_write_cell(cell_index: usize, byte: u8, attribute: u8) {
+    unsafe {
+        core::ptr::write_volatile(VGA_TEXT_BUFFER.add(cell_index), vga_cell_value(byte, attribute))
+    };
 }
 
 #[inline(always)]
 /// This shifts all screen rows up by one and clears the last visible line.
-unsafe fn vga_scroll_up() {
+unsafe fn vga_scroll_up(attribute: u8) {
     let buffer = unsafe { core::slice::from_raw_parts_mut(VGA_TEXT_BUFFER, VGA_CELLS) };
-    scroll_buffer(buffer, vga_cell_value(VGA_BLANK_BYTE));
+    scroll_buffer(buffer, vga_cell_value(VGA_BLANK_BYTE, attribute));
 }
 
 #[inline(always)]
@@ -92,10 +97,27 @@ unsafe fn vga_enable_hardware_cursor() {
 pub extern "C" fn vga_init() {
     unsafe {
         VGA_CURSOR = VgaCursor::new();
+        VGA_ATTRIBUTE = VGA_DEFAULT_ATTRIBUTE;
         vga_enable_hardware_cursor();
         let cursor = VGA_CURSOR;
         vga_set_hardware_cursor(vga_cursor_position(cursor));
     }
+}
+
+#[no_mangle]
+/// This sets the active VGA text colors used by subsequent writes.
+///
+/// Both values use the low 4 bits of the VGA palette encoding.
+pub extern "C" fn vga_set_color(foreground: u8, background: u8) {
+    unsafe {
+        VGA_ATTRIBUTE = vga_attribute(foreground, background);
+    }
+}
+
+#[no_mangle]
+/// This returns the currently active VGA attribute byte.
+pub extern "C" fn vga_get_color() -> u8 {
+    unsafe { VGA_ATTRIBUTE }
 }
 
 #[no_mangle]
@@ -106,12 +128,13 @@ pub extern "C" fn vga_init() {
 pub extern "C" fn vga_putc(byte: u8) {
     unsafe {
         let mut cursor = VGA_CURSOR;
+        let attribute = VGA_ATTRIBUTE;
         let result = cursor.put_byte(byte);
         if let Some(cell_index) = result.cell_index {
-            vga_write_cell(cell_index, byte);
+            vga_write_cell(cell_index, byte, attribute);
         }
         if result.scrolled {
-            vga_scroll_up();
+            vga_scroll_up(attribute);
         }
         VGA_CURSOR = cursor;
         vga_set_hardware_cursor(vga_cursor_position(cursor));
@@ -171,5 +194,5 @@ pub extern "C" fn kfs_vga_writer_marker() -> u16 {
     let demo = *b"VGA\0";
     vga_init();
     vga_puts(demo.as_ptr());
-    VGA_COLOR_LIGHT_GREEN_ON_BLACK
+    VGA_DEFAULT_ATTRIBUTE as u16
 }

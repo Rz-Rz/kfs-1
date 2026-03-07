@@ -329,7 +329,7 @@ explicitly because they match the intended roadmap for the repo.
 
 High-level status:
 - Bonus Epic B1 (scroll + cursor support): ✅ Done
-- Bonus Epic B2 (color support in the screen I/O interface): ⚠️ Partial
+- Bonus Epic B2 (color support in the screen I/O interface): ✅ Done
 - Bonus Epic B3 (`printk` / formatted printing): ❌ Not started
 - Bonus Epic B4 (keyboard input + echo): ❌ Not started
 - Bonus Epic B5 (multiple screens + keyboard shortcuts): ❌ Not started
@@ -386,34 +386,44 @@ Definition of Done (B1):
 
 ### Bonus Epic B2: Color Support in the Screen I/O Interface
 
-Status: ⚠️ Partial
+Status: ✅ Done
 Evidence:
-- The writer uses a fixed attribute constant `VGA_COLOR_LIGHT_GREEN_ON_BLACK` in `src/kernel/vga.rs`
-- There is no public color API, no color state beyond the fixed constant, and no color-focused tests
+- VGA attribute packing model is implemented in `src/kernel/vga/vga_impl.rs`
+- VGA writer keeps active color state and applies it to writes/scroll clears in `src/kernel/vga.rs`
+- Public color API exists via `vga_set_color(foreground, background)` and `vga_get_color()`
+- Shared enum palette `VgaColor` provides named colors and index-based selection via `VgaColor::from_index`
+- Host color-focused tests exist in `tests/host_color.rs`
 Proof:
-- `rg -n "VGA_COLOR_LIGHT_GREEN_ON_BLACK|attribute|color" -S src/kernel/vga.rs`
-- `rg -n "set_color|write_colored|host_color|foreground|background" -S src tests || echo "no configurable color support yet"`
+- `bash scripts/check-b2.2-color.sh i386`
+- `rg -n "\\bvga_attribute\\b|\\bVGA_DEFAULT_ATTRIBUTE\\b" -S src/kernel/vga/vga_impl.rs`
+- `rg -n "\\bvga_set_color\\b|\\bvga_get_color\\b|\\bVGA_ATTRIBUTE\\b" -S src/kernel/vga.rs tests/host_color.rs`
+- `rg -n "\\benum VgaColor\\b|\\bVgaColor::from_index\\b|\\bVgaColor::ALL\\b" -S src/kernel/vga/vga_palette.rs src/kernel/kmain.rs tests/host_color.rs`
 
 ### Feature B2.1: VGA attribute/color model
-Status: ⚠️ Partial
+Status: ✅ Done
 Evidence:
-- One hard-coded VGA attribute constant exists
-- No reusable foreground/background model or encoding test suite exists yet
+- Reusable helper `vga_attribute(foreground, background)` packs VGA color nibbles
+- Default color constants are defined (`VGA_DEFAULT_FOREGROUND`, `VGA_DEFAULT_BACKGROUND`, `VGA_DEFAULT_ATTRIBUTE`)
+- Enum palette `VgaColor` maps names to VGA codes (`Black = 0x0`, `Red = 0x4`, etc.)
+- Host tests cover packing, nibble masking, and default attribute
 Proof:
-- `rg -n "VGA_COLOR_LIGHT_GREEN_ON_BLACK" -S src/kernel/vga.rs`
-- `rg -n "enum .*Color|const .*COLOR|host_color|attribute encoding" -S src tests || echo "no color model/test coverage yet"`
+- `bash scripts/check-b2.2-color.sh i386`
+- `rg -n "\\bvga_attribute\\b|VGA_DEFAULT_(FOREGROUND|BACKGROUND|ATTRIBUTE)" -S src/kernel/vga/vga_impl.rs tests/host_color.rs`
+- `rg -n "\\benum VgaColor\\b|Black = 0x0|Red = 0x4|from_index" -S src/kernel/vga/vga_palette.rs tests/host_color.rs`
 
 ### Feature B2.2: Screen API to set color per-print or per-screen
-Status: ❌ Not done
+Status: ✅ Done
 Evidence:
-- The exported VGA API only exposes `vga_init`, `vga_putc`, and `vga_puts`
-- Callers cannot change foreground/background color through the screen interface
+- VGA API now exports `vga_set_color(foreground, background)` and `vga_get_color()`
+- `vga_putc` and scrolling apply the active color state tracked in `VGA_ATTRIBUTE`
+- `kmain` can iterate color choices by integer index using `VgaColor::from_index(i)`
 Proof:
-- `rg -n "\\bvga_(init|putc|puts)\\b" -S src/kernel/vga.rs`
-- `rg -n "set_color|write_colored|with_color|foreground|background" -S src/kernel tests || echo "no color API yet"`
+- `bash scripts/check-b2.2-color.sh i386`
+- `rg -n "\\bvga_(init|putc|puts|set_color|get_color)\\b|\\bVGA_ATTRIBUTE\\b" -S src/kernel/vga.rs`
+- `rg -n "VgaColor::from_index|vga_set_color" -S src/kernel/kmain.rs`
 
 Definition of Done (B2):
-- ❌ Not met: the repo has a fixed color constant, but not configurable color support through the I/O interface.
+- ✅ Met: color model, color state, and configurable color API are implemented with host tests and an automated checker.
 
 ---
 
