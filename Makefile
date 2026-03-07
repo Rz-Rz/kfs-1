@@ -20,10 +20,18 @@ rust_object_files := $(patsubst src/%.rs, \
 	build/arch/$(arch)/rust/%.o, $(rust_source_files))
 
 KFS_TEST_FORCE_FAIL ?= 0
+KFS_TEST_DIRTY_BSS ?= 0
+KFS_TEST_BAD_LAYOUT ?= 0
 
 TEST_ASM_DEFS := -DKFS_TEST=1
 ifeq ($(KFS_TEST_FORCE_FAIL),1)
 TEST_ASM_DEFS += -DKFS_TEST_FORCE_FAIL=1
+endif
+ifeq ($(KFS_TEST_DIRTY_BSS),1)
+TEST_ASM_DEFS += -DKFS_TEST_DIRTY_BSS=1
+endif
+ifeq ($(KFS_TEST_BAD_LAYOUT),1)
+TEST_ASM_DEFS += -DKFS_TEST_BAD_LAYOUT=1
 endif
 
 TEST_TIMEOUT_SECS ?= 10

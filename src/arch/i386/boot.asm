@@ -1,11 +1,22 @@
 global start
+global kfs_test_mode
 extern kmain
+extern KFS_M4_BSS_CANARY
+extern KFS_M4_LAYOUT_OVERRIDE
 
 section .bss
 align 16
 stack_bottom:
     resb 16384
 stack_top:
+
+section .rodata
+kfs_test_mode:
+%ifdef KFS_TEST
+    db 1
+%else
+    db 0
+%endif
 
 section .text
 bits 32
@@ -15,20 +26,26 @@ start:
     mov esp, stack_top
 
 %ifdef KFS_TEST
-    mov dx, 0xf4
 %ifdef KFS_TEST_FORCE_FAIL
+    mov dx, 0xf4
     mov al, 0x11
-%else
-    mov al, 0x10
-%endif
     out dx, al
-.halt:
-    hlt
-    jmp .halt
+    jmp halt_loop
+%else
+%ifdef KFS_TEST_DIRTY_BSS
+    mov dword [KFS_M4_BSS_CANARY], 1
+%endif
+%ifdef KFS_TEST_BAD_LAYOUT
+    mov dword [KFS_M4_LAYOUT_OVERRIDE], 1
+%endif
+    call kmain
+    jmp halt_loop
+%endif
 %else
     call kmain
-.halt:
+%endif
+
+halt_loop:
     cli
     hlt
-    jmp .halt
-%endif
+    jmp halt_loop
