@@ -1,6 +1,6 @@
 # KFS_1 Repo Status vs Subject (Done / Not Done + Priorities)
 
-Snapshot date: March 7, 2026.
+Snapshot date: March 8, 2026.
 
 This file is an analysis of the current repository state against the backlog in:
 - `docs/kfs1_epics_features.md` (baseline spec/backlog)
@@ -36,10 +36,10 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `make test arch=i386` (includes the ASM entry, stack, and `call kmain` path in the release kernel build + boot flow)
 - Base Epic M3 DoD: ✅ YES (custom linker script, standard sections, exported layout symbols)
   - Proof: `make test arch=i386` (includes M3.2 + M3.3 checks)
-- Base Epic M4 DoD: ⚠️ PARTIAL
-  - Proof: `make test arch=i386` (includes release-kernel M4.1 checks for `kmain`; stronger M4.2 early-init/runtime-assumption checks are not implemented yet)
+- Base Epic M4 DoD: ✅ YES (Rust entry, early-init/runtime assumptions, and halt behavior are all proven)
+  - Proof: `make test arch=i386` (includes release-kernel `kmain` export/callsite checks, ordered runtime markers, runtime rejection tests, and halt-path checks)
 - Base Epic M5 DoD: ❌ NO
-  - Proof: `bash scripts/tests/unit/string-helpers.sh i386 host-strlen-unit-tests-pass && bash scripts/tests/unit/string-helpers.sh i386 host-strcmp-unit-tests-pass` passes (`strlen`/`strcmp` done), but `memcpy`/`memset` are still missing
+  - Proof: `make test arch=i386` now proves `M5.1` end to end (`Port`, `KernelRange`, type facade, runtime integration, rejection gates), but `M5.2` is still only partial and `M5.3` is still missing
 - Base Epic M6 DoD: ❌ NO
   - Proof: `src/kernel/kmain.rs` prints `42`, but there is still no reusable screen interface/module as required by M6.1/M6.2
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
@@ -76,7 +76,7 @@ Legend:
 - Base Epic M1 (GRUB bootable image <= 10 MB): ✅
 - Base Epic M2 (Multiboot header + ASM bootstrap): ✅
 - Base Epic M3 (custom linker script + layout): ✅
-- Base Epic M4 (kernel in chosen language): ⚠️
+- Base Epic M4 (kernel in chosen language): ✅
 - Base Epic M5 (kernel library helpers): ⚠️
 - Base Epic M6 (screen I/O interface + prints 42): ❌
 - Base Epic M7 (Makefile compiles ASM + language, links, image, run): ✅
@@ -286,17 +286,47 @@ Epic DoD (M4) complete? ✅
 
 ## Base Epic M5: Basic Kernel Library (Helpers)
 
-Status: ⚠️ Started (M5.2 done; M5.3 pending; native Rust types policy kept)
+Status: ⚠️ Partial (`M5.1` done; `M5.2` partial; `M5.3` missing)
 Evidence:
-- Rust string helpers are implemented in `src/kernel/string/string_impl.rs` (module included by `src/kernel/string.rs`) (`strlen`, `strcmp`)
-- Host unit tests exist in `tests/host_string.rs` and are enforced by `scripts/tests/unit/string-helpers.sh`
+- `M5.1` is now implemented as a real type/helper scaffold:
+  - `src/kernel/types.rs`
+  - `src/kernel/types/port.rs`
+  - `src/kernel/types/range.rs`
+  - `Port(u16)` is used by the live serial / port-I/O path in `src/kernel/kmain.rs`
+  - `KernelRange` is used by the live runtime-layout path in `src/kernel/kmain.rs` and `src/kernel/kmain/logic_impl.rs`
+  - host, source-architecture, runtime, and rejection proofs exist for `M5.1`
+- `M5.2` exists only partially:
+  - `strlen` / `strcmp` algorithms exist in `src/kernel/string/string_impl.rs`
+  - basic host tests exist in `tests/host_string.rs`
+  - basic source/build checks exist in `scripts/tests/unit/string-helpers.sh`
+  - the implementation still stops short of the current spec:
+    - no exported `kfs_strlen` / `kfs_strcmp`
+    - no dedicated runtime marker path for string-helper integration
+    - no richer adversarial/rejection coverage
+    - current string reads still use `read_volatile`, which does not match the intended ordinary-RAM helper contract
+- `M5.3` is still absent:
+  - no `src/kernel/memory.rs`
+  - no `src/kernel/memory/memory_impl.rs`
+  - no host/runtime/rejection tests for `memcpy` / `memset`
 Proof:
+- `bash scripts/tests/unit/type-architecture.sh i386 port-host-unit-tests-pass`
+- `bash scripts/tests/unit/type-architecture.sh i386 kernel-range-host-unit-tests-pass`
+- `bash scripts/boot-tests/type-architecture.sh i386 runtime-serial-path-works-with-port`
+- `bash scripts/boot-tests/type-architecture.sh i386 runtime-layout-path-works-with-kernel-range`
+- `bash scripts/rejection-tests/type-architecture-rejections.sh i386 std-in-helper-layer-fails`
+- `bash scripts/rejection-tests/type-architecture-rejections.sh i386 helper-wrapper-missing-extern-c-fails`
 - `bash scripts/tests/unit/string-helpers.sh i386 host-strlen-unit-tests-pass`
 - `bash scripts/tests/unit/string-helpers.sh i386 host-strcmp-unit-tests-pass`
 - `bash scripts/tests/unit/string-helpers.sh i386 release-kernel-links-string-helper-marker`
-- `rg -n "\\bfn\\s+(strlen|strcmp)\\b" -S src/kernel`
+- `rg -n "\\bfn\\s+(strlen|strcmp)\\b|read_volatile" -S src/kernel/string`
+- `make test arch=i386`
 What’s left:
-- M5.3: implement `memcpy`/`memset` and add host tests for them
+- M5.2: finish the current string-helper spec:
+  - export `kfs_strlen` / `kfs_strcmp`
+  - move from marker-only linkage proof to real runtime integration proof
+  - replace `read_volatile` with ordinary RAM reads
+  - add richer adversarial and rejection tests
+- M5.3: implement `memcpy` / `memset` plus the matching unit / runtime / rejection proofs
 
 ---
 
