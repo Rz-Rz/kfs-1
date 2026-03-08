@@ -886,18 +886,18 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `tests/host_string.rs`
   - `scripts/tests/unit/string-helpers.sh`
 - Status: exists now
-  - raw `strlen` and `strcmp` loops exist in `src/kernel/string/string_impl.rs`
-- Status: missing now
   - `src/kernel/types.rs`
   - `src/kernel/types/*`
   - `tests/host_types.rs`
   - `scripts/tests/unit/type-architecture.sh`
   - `scripts/boot-tests/type-architecture.sh`
   - `scripts/rejection-tests/type-architecture-rejections.sh`
-- Status: missing now
+- Status: exists now
+  - raw `strlen` and `strcmp` loops exist in `src/kernel/string/string_impl.rs`
+- Status: exists now
   - `kfs_strlen`
   - `kfs_strcmp`
-  - any real release-path string-helper integration
+  - a real release-path string-helper integration in `src/kernel/kmain.rs`
   - `scripts/boot-tests/string-runtime.sh`
   - `scripts/rejection-tests/string-rejections.sh`
 - Status: missing now
@@ -909,13 +909,14 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
     - `scripts/boot-tests/memory-runtime.sh`
     - `scripts/rejection-tests/memory-rejections.sh`
 - Status: exists now
-  - the current string implementation exports only `kfs_string_helpers_marker`, not the real helper
-    ABI
+  - the current string implementation exports the real helper ABI:
+    - `kfs_strlen`
+    - `kfs_strcmp`
 - Status: exists now
-  - current host tests cover only basic empty/normal/equality/prefix/ordering cases
+  - current host tests cover empty/normal/embedded-NUL/unaligned/prefix/equality/high-byte
+    ordering cases
 - Status: exists now
-  - current string implementation uses volatile reads for ordinary RAM strings; that is a design
-    mismatch with the intended helper contract
+  - current string implementation uses ordinary reads for ordinary RAM strings
 
 #### Target end-state
 - Status: build now
@@ -1440,20 +1441,20 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 #### Current repo truth
 - Status: exists now
   - raw `strlen` and `strcmp` loops exist in `src/kernel/string/string_impl.rs`
-  - basic host tests exist in `tests/host_string.rs`
-  - basic unit/source/marker script exists in `scripts/tests/unit/string-helpers.sh`
-- Status: missing now
+  - expanded host tests exist in `tests/host_string.rs`
+  - full unit/source script exists in `scripts/tests/unit/string-helpers.sh`
+- Status: exists now
   - `kfs_strlen`
   - `kfs_strcmp`
   - release-path string-helper integration
   - `scripts/boot-tests/string-runtime.sh`
   - `scripts/rejection-tests/string-rejections.sh`
 - Status: exists now
-  - `src/kernel/string.rs` exports only `kfs_string_helpers_marker`
+  - `src/kernel/string.rs` exports the real helper ABI, not only a marker symbol
 - Status: exists now
-  - current host tests do not yet cover embedded-NUL stop behavior or high-byte ordering
+  - current host tests cover embedded-NUL stop behavior and high-byte ordering
 - Status: exists now
-  - current implementation uses volatile reads for ordinary RAM strings
+  - current implementation uses ordinary reads for ordinary RAM strings
 
 #### Target end-state
 - Status: build now
@@ -1589,15 +1590,16 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 ##### Current repo truth
 - Status: exists now
   - raw `strlen(ptr: *const u8) -> usize` exists in `src/kernel/string/string_impl.rs`
-  - host tests cover empty and ordinary strings in `tests/host_string.rs`
-- Status: missing now
+  - host tests cover empty, ordinary, embedded-NUL, unaligned-start, and word-boundary cases in
+    `tests/host_string.rs`
+- Status: exists now
   - `kfs_strlen(ptr: *const u8) -> usize`
   - embedded-NUL stop proof
   - runtime proof that the release path actually reaches `kfs_strlen`
 - Status: exists now
   - the current implementation is a simple byte-at-a-time loop
 - Status: exists now
-  - the current implementation reads ordinary RAM through `read_volatile`, which does not match the intended contract
+  - the current implementation reads ordinary RAM through ordinary non-volatile reads
 
 ##### Target end-state
 - Status: build now
@@ -1721,7 +1723,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - scanning past the first terminator
   - Status:
-    - to add
+    - exists now
 - `AT-M5.2.a-3`
   - Assertion:
     - `strlen` behaves correctly for unaligned starts and strings that cross a natural word boundary
@@ -1731,7 +1733,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - alignment-sensitive off-by-one or premature stop bugs
   - Status:
-    - to add
+    - exists now
 - `WP-M5.2.a-4`
   - Assertion:
     - the repo exports `kfs_strlen` in source and in the release kernel artifact
@@ -1741,7 +1743,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - helper logic existing only as an internal function with no stable low-level ABI
   - Status:
-    - to add
+    - exists now
 - `SM-M5.2.a-5`
   - Assertion:
     - the release runtime path reaches `kfs_strlen` and emits `STRLEN_OK`
@@ -1751,7 +1753,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - dead code or fake linkage-only proof
   - Status:
-    - to add
+    - exists now
 - `RT-M5.2.a-6`
   - Assertion:
     - a bad `strlen` self-check emits `STRING_HELPERS_FAIL` and stops later normal flow
@@ -1760,7 +1762,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - kernel continuing after a foundational helper mismatch
   - Status:
-    - to add
+    - exists now
 
 ##### Common bad implementations
 - Counting the terminating NUL as part of the returned length
@@ -1792,15 +1794,16 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 ##### Current repo truth
 - Status: exists now
   - raw `strcmp(lhs: *const u8, rhs: *const u8) -> i32` exists in `src/kernel/string/string_impl.rs`
-  - host tests cover equality, ordinary ordering, and prefix behavior in `tests/host_string.rs`
-- Status: missing now
+  - host tests cover equality, ordinary ordering, prefix, empty/non-empty, same-pointer, and
+    high-byte ordering in `tests/host_string.rs`
+- Status: exists now
   - `kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32`
   - high-byte ordering proof
   - runtime proof that the release path actually reaches `kfs_strcmp`
 - Status: exists now
   - the current implementation is a scalar byte-by-byte compare
 - Status: exists now
-  - the current implementation uses volatile reads for ordinary RAM strings
+  - the current implementation uses ordinary reads for ordinary RAM strings
 
 ##### Target end-state
 - Status: build now
@@ -1929,7 +1932,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - premature equality or wrong terminator handling
   - Status:
-    - to add
+    - exists now
 - `AT-M5.2.b-3`
   - Assertion:
     - `strcmp` uses unsigned-byte ordering for high-byte cases
@@ -1938,7 +1941,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - signed-byte comparison mistakes
   - Status:
-    - to add
+    - exists now
 - `WP-M5.2.b-4`
   - Assertion:
     - the repo exports `kfs_strcmp` in source and in the release kernel artifact
@@ -1948,7 +1951,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - helper logic existing only as an internal function with no stable low-level ABI
   - Status:
-    - to add
+    - exists now
 - `SM-M5.2.b-5`
   - Assertion:
     - the release runtime path reaches `kfs_strcmp` and emits `STRCMP_OK`
@@ -1958,7 +1961,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - helper linked but not actually used in the running kernel
   - Status:
-    - to add
+    - exists now
 - `RT-M5.2.b-6`
   - Assertion:
     - a bad `strcmp` self-check emits `STRING_HELPERS_FAIL` and stops later normal flow
@@ -1968,7 +1971,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - kernel silently continuing after a foundational comparison-helper mismatch
   - Status:
-    - to add
+    - exists now
 
 ##### Common bad implementations
 - Returning exact subtraction values as if they were the required public contract
@@ -2041,7 +2044,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - scanning past first NUL and signed-byte ordering mistakes
   - Status:
-    - to add
+    - exists now
 - `WP-M5.2-4`
   - Assertion:
     - the repo defines the raw string helper functions in the kernel
@@ -2061,7 +2064,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - no real low-level helper ABI despite the feature claiming one
   - Status:
-    - to add
+    - exists now
 - `WP-M5.2-6`
   - Assertion:
     - no hosted fallback is used
@@ -2081,7 +2084,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - wrappers defined in source but absent from the artifact
   - Status:
-    - to add
+    - exists now
 - `SM-M5.2-8`
   - Assertion:
     - the release path reaches `kfs_strlen` and `kfs_strcmp`
@@ -2092,7 +2095,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - helpers linked but dead in the running kernel
   - Status:
-    - to add
+    - exists now
 - `AT-M5.2-9`
   - Assertion:
     - runtime markers stay ordered as `STRLEN_OK -> STRCMP_OK -> STRING_HELPERS_OK` and the
@@ -2103,7 +2106,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - fake integration proof and wrong memory model for ordinary strings
   - Status:
-    - to add
+    - exists now
 - `RT-M5.2-10`
   - Assertion:
     - broken string-helper integration emits `STRING_HELPERS_FAIL` and stops the later normal flow
@@ -2113,7 +2116,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - kernel silently continuing after a foundational helper failure
   - Status:
-    - to add
+    - exists now
 
 #### Common bad implementations
 - scanning past the first NUL and still passing trivial strings

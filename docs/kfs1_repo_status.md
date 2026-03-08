@@ -39,7 +39,7 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M4 DoD: ✅ YES (Rust entry, early-init/runtime assumptions, and halt behavior are all proven)
   - Proof: `make test arch=i386` (includes release-kernel `kmain` export/callsite checks, ordered runtime markers, runtime rejection tests, and halt-path checks)
 - Base Epic M5 DoD: ❌ NO
-  - Proof: `make test arch=i386` now proves `M5.1` end to end (`Port`, `KernelRange`, type facade, runtime integration, rejection gates), but `M5.2` is still only partial and `M5.3` is still missing
+  - Proof: `make test arch=i386` now proves `M5.1` and `M5.2` end to end (`Port`, `KernelRange`, real string-helper ABI, runtime integration, and rejection gates), but `M5.3` is still missing
 - Base Epic M6 DoD: ❌ NO
   - Proof: `src/kernel/kmain.rs` prints `42`, but there is still no reusable screen interface/module as required by M6.1/M6.2
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
@@ -286,7 +286,7 @@ Epic DoD (M4) complete? ✅
 
 ## Base Epic M5: Basic Kernel Library (Helpers)
 
-Status: ⚠️ Partial (`M5.1` done; `M5.2` partial; `M5.3` missing)
+Status: ⚠️ Partial (`M5.1` done; `M5.2` done; `M5.3` missing)
 Evidence:
 - `M5.1` is now implemented as a real type/helper scaffold:
   - `src/kernel/types.rs`
@@ -295,15 +295,32 @@ Evidence:
   - `Port(u16)` is used by the live serial / port-I/O path in `src/kernel/kmain.rs`
   - `KernelRange` is used by the live runtime-layout path in `src/kernel/kmain.rs` and `src/kernel/kmain/logic_impl.rs`
   - host, source-architecture, runtime, and rejection proofs exist for `M5.1`
-- `M5.2` exists only partially:
-  - `strlen` / `strcmp` algorithms exist in `src/kernel/string/string_impl.rs`
-  - basic host tests exist in `tests/host_string.rs`
-  - basic source/build checks exist in `scripts/tests/unit/string-helpers.sh`
-  - the implementation still stops short of the current spec:
-    - no exported `kfs_strlen` / `kfs_strcmp`
-    - no dedicated runtime marker path for string-helper integration
-    - no richer adversarial/rejection coverage
-    - current string reads still use `read_volatile`, which does not match the intended ordinary-RAM helper contract
+  - keep as the permanent `M5.1` base:
+    - one discoverable type facade
+    - `Port(u16)` as the semantic wrapper for x86 port I/O
+    - `KernelRange { start, end }` as the semantic wrapper for layout spans
+    - live kernel consumers in the serial and layout paths
+    - dedicated host / source / runtime / rejection proof assets
+- `M5.2` is now implemented as the real string-helper family:
+  - `src/kernel/string/string_impl.rs` owns the scalar leaf algorithms
+  - `src/kernel/string.rs` exports `kfs_strlen` and `kfs_strcmp`
+  - `src/kernel/kmain.rs` owns the first real string-helper runtime sanity path
+  - `tests/host_string.rs` now covers embedded-NUL, unaligned-start, same-pointer, empty/non-empty,
+    prefix, and high-byte ordering behavior
+  - `scripts/tests/unit/string-helpers.sh` now enforces source, ABI, artifact, and non-volatile-read checks
+  - `scripts/boot-tests/string-runtime.sh` now proves the running kernel reaches the string helpers
+  - `scripts/rejection-tests/string-rejections.sh` now proves broken string-helper self-checks emit
+    `STRING_HELPERS_FAIL` and stop later normal flow
+  - keep as the permanent `M5.2` base:
+    - the public-family / private-leaf split:
+      - `src/kernel/string.rs`
+      - `src/kernel/string/string_impl.rs`
+    - the raw scalar leaf algorithms as the correctness baseline
+    - the real low-level helper ABI:
+      - `kfs_strlen`
+      - `kfs_strcmp`
+    - the `kmain`-owned runtime sanity path until `M6` becomes the natural consumer
+    - the full `UT/WP/SM/AT/RT` proof surface
 - `M5.3` is still absent:
   - no `src/kernel/memory.rs`
   - no `src/kernel/memory/memory_impl.rs`
@@ -316,16 +333,25 @@ Proof:
 - `bash scripts/rejection-tests/type-architecture-rejections.sh i386 std-in-helper-layer-fails`
 - `bash scripts/rejection-tests/type-architecture-rejections.sh i386 helper-wrapper-missing-extern-c-fails`
 - `bash scripts/tests/unit/string-helpers.sh i386 host-strlen-unit-tests-pass`
+- `bash scripts/tests/unit/string-helpers.sh i386 host-strlen-embedded-nul-stops-first`
+- `bash scripts/tests/unit/string-helpers.sh i386 host-strlen-unaligned-start`
+- `bash scripts/tests/unit/string-helpers.sh i386 host-strlen-word-boundary`
 - `bash scripts/tests/unit/string-helpers.sh i386 host-strcmp-unit-tests-pass`
-- `bash scripts/tests/unit/string-helpers.sh i386 release-kernel-links-string-helper-marker`
-- `rg -n "\\bfn\\s+(strlen|strcmp)\\b|read_volatile" -S src/kernel/string`
+- `bash scripts/tests/unit/string-helpers.sh i386 host-strcmp-prefix-and-empty-cases`
+- `bash scripts/tests/unit/string-helpers.sh i386 host-strcmp-same-pointer`
+- `bash scripts/tests/unit/string-helpers.sh i386 host-strcmp-high-byte-ordering`
+- `bash scripts/tests/unit/string-helpers.sh i386 rust-exports-kfs-strlen`
+- `bash scripts/tests/unit/string-helpers.sh i386 rust-exports-kfs-strcmp`
+- `bash scripts/tests/unit/string-helpers.sh i386 release-kernel-exports-kfs-strlen`
+- `bash scripts/tests/unit/string-helpers.sh i386 release-kernel-exports-kfs-strcmp`
+- `bash scripts/tests/unit/string-helpers.sh i386 string-helpers-avoid-volatile-reads`
+- `bash scripts/boot-tests/string-runtime.sh i386 runtime-confirms-string-helpers`
+- `bash scripts/boot-tests/string-runtime.sh i386 runtime-string-markers-are-ordered`
+- `bash scripts/rejection-tests/string-rejections.sh i386 bad-string-self-check-fails`
+- `bash scripts/rejection-tests/string-rejections.sh i386 bad-string-stops-before-normal-flow`
+- `rg -n "kfs_strlen|kfs_strcmp|string_len_impl|string_cmp_impl" -S src/kernel/string src/kernel/kmain.rs`
 - `make test arch=i386`
 What’s left:
-- M5.2: finish the current string-helper spec:
-  - export `kfs_strlen` / `kfs_strcmp`
-  - move from marker-only linkage proof to real runtime integration proof
-  - replace `read_volatile` with ordinary RAM reads
-  - add richer adversarial and rejection tests
 - M5.3: implement `memcpy` / `memset` plus the matching unit / runtime / rejection proofs
 
 ---
