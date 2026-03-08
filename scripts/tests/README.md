@@ -20,7 +20,8 @@ The host runner currently executes these sections:
 - `scripts/rejection-tests/`
 - `scripts/boot-tests/`
 
-Each section is a directory of executable `.sh` files. The section headers shown by `scripts/test-host.sh` are hardcoded there.
+Each section is a directory tree of executable `.sh` files. The section headers shown by `scripts/test-host.sh` are hardcoded there.
+Nested directories inside a section are allowed and are rendered as subsection labels in the plain runner output.
 
 ## Discovery Contract
 
@@ -38,7 +39,7 @@ bash path/to/script.sh <arch> <case>
 
 The host runner does this:
 
-1. Finds `*.sh` files in the section directory.
+1. Finds `*.sh` files recursively in the section directory.
 2. Calls each script with `--list`.
 3. Calls each script with `--description <case>`.
 4. Runs each discovered case independently.
@@ -62,6 +63,19 @@ Avoid names like:
 - `test-foo.sh`
 
 Reason: the directory already says it is a test; the extra prefix adds noise and makes rebases harder.
+
+### Subsection directories
+
+If a section grows too broad, create a nested directory under it.
+
+Example:
+
+- `scripts/tests/unit/`
+- `scripts/tests/integration/`
+
+The subsection name is taken from the relative directory path and shown as a lightweight header
+inside the parent section. This is a presentation grouping only; the parent section still owns the
+test cases for manifest totals and TUI counters.
 
 ### Case names
 
@@ -150,7 +164,7 @@ When a kernel Rust file mixes pure logic with boot/runtime code:
    top-level kernel crate, for example `src/kernel/<area>/logic_impl.rs`.
 2. Include that file from the kernel entry file with `#[path = "..."] mod ...;`.
 3. Reuse the same implementation from `tests/host_*.rs` with `include!(...)`.
-4. Add a discoverable shell wrapper in `scripts/tests/` so the host runner can execute the
+4. Add a discoverable shell wrapper in `scripts/tests/unit/` so the host runner can execute the
    Rust unit tests one behavior at a time.
 
 This keeps host unit tests aligned with the kernel source while avoiding hosted tests for
@@ -177,7 +191,7 @@ If your branch was created before the recent cleanup, these are the main file re
 | `scripts/rejection-tests/check-m3.2-rejections.sh` | `scripts/rejection-tests/section-rejections.sh` |
 | `scripts/boot-tests/check-m0.2-freestanding.sh` | `scripts/boot-tests/freestanding-kernel.sh` |
 | `scripts/boot-tests/check-m3.3-layout-symbols.sh` | `scripts/boot-tests/layout-symbols.sh` |
-| `scripts/check-m5.2-string.sh` | `scripts/tests/string-helpers.sh` |
+| `scripts/check-m5.2-string.sh` | `scripts/tests/unit/string-helpers.sh` |
 | `scripts/boot-tests/test.sh` | `scripts/boot-tests/build-boot-artifacts.sh` |
 | `scripts/boot-tests/test-qemu.sh` | `scripts/boot-tests/qemu-boot.sh` |
 
@@ -233,7 +247,7 @@ These old broad cases were split into clearer one-behavior cases.
 #### `scripts/check-m5.2-string.sh`
 
 That older script bundled several checks into one non-discoverable entrypoint. After rebasing
-onto the current framework, move those checks into `scripts/tests/string-helpers.sh` and split
+onto the current framework, move those checks into `scripts/tests/unit/string-helpers.sh` and split
 them into:
 
 - `host-strlen-unit-tests-pass`
@@ -244,7 +258,7 @@ them into:
 - `rust-avoids-extern-strcmp`
 - `release-kernel-links-string-helper-marker`
 
-#### `scripts/tests/kmain-logic.sh`
+#### `scripts/tests/unit/kmain-logic.sh`
 
 Use this pattern when a Rust kernel file contains a small pure helper layer inside a larger
 boot/runtime path. Extract the pure helper logic, then expose host unit tests as granular

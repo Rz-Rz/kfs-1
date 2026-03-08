@@ -97,6 +97,7 @@ collect_section_entries() {
   local dir="$2"
   local entries="$3"
   local path
+  local subgroup
   local test_case
   local description
 
@@ -104,22 +105,37 @@ collect_section_entries() {
 
   while IFS= read -r path; do
     [[ -n "${path}" ]] || continue
+    subgroup="$(dirname "${path}")"
+    subgroup="${subgroup#${dir}}"
+    subgroup="${subgroup#/}"
+    [[ -n "${subgroup}" ]] || subgroup="-"
     while IFS= read -r test_case; do
       [[ -n "${test_case}" ]] || continue
 
       description="$(bash "${path}" --description "${test_case}")"
       [[ -n "${description}" ]] || die "missing description in ${path} for case ${test_case}"
-      printf '%s\t%s\t%s\t%s\n' "${title}" "${path}" "${test_case}" "${description}" >>"${entries}"
+      printf '%s\t%s\t%s\t%s\t%s\n' "${title}" "${subgroup}" "${path}" "${test_case}" "${description}" >>"${entries}"
     done < <(bash "${path}" --list)
-  done < <(find "${dir}" -maxdepth 1 -type f -name '*.sh' | sort)
+  done < <(find "${dir}" -type f -name '*.sh' | sort)
+}
+
+format_subsection_title() {
+  local subsection="$1"
+
+  [[ "${subsection}" != "-" ]] || return 1
+
+  subsection="${subsection//\// / }"
+  subsection="${subsection//-/ }"
+  subsection="${subsection//_/ }"
+  printf '%s\n' "${subsection^^}"
 }
 
 build_manifest() {
   local entries="$1"
 
   : >"${entries}"
-  printf '%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "Rebuild the container toolchain image" >>"${entries}"
-  printf '%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "Verify tools exist" >>"${entries}"
+  printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Rebuild the container toolchain image" >>"${entries}"
+  printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify tools exist" >>"${entries}"
   collect_section_entries "TESTS" "${SCRIPT_ROOT}/tests" "${entries}"
   collect_section_entries "STABILITY TESTS" "${SCRIPT_ROOT}/stability-tests" "${entries}"
   collect_section_entries "REJECTION TESTS" "${SCRIPT_ROOT}/rejection-tests" "${entries}"
@@ -132,6 +148,7 @@ emit_manifest() {
   local section
   local count
   local current_section
+  local subgroup
   local path
   local test_case
   local description
@@ -144,7 +161,7 @@ emit_manifest() {
     emit_event "section_total" "${section}" "${count}"
   done
 
-  while IFS=$'\t' read -r current_section path test_case description; do
+  while IFS=$'\t' read -r current_section subgroup path test_case description; do
     emit_event "declare" "${current_section}" "${description}"
   done <"${entries}"
 }
@@ -191,6 +208,9 @@ run_section() {
   local entries="$2"
   local printed=0
   local section
+  local subgroup
+  local current_subgroup="-"
+  local subsection_title
   local path
   local test_case
   local description
@@ -206,8 +226,16 @@ run_section() {
     emit_event "section" "${title}"
   fi
 
-  while IFS=$'\t' read -r section path test_case description; do
+  while IFS=$'\t' read -r section subgroup path test_case description; do
     [[ "${section}" == "${title}" ]] || continue
+    if [[ "${subgroup}" != "${current_subgroup}" ]]; then
+      current_subgroup="${subgroup}"
+      if subsection_title="$(format_subsection_title "${subgroup}")"; then
+        color "2"
+        printf '%s\n' "${subsection_title}"
+        reset_color
+      fi
+    fi
     if ! run_item "${title}" "${description}" bash "${path}" "${ARCH}" "${test_case}"; then
       emit_event "summary" "fail"
       exit 1

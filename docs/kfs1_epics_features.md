@@ -900,10 +900,10 @@ Implementation scope:
 - `RUST` (pure helper functions; unit-testable on host)
 
 Proof / tests (definition of done):
-- UT-M5.2-1 (host strlen unit tests): `bash scripts/tests/string-helpers.sh i386 host-strlen-unit-tests-pass`
-- UT-M5.2-2 (host strcmp unit tests): `bash scripts/tests/string-helpers.sh i386 host-strcmp-unit-tests-pass`
-- WP-M5.2-3 (release kernel links the helper object): `bash scripts/tests/string-helpers.sh i386 release-kernel-links-string-helper-marker`
-- WP-M5.2-4 (no libc fallback): `bash scripts/tests/string-helpers.sh i386 rust-avoids-extern-strlen && bash scripts/tests/string-helpers.sh i386 rust-avoids-extern-strcmp`
+- UT-M5.2-1 (host strlen unit tests): `bash scripts/tests/unit/string-helpers.sh i386 host-strlen-unit-tests-pass`
+- UT-M5.2-2 (host strcmp unit tests): `bash scripts/tests/unit/string-helpers.sh i386 host-strcmp-unit-tests-pass`
+- WP-M5.2-3 (release kernel links the helper object): `bash scripts/tests/unit/string-helpers.sh i386 release-kernel-links-string-helper-marker`
+- WP-M5.2-4 (no libc fallback): `bash scripts/tests/unit/string-helpers.sh i386 rust-avoids-extern-strlen && bash scripts/tests/unit/string-helpers.sh i386 rust-avoids-extern-strcmp`
 
 ### Feature M5.3: Minimal memory helpers (`memcpy`, `memset`)
 Implementation tasks:
