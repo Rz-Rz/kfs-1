@@ -1477,8 +1477,20 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 - Define an honest string contract for this project stage:
   valid NUL-terminated byte strings in ordinary kernel-owned RAM.
 - Prove both helper semantics and release-path integration.
+- Reuse the `M5.1` helper-family architecture and low-level ABI conventions without redefining them per helper.
 
 #### Architecture decision
+- Decision:
+  - `M5.2` must reuse the `M5.1` helper-family architecture and low-level ABI conventions unchanged
+  - Why:
+    - the first concrete helper family should prove that `M5.1` is a reusable kernel-library scaffold, not a one-off policy note
+  - Source:
+    - `M5.1` in this repo
+    - repo-derived architecture ownership rule
+  - Immediate consumer:
+    - string family
+  - Future consumer:
+    - memory and later helper families
 - Decision:
   - keep the public Rust family API and exported wrappers in `src/kernel/string.rs`
   - Why:
@@ -1524,6 +1536,11 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 #### Implementation contract
 - Build now:
+  - reuse the `M5.1` family pattern unchanged:
+    - public family file: `src/kernel/string.rs`
+    - private leaf file: `src/kernel/string/string_impl.rs`
+    - exported low-level wrappers follow the `M5.1` ABI rules
+    - other kernel code must not import `src/kernel/string/string_impl.rs` directly
   - `src/kernel/string/string_impl.rs`
     - `strlen(ptr: *const u8) -> usize`
     - `strcmp(lhs: *const u8, rhs: *const u8) -> i32`
@@ -1559,6 +1576,418 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 - Required exported wrapper signatures:
   - `kfs_strlen(ptr: *const u8) -> usize`
   - `kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32`
+
+#### Sub-spec M5.2.a: `strlen`
+
+##### Subject basis
+- The subject explicitly names `strlen` as part of the mandatory helper layer.
+- The subject does not define performance tier, alignment strategy, or failure recovery semantics.
+- Repo-derived choice:
+  - completion requires a correct freestanding kernel-owned implementation first
+  - internal optimization is allowed only if it preserves the same ABI, contract, and proof surface
+
+##### Current repo truth
+- Status: exists now
+  - raw `strlen(ptr: *const u8) -> usize` exists in `src/kernel/string/string_impl.rs`
+  - host tests cover empty and ordinary strings in `tests/host_string.rs`
+- Status: missing now
+  - `kfs_strlen(ptr: *const u8) -> usize`
+  - embedded-NUL stop proof
+  - runtime proof that the release path actually reaches `kfs_strlen`
+- Status: exists now
+  - the current implementation is a simple byte-at-a-time loop
+- Status: exists now
+  - the current implementation reads ordinary RAM through `read_volatile`, which does not match the intended contract
+
+##### Target end-state
+- Status: build now
+  - a kernel-owned `kfs_strlen(ptr: *const u8) -> usize`
+  - a raw leaf `strlen(ptr: *const u8) -> usize` in `src/kernel/string/string_impl.rs`
+  - host tests for empty, ordinary, embedded-NUL, unaligned-start, and longer-prefix cases
+  - source/build checks proving the release kernel exports `kfs_strlen`
+  - runtime proof that the release path reaches `kfs_strlen` before later normal flow
+- Status: define now, integrate later
+  - an optional internal word-at-a-time scan strategy hidden behind the same ABI and proof surface
+- Status: future only
+  - arch-specific assembly fast paths
+  - vectorized scans
+  - page-fault-safe or user-buffer-safe traversal
+
+##### Intent
+- Define the exact semantic contract for the kernel’s first string-length primitive.
+- Make `strlen` correct and reusable before making it clever.
+- Allow modest internal optimization later without changing callers, exports, or proofs.
+- Reuse the `M5.1` family scaffold and ABI rules exactly as the `strlen` ownership boundary.
+
+##### Architecture decision
+- Decision:
+  - keep `strlen` as a leaf helper behind the string-family public API and exported wrapper
+  - Why:
+    - callers should depend on the family API and `kfs_` ABI, not on the leaf implementation directly
+  - Source:
+    - `M5.1` architecture in this repo
+    - OSDev C Library
+  - Immediate consumer:
+    - `kmain` string sanity path
+  - Future consumer:
+    - `M6` text/screen code and later parser/debug code
+- Decision:
+  - treat the scalar byte loop as the required completion baseline
+  - Why:
+    - correctness and proof coverage matter more than micro-optimization at this stage
+  - Source:
+    - repo-derived kernel bring-up constraint
+    - musl `strlen.c`
+  - Immediate consumer:
+    - current host and runtime proofs
+  - Future consumer:
+    - later optimized internal implementation
+- Decision:
+  - allow an optional internal word-at-a-time optimization only as an implementation detail
+  - Why:
+    - `strlen` has a credible portable optimization path, but the optimization must not become the external contract
+  - Source:
+    - musl `strlen.c`
+  - Immediate consumer:
+    - leaf implementation only
+  - Future consumer:
+    - later performance tuning without ABI churn
+
+##### Implementation contract
+- Build now:
+  - reuse the `M5.1` helper boundary:
+    - public family entry stays in `src/kernel/string.rs`
+    - leaf algorithm stays in `src/kernel/string/string_impl.rs`
+    - exported low-level wrapper follows the `M5.1` ABI rules for primitive-only signatures
+  - raw leaf: `strlen(ptr: *const u8) -> usize`
+  - wrapper/export: `kfs_strlen(ptr: *const u8) -> usize`
+  - host cases for:
+    - empty string
+    - ordinary string
+    - embedded-NUL stop-at-first-NUL
+    - unaligned starting pointer
+    - longer string crossing a natural word boundary
+  - source/build checks for:
+    - wrapper export
+    - release-kernel symbol export
+    - no volatile ordinary-memory reads
+- Define now, integrate later:
+  - optional internal word-at-a-time scan with a byte-prefix phase for alignment
+- Future only:
+  - assembly-specific micro-optimizations
+
+##### Data / ABI conventions
+- Input:
+  - pointer to a valid NUL-terminated byte string in kernel-owned ordinary RAM
+- Output:
+  - byte count before the first NUL terminator
+- Required behavioral rules:
+  - stop exactly at the first NUL
+  - return `0` for an empty string
+  - count bytes, not characters or text-codepoints
+- Internal implementation rules:
+  - ordinary reads only
+  - no volatile reads for ordinary RAM strings
+  - any optimization must preserve identical observable results for the valid-input contract
+
+##### Runtime / integration path
+- `kmain` is the first runtime owner of the `strlen` sanity path.
+- The release runtime path must call `kfs_strlen` before `kfs_strcmp`.
+- The runtime proof must expose `STRLEN_OK` before the later string-family success marker.
+
+##### Acceptance criteria
+- The repo exports `kfs_strlen(ptr: *const u8) -> usize`.
+- `strlen` returns the number of bytes before the first NUL terminator for valid kernel-owned strings.
+- Embedded NULs stop the scan at the first NUL.
+- The implementation does not use volatile reads for ordinary RAM strings.
+- The running kernel proves that `kfs_strlen` is reached in the real release path.
+
+##### Proof matrix
+- `UT-M5.2.a-1`
+  - Assertion:
+    - `strlen` returns correct lengths for empty and ordinary strings
+  - Evidence:
+    - `tests/host_string.rs`
+    - `scripts/tests/unit/string-helpers.sh i386 host-strlen-unit-tests-pass`
+  - Failure caught:
+    - broken loop termination and wrong length counting
+  - Status:
+    - exists now
+- `UT-M5.2.a-2`
+  - Assertion:
+    - `strlen` stops at the first NUL even when later bytes remain non-zero
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 host-strlen-embedded-nul-stops-first`
+  - Failure caught:
+    - scanning past the first terminator
+  - Status:
+    - to add
+- `AT-M5.2.a-3`
+  - Assertion:
+    - `strlen` behaves correctly for unaligned starts and strings that cross a natural word boundary
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 host-strlen-unaligned-start`
+    - `scripts/tests/unit/string-helpers.sh i386 host-strlen-word-boundary`
+  - Failure caught:
+    - alignment-sensitive off-by-one or premature stop bugs
+  - Status:
+    - to add
+- `WP-M5.2.a-4`
+  - Assertion:
+    - the repo exports `kfs_strlen` in source and in the release kernel artifact
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 rust-exports-kfs-strlen`
+    - `scripts/tests/unit/string-helpers.sh i386 release-kernel-exports-kfs-strlen`
+  - Failure caught:
+    - helper logic existing only as an internal function with no stable low-level ABI
+  - Status:
+    - to add
+- `SM-M5.2.a-5`
+  - Assertion:
+    - the release runtime path reaches `kfs_strlen` and emits `STRLEN_OK`
+  - Evidence:
+    - `scripts/boot-tests/string-runtime.sh i386 release-kmain-calls-kfs-strlen`
+    - `scripts/boot-tests/string-runtime.sh i386 runtime-confirms-strlen`
+  - Failure caught:
+    - dead code or fake linkage-only proof
+  - Status:
+    - to add
+- `RT-M5.2.a-6`
+  - Assertion:
+    - a bad `strlen` self-check emits `STRING_HELPERS_FAIL` and stops later normal flow
+  - Evidence:
+    - `scripts/rejection-tests/string-rejections.sh i386 bad-string-self-check-fails`
+  - Failure caught:
+    - kernel continuing after a foundational helper mismatch
+  - Status:
+    - to add
+
+##### Common bad implementations
+- Counting the terminating NUL as part of the returned length
+- Scanning past the first embedded NUL
+- Treating text encoding semantics as part of `strlen`
+- Introducing an optimized scan that breaks on unaligned starts
+- Using volatile reads for ordinary string memory
+
+##### Explicit exclusions
+- `strlen` does not promise null-pointer handling.
+- `strlen` does not promise unterminated-buffer recovery.
+- `strlen` does not define text encoding semantics.
+- `strlen` does not require arch-specific optimization for `M5.2` completion.
+
+##### Source basis
+- `docs/subject.pdf`
+- OSDev C Library: <https://wiki.osdev.org/C_Library>
+- OSDev Sysroot: <https://wiki.osdev.org/Sysroot>
+- musl `strlen.c`: <https://git.musl-libc.org/cgit/musl/tree/src/string/strlen.c>
+
+#### Sub-spec M5.2.b: `strcmp`
+
+##### Subject basis
+- The subject explicitly names `strcmp` as part of the mandatory helper layer.
+- The subject does not define exact arithmetic return values or optimization strategy.
+- Repo-derived choice:
+  - the kernel only requires sign-compatible ordering semantics for valid kernel-owned byte strings
+
+##### Current repo truth
+- Status: exists now
+  - raw `strcmp(lhs: *const u8, rhs: *const u8) -> i32` exists in `src/kernel/string/string_impl.rs`
+  - host tests cover equality, ordinary ordering, and prefix behavior in `tests/host_string.rs`
+- Status: missing now
+  - `kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32`
+  - high-byte ordering proof
+  - runtime proof that the release path actually reaches `kfs_strcmp`
+- Status: exists now
+  - the current implementation is a scalar byte-by-byte compare
+- Status: exists now
+  - the current implementation uses volatile reads for ordinary RAM strings
+
+##### Target end-state
+- Status: build now
+  - a kernel-owned `kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32`
+  - a raw leaf `strcmp(lhs: *const u8, rhs: *const u8) -> i32`
+  - host tests for equality, prefix, first-difference, empty/non-empty, same-pointer, and high-byte ordering
+  - source/build checks proving the release kernel exports `kfs_strcmp`
+  - runtime proof that the release path reaches `kfs_strcmp` after `kfs_strlen`
+- Status: define now, integrate later
+  - an optional same-pointer fast path as an internal optimization only
+- Status: future only
+  - locale/text-collation semantics
+  - UTF-8-aware ordering
+  - vectorized or arch-specific comparison paths
+
+##### Intent
+- Define the kernel’s first freestanding byte-string ordering primitive.
+- Keep the external contract narrow: equality and sign-compatible byte ordering only.
+- Prevent over-specifying arithmetic details that later code does not need.
+- Reuse the `M5.1` family scaffold and ABI rules exactly as the `strcmp` ownership boundary.
+
+##### Architecture decision
+- Decision:
+  - keep `strcmp` behind the same family-level public API and exported wrapper structure as `strlen`
+  - Why:
+    - the string family should expose one consistent public/internal surface and one stable low-level ABI
+  - Source:
+    - `M5.1` architecture in this repo
+    - OSDev C Library
+  - Immediate consumer:
+    - `kmain` string sanity path
+  - Future consumer:
+    - `M6` text/screen path and later parser/debug code
+- Decision:
+  - define success in terms of sign-compatible ordering, not exact difference magnitude
+  - Why:
+    - callers need ordering semantics; exact subtraction magnitude is an unnecessary and brittle contract
+  - Source:
+    - repo-derived from freestanding string semantics
+  - Immediate consumer:
+    - host tests and runtime sanity checks
+  - Future consumer:
+    - parser/debug/text code
+- Decision:
+  - compare bytes as unsigned byte values
+  - Why:
+    - high-byte cases must not depend on platform `char` signedness assumptions
+  - Source:
+    - standard freestanding string behavior
+    - musl `strcmp.c`
+  - Immediate consumer:
+    - current host tests
+  - Future consumer:
+    - later binary/text-adjacent code
+
+##### Implementation contract
+- Build now:
+  - reuse the `M5.1` helper boundary:
+    - public family entry stays in `src/kernel/string.rs`
+    - leaf algorithm stays in `src/kernel/string/string_impl.rs`
+    - exported low-level wrapper follows the `M5.1` ABI rules for primitive-only signatures
+  - raw leaf: `strcmp(lhs: *const u8, rhs: *const u8) -> i32`
+  - wrapper/export: `kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32`
+  - host cases for:
+    - equality
+    - empty vs empty
+    - empty vs non-empty
+    - prefix ordering
+    - first difference in the first, middle, and later compared byte
+    - high-byte ordering (`0x80`, `0xff`, and ASCII combinations)
+    - same-pointer equality
+  - source/build checks for:
+    - wrapper export
+    - release-kernel symbol export
+    - no volatile ordinary-memory reads
+- Define now, integrate later:
+  - optional same-pointer fast path
+- Future only:
+  - locale-aware or UTF-8-aware ordering
+
+##### Data / ABI conventions
+- Inputs:
+  - two pointers to valid NUL-terminated byte strings in kernel-owned ordinary RAM
+- Output:
+  - `0` if equal
+  - negative if left is smaller
+  - positive if left is greater
+- Required behavioral rules:
+  - ordering is based on the first differing byte or the first NUL terminator
+  - tests must check sign, not exact subtraction magnitude
+  - byte comparison semantics are unsigned-byte semantics
+- Internal implementation rules:
+  - ordinary reads only
+  - no volatile reads for ordinary RAM strings
+  - any optimization must preserve identical sign results for valid inputs
+
+##### Runtime / integration path
+- `kmain` is the first runtime owner of the `strcmp` sanity path.
+- The release runtime path must call `kfs_strcmp` after `kfs_strlen`.
+- The runtime proof must expose `STRCMP_OK` before the later string-family success marker.
+
+##### Acceptance criteria
+- The repo exports `kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32`.
+- `strcmp` returns correct sign-compatible ordering for valid kernel-owned byte strings.
+- Prefix and high-byte cases are covered by host proofs.
+- The implementation does not use volatile reads for ordinary RAM strings.
+- The running kernel proves that `kfs_strcmp` is reached in the real release path.
+
+##### Proof matrix
+- `UT-M5.2.b-1`
+  - Assertion:
+    - `strcmp` returns correct sign behavior for equality and ordinary ordering
+  - Evidence:
+    - `tests/host_string.rs`
+    - `scripts/tests/unit/string-helpers.sh i386 host-strcmp-unit-tests-pass`
+  - Failure caught:
+    - wrong sign behavior for common cases
+  - Status:
+    - exists now
+- `UT-M5.2.b-2`
+  - Assertion:
+    - `strcmp` handles prefix, empty/non-empty, and same-pointer equality correctly
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 host-strcmp-prefix-and-empty-cases`
+    - `scripts/tests/unit/string-helpers.sh i386 host-strcmp-same-pointer`
+  - Failure caught:
+    - premature equality or wrong terminator handling
+  - Status:
+    - to add
+- `AT-M5.2.b-3`
+  - Assertion:
+    - `strcmp` uses unsigned-byte ordering for high-byte cases
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 host-strcmp-high-byte-ordering`
+  - Failure caught:
+    - signed-byte comparison mistakes
+  - Status:
+    - to add
+- `WP-M5.2.b-4`
+  - Assertion:
+    - the repo exports `kfs_strcmp` in source and in the release kernel artifact
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 rust-exports-kfs-strcmp`
+    - `scripts/tests/unit/string-helpers.sh i386 release-kernel-exports-kfs-strcmp`
+  - Failure caught:
+    - helper logic existing only as an internal function with no stable low-level ABI
+  - Status:
+    - to add
+- `SM-M5.2.b-5`
+  - Assertion:
+    - the release runtime path reaches `kfs_strcmp` and emits `STRCMP_OK`
+  - Evidence:
+    - `scripts/boot-tests/string-runtime.sh i386 release-kmain-calls-kfs-strcmp`
+    - `scripts/boot-tests/string-runtime.sh i386 runtime-confirms-strcmp`
+  - Failure caught:
+    - helper linked but not actually used in the running kernel
+  - Status:
+    - to add
+- `RT-M5.2.b-6`
+  - Assertion:
+    - a bad `strcmp` self-check emits `STRING_HELPERS_FAIL` and stops later normal flow
+  - Evidence:
+    - `scripts/rejection-tests/string-rejections.sh i386 bad-string-self-check-fails`
+    - `scripts/rejection-tests/string-rejections.sh i386 bad-string-stops-before-normal-flow`
+  - Failure caught:
+    - kernel silently continuing after a foundational comparison-helper mismatch
+  - Status:
+    - to add
+
+##### Common bad implementations
+- Returning exact subtraction values as if they were the required public contract
+- Comparing bytes as signed values and getting high-byte order wrong
+- Treating prefix cases as equality
+- Using volatile reads for ordinary string memory
+- Exporting only an internal marker instead of a real `kfs_strcmp` ABI surface
+
+##### Explicit exclusions
+- `strcmp` does not define locale or collation semantics.
+- `strcmp` does not define UTF-8-aware ordering.
+- `strcmp` does not promise null-pointer handling.
+- `strcmp` does not require arch-specific optimization for `M5.2` completion.
+
+##### Source basis
+- `docs/subject.pdf`
+- OSDev C Library: <https://wiki.osdev.org/C_Library>
+- OSDev Sysroot: <https://wiki.osdev.org/Sysroot>
+- musl `strcmp.c`: <https://git.musl-libc.org/cgit/musl/tree/src/string/strcmp.c>
 
 #### Integration contract
 - Immediate runtime path:
@@ -1746,8 +2175,20 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 - Add the next foundational helper family so later screen and buffer work does not smuggle in hosted
   assumptions.
 - Keep the contract narrow and honest: valid ordinary RAM buffers only.
+- Reuse the `M5.1` helper-family architecture and low-level ABI conventions without redefining them per helper.
 
 #### Architecture decision
+- Decision:
+  - `M5.3` must reuse the `M5.1` helper-family architecture and low-level ABI conventions unchanged
+  - Why:
+    - the second concrete helper family should prove that the `M5.1` scaffold is the permanent kernel-library pattern, not a string-only exception
+  - Source:
+    - `M5.1` in this repo
+    - repo-derived architecture ownership rule
+  - Immediate consumer:
+    - memory helper family
+  - Future consumer:
+    - later helper families
 - Decision:
   - use the same family structure as `M5.2`:
     - public family file
@@ -1785,6 +2226,11 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 #### Implementation contract
 - Build now:
+  - reuse the `M5.1` family pattern unchanged:
+    - public family file: `src/kernel/memory.rs`
+    - private leaf file: `src/kernel/memory/memory_impl.rs`
+    - exported low-level wrappers follow the `M5.1` ABI rules
+    - other kernel code must not import `src/kernel/memory/memory_impl.rs` directly
   - `src/kernel/memory/memory_impl.rs`
     - `memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
     - `memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
@@ -1818,6 +2264,407 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 - Required exported wrapper signatures:
   - `kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
   - `kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
+
+#### Sub-spec M5.3.a: `memcpy`
+
+##### Subject basis
+- The subject does not name `memcpy` explicitly.
+- Repo-derived choice:
+  - once the kernel owns its helper library, a byte-copy primitive is the next foundational helper for
+    later screen and buffer work
+  - `memcpy` is therefore part of the repo’s scaling contract, not a literal quoted subject item
+
+##### Current repo truth
+- Status: missing now
+  - raw `memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
+  - `kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
+  - `tests/host_memory.rs`
+  - `scripts/tests/unit/memory-helpers.sh`
+  - `scripts/boot-tests/memory-runtime.sh`
+  - `scripts/rejection-tests/memory-rejections.sh`
+  - any runtime path that reaches `kfs_memcpy`
+
+##### Target end-state
+- Status: build now
+  - raw leaf `memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
+  - exported wrapper `kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
+  - host proofs for ordinary copy, zero-length, return-pointer behavior, and sentinel-preserving bounds
+  - source/build proofs for wrapper export and release-kernel symbol export
+  - runtime proof that the release path reaches `kfs_memcpy` before `kfs_memset`
+- Status: define now, integrate later
+  - later internal optimization that preserves the same ABI and proof surface
+- Status: future only
+  - overlap-safe movement
+  - arch-specific assembly fast paths
+  - MMIO/device-memory copy helpers
+
+##### Intent
+- Define the kernel’s first ordinary-RAM byte-copy primitive.
+- Keep the contract narrow and honest: valid non-overlapping ranges only.
+- Reuse the `M5.1` family scaffold and low-level ABI rules exactly as the `memcpy` ownership
+  boundary.
+
+##### Architecture decision
+- Decision:
+  - keep `memcpy` behind the memory-family public API and exported wrapper
+  - Why:
+    - callers should depend on the family surface and `kfs_` ABI, not on the leaf implementation
+      directly
+  - Source:
+    - `M5.1` architecture in this repo
+    - OSDev C Library
+  - Immediate consumer:
+    - `kmain` memory sanity path
+  - Future consumer:
+    - `M6` buffer/screen code
+- Decision:
+  - use a plain byte loop as the required completion baseline
+  - Why:
+    - early-kernel correctness and proofability matter more than premature micro-optimization
+  - Source:
+    - repo-derived early-kernel constraint
+  - Immediate consumer:
+    - unit and runtime proofs
+  - Future consumer:
+    - later optimized internal implementation
+- Decision:
+  - keep overlap handling out of `memcpy`
+  - Why:
+    - fake `memmove` semantics would blur the contract and weaken later memory-helper boundaries
+  - Source:
+    - OSDev C Library
+    - repo-derived helper-boundary discipline
+  - Immediate consumer:
+    - host proof cases
+  - Future consumer:
+    - later explicit `memmove` ownership if added
+
+##### Implementation contract
+- Build now:
+  - reuse the `M5.1` helper boundary:
+    - public family entry stays in `src/kernel/memory.rs`
+    - leaf algorithm stays in `src/kernel/memory/memory_impl.rs`
+    - exported low-level wrapper follows the `M5.1` ABI rules for primitive-only signatures
+  - raw leaf: `memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
+  - wrapper/export: `kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
+  - host cases for:
+    - ordinary non-overlapping copy
+    - zero-length copy
+    - destination-pointer return behavior
+    - sentinel-preserving bounds around the target range
+  - source/build checks for:
+    - wrapper export
+    - release-kernel symbol export
+    - no volatile ordinary-RAM reads or writes
+- Define now, integrate later:
+  - later internal optimization hidden behind the same wrapper and proof surface
+- Future only:
+  - overlap-safe movement
+
+##### Data / ABI conventions
+- Inputs:
+  - destination pointer to valid writable ordinary RAM
+  - source pointer to valid readable ordinary RAM
+  - `len` byte count
+- Output:
+  - original destination pointer
+- Required behavioral rules:
+  - copy exactly `len` bytes
+  - preserve bytes outside the requested range
+  - zero-length copy must not write outside the requested range
+- Internal implementation rules:
+  - ordinary reads and writes only
+  - no volatile semantics for ordinary RAM buffers
+  - overlap is out of contract and must not be smuggled in as hidden `memmove`
+
+##### Runtime / integration path
+- `kmain` is the first runtime owner of the `memcpy` sanity path.
+- The release runtime path must call `kfs_memcpy` before `kfs_memset`.
+- The runtime proof must expose `MEMCPY_OK` before the later memory-family success marker.
+
+##### Acceptance criteria
+- The repo exports `kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`.
+- `memcpy` copies exactly the requested byte range for valid non-overlapping ordinary-RAM buffers.
+- Zero-length behavior and destination-pointer return behavior are covered by proof.
+- The running kernel proves that `kfs_memcpy` is reached in the real release path.
+
+##### Proof matrix
+- `UT-M5.3.a-1`
+  - Assertion:
+    - `memcpy` copies bytes correctly on ordinary non-overlapping ranges
+  - Evidence:
+    - `tests/host_memory.rs`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-unit-tests-pass`
+  - Failure caught:
+    - wrong copy direction or wrong byte count
+  - Status:
+    - to add
+- `UT-M5.3.a-2`
+  - Assertion:
+    - zero-length copy and destination-pointer return behavior are correct
+  - Evidence:
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-zero-length-behavior`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-return-pointer-behavior`
+  - Failure caught:
+    - off-by-one writes and wrong public contract
+  - Status:
+    - to add
+- `AT-M5.3.a-3`
+  - Assertion:
+    - sentinel tests catch writes outside the requested range
+  - Evidence:
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-sentinel-bounds`
+  - Failure caught:
+    - out-of-range writes hidden by naive happy-path tests
+  - Status:
+    - to add
+- `WP-M5.3.a-4`
+  - Assertion:
+    - the repo exports `kfs_memcpy` in source and in the release kernel artifact
+  - Evidence:
+    - `scripts/tests/unit/memory-helpers.sh i386 rust-exports-kfs-memcpy`
+    - `scripts/tests/unit/memory-helpers.sh i386 release-kernel-exports-kfs-memcpy`
+  - Failure caught:
+    - helper logic existing only as an internal function with no stable low-level ABI
+  - Status:
+    - to add
+- `SM-M5.3.a-5`
+  - Assertion:
+    - the release runtime path reaches `kfs_memcpy` and emits `MEMCPY_OK`
+  - Evidence:
+    - `scripts/boot-tests/memory-runtime.sh i386 release-kmain-calls-kfs-memcpy`
+    - `scripts/boot-tests/memory-runtime.sh i386 runtime-confirms-memcpy`
+  - Failure caught:
+    - linked helper code that is never executed by the running kernel
+  - Status:
+    - to add
+- `RT-M5.3.a-6`
+  - Assertion:
+    - a broken `memcpy` self-check emits `MEMORY_HELPERS_FAIL` and stops later normal flow
+  - Evidence:
+    - `scripts/rejection-tests/memory-rejections.sh i386 bad-memory-self-check-fails`
+  - Failure caught:
+    - kernel continuing after a foundational memory-copy mismatch
+  - Status:
+    - to add
+
+##### Common bad implementations
+- writing one byte too many at the end of the range
+- returning the wrong pointer value
+- silently treating overlap as supported behavior
+- using volatile ordinary-RAM semantics
+
+##### Explicit exclusions
+- `memcpy` does not define overlap-safe movement.
+- `memcpy` does not promise invalid-pointer recovery.
+- `memcpy` does not define MMIO/device-memory semantics.
+
+##### Source basis
+- `docs/subject.pdf`
+- OSDev C Library: <https://wiki.osdev.org/C_Library>
+- OSDev Sysroot: <https://wiki.osdev.org/Sysroot>
+- OSDev Why do I need a Cross Compiler?: <https://wiki.osdev.org/Why_do_I_need_a_Cross_Compiler>
+
+#### Sub-spec M5.3.b: `memset`
+
+##### Subject basis
+- The subject does not name `memset` explicitly.
+- Repo-derived choice:
+  - once the kernel owns its helper library, a byte-fill primitive is the next foundational helper for
+    later screen and buffer initialization work
+  - `memset` is therefore part of the repo’s scaling contract, not a literal quoted subject item
+
+##### Current repo truth
+- Status: missing now
+  - raw `memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
+  - `kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
+  - `tests/host_memory.rs`
+  - `scripts/tests/unit/memory-helpers.sh`
+  - `scripts/boot-tests/memory-runtime.sh`
+  - `scripts/rejection-tests/memory-rejections.sh`
+  - any runtime path that reaches `kfs_memset`
+
+##### Target end-state
+- Status: build now
+  - raw leaf `memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
+  - exported wrapper `kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
+  - host proofs for ordinary fill, zero-length, return-pointer behavior, and sentinel-preserving bounds
+  - source/build proofs for wrapper export and release-kernel symbol export
+  - runtime proof that the release path reaches `kfs_memset` after `kfs_memcpy`
+- Status: define now, integrate later
+  - later internal optimization that preserves the same ABI and proof surface
+- Status: future only
+  - MMIO/device-memory fill helpers
+  - wider architecture-specific fill paths
+
+##### Intent
+- Define the kernel’s first ordinary-RAM byte-fill primitive.
+- Keep the contract narrow and honest: valid writable ordinary RAM only.
+- Reuse the `M5.1` family scaffold and low-level ABI rules exactly as the `memset` ownership
+  boundary.
+
+##### Architecture decision
+- Decision:
+  - keep `memset` behind the memory-family public API and exported wrapper
+  - Why:
+    - callers should depend on the family surface and `kfs_` ABI, not on the leaf implementation
+      directly
+  - Source:
+    - `M5.1` architecture in this repo
+    - OSDev C Library
+  - Immediate consumer:
+    - `kmain` memory sanity path
+  - Future consumer:
+    - `M6` buffer/screen initialization paths
+- Decision:
+  - use a plain byte loop as the required completion baseline
+  - Why:
+    - the first requirement is visible correctness on ordinary RAM buffers
+  - Source:
+    - repo-derived early-kernel constraint
+  - Immediate consumer:
+    - unit and runtime proofs
+  - Future consumer:
+    - later optimized internal implementation
+- Decision:
+  - keep the fill-byte contract explicit and scalar
+  - Why:
+    - callers need byte fill semantics, not hidden typed or wider-word fill semantics
+  - Source:
+    - OSDev C Library
+    - repo-derived helper-boundary discipline
+  - Immediate consumer:
+    - host proof cases
+  - Future consumer:
+    - later screen/buffer initialization code
+
+##### Implementation contract
+- Build now:
+  - reuse the `M5.1` helper boundary:
+    - public family entry stays in `src/kernel/memory.rs`
+    - leaf algorithm stays in `src/kernel/memory/memory_impl.rs`
+    - exported low-level wrapper follows the `M5.1` ABI rules for primitive-only signatures
+  - raw leaf: `memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
+  - wrapper/export: `kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
+  - host cases for:
+    - ordinary fill
+    - zero-length fill
+    - destination-pointer return behavior
+    - sentinel-preserving bounds around the target range
+    - non-zero fill-byte cases
+  - source/build checks for:
+    - wrapper export
+    - release-kernel symbol export
+    - no volatile ordinary-RAM writes
+- Define now, integrate later:
+  - later internal optimization hidden behind the same wrapper and proof surface
+- Future only:
+  - wider architecture-specific fill paths
+
+##### Data / ABI conventions
+- Inputs:
+  - destination pointer to valid writable ordinary RAM
+  - fill byte value
+  - `len` byte count
+- Output:
+  - original destination pointer
+- Required behavioral rules:
+  - write exactly `len` bytes of the requested byte value
+  - preserve bytes outside the requested range
+  - zero-length fill must not write outside the requested range
+- Internal implementation rules:
+  - ordinary writes only
+  - no volatile semantics for ordinary RAM buffers
+  - fill behavior is byte-oriented, not typed-object initialization
+
+##### Runtime / integration path
+- `kmain` is the first runtime owner of the `memset` sanity path.
+- The release runtime path must call `kfs_memset` after `kfs_memcpy`.
+- The runtime proof must expose `MEMSET_OK` before the later memory-family success marker.
+
+##### Acceptance criteria
+- The repo exports `kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`.
+- `memset` writes exactly the requested byte range for valid ordinary-RAM buffers.
+- Zero-length behavior, non-zero fill-byte behavior, and destination-pointer return behavior are
+  covered by proof.
+- The running kernel proves that `kfs_memset` is reached in the real release path.
+
+##### Proof matrix
+- `UT-M5.3.b-1`
+  - Assertion:
+    - `memset` fills bytes correctly for zero and non-zero byte values
+  - Evidence:
+    - `tests/host_memory.rs`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memset-unit-tests-pass`
+  - Failure caught:
+    - wrong fill value or incomplete range coverage
+  - Status:
+    - to add
+- `UT-M5.3.b-2`
+  - Assertion:
+    - zero-length fill and destination-pointer return behavior are correct
+  - Evidence:
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memset-zero-length-behavior`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memset-return-pointer-behavior`
+  - Failure caught:
+    - off-by-one writes and wrong public contract
+  - Status:
+    - to add
+- `AT-M5.3.b-3`
+  - Assertion:
+    - sentinel tests catch writes outside the requested range
+  - Evidence:
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memset-sentinel-bounds`
+  - Failure caught:
+    - out-of-range writes hidden by naive happy-path tests
+  - Status:
+    - to add
+- `WP-M5.3.b-4`
+  - Assertion:
+    - the repo exports `kfs_memset` in source and in the release kernel artifact
+  - Evidence:
+    - `scripts/tests/unit/memory-helpers.sh i386 rust-exports-kfs-memset`
+    - `scripts/tests/unit/memory-helpers.sh i386 release-kernel-exports-kfs-memset`
+  - Failure caught:
+    - helper logic existing only as an internal function with no stable low-level ABI
+  - Status:
+    - to add
+- `SM-M5.3.b-5`
+  - Assertion:
+    - the release runtime path reaches `kfs_memset` and emits `MEMSET_OK`
+  - Evidence:
+    - `scripts/boot-tests/memory-runtime.sh i386 release-kmain-calls-kfs-memset`
+    - `scripts/boot-tests/memory-runtime.sh i386 runtime-confirms-memset`
+  - Failure caught:
+    - linked helper code that is never executed by the running kernel
+  - Status:
+    - to add
+- `RT-M5.3.b-6`
+  - Assertion:
+    - a broken `memset` self-check emits `MEMORY_HELPERS_FAIL` and stops later normal flow
+  - Evidence:
+    - `scripts/rejection-tests/memory-rejections.sh i386 bad-memory-self-check-fails`
+  - Failure caught:
+    - kernel continuing after a foundational memory-fill mismatch
+  - Status:
+    - to add
+
+##### Common bad implementations
+- writing one byte too many at the end of the range
+- returning the wrong pointer value
+- filling with the wrong byte value on non-zero cases
+- using volatile ordinary-RAM semantics
+
+##### Explicit exclusions
+- `memset` does not promise invalid-pointer recovery.
+- `memset` does not define MMIO/device-memory semantics.
+- `memset` does not define typed-object initialization semantics.
+
+##### Source basis
+- `docs/subject.pdf`
+- OSDev C Library: <https://wiki.osdev.org/C_Library>
+- OSDev Sysroot: <https://wiki.osdev.org/Sysroot>
+- OSDev Why do I need a Cross Compiler?: <https://wiki.osdev.org/Why_do_I_need_a_Cross_Compiler>
 
 #### Integration contract
 - Immediate runtime path:
