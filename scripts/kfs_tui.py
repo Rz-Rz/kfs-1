@@ -254,6 +254,12 @@ def strip_ansi(value: str) -> str:
     return ANSI_ESCAPE.sub("", value)
 
 
+def format_subgroup_title(subgroup: str) -> Optional[str]:
+    if subgroup == "-":
+        return None
+    return subgroup.replace("/", " / ").replace("-", " ").replace("_", " ").upper()
+
+
 def _wrapped_phase_distance(phase: float, center: float) -> float:
     delta = phase - center
     if delta > 0.5:
@@ -340,6 +346,7 @@ def render_ekg(samples: list[float], width: int) -> str:
 @dataclass
 class TestItem:
     section: str
+    subgroup: str
     name: str
     status: str = "wait"
     error_log: list[str] = field(default_factory=list)
@@ -441,25 +448,25 @@ class TestPanel(Vertical):
         with VerticalScroll(id=f"panel_scroll_{self.panel_id}", classes="panel-scroll"):
             yield Static("", id=f"panel_content_{self.panel_id}")
 
-    def declare_item(self, section: str, name: str) -> bool:
-        if self._find_item(section, name) is None:
-            self.items.append(TestItem(section=section, name=name))
+    def declare_item(self, section: str, subgroup: str, name: str) -> bool:
+        if self._find_item(section, subgroup, name) is None:
+            self.items.append(TestItem(section=section, subgroup=subgroup, name=name))
             self._refresh()
             return True
         return False
 
-    def mark_running(self, section: str, name: str) -> None:
-        item = self._get_or_create(section, name)
+    def mark_running(self, section: str, subgroup: str, name: str) -> None:
+        item = self._get_or_create(section, subgroup, name)
         item.status = "run"
         self._refresh()
-        self._scroll_to_item(section, name)
+        self._scroll_to_item(section, subgroup, name)
 
-    def complete_item(self, section: str, name: str, passed: bool, error_log: list[str]) -> None:
-        item = self._get_or_create(section, name)
+    def complete_item(self, section: str, subgroup: str, name: str, passed: bool, error_log: list[str]) -> None:
+        item = self._get_or_create(section, subgroup, name)
         item.status = "pass" if passed else "fail"
         item.error_log = error_log
         self._refresh()
-        self._scroll_to_item(section, name)
+        self._scroll_to_item(section, subgroup, name)
 
     def update_stats(self, heading: str, summary_lines: list[str], state: str) -> None:
         self.heading = heading
@@ -467,21 +474,21 @@ class TestPanel(Vertical):
         self.visual_state = state
         self._apply_visual_state()
 
-    def _find_item(self, section: str, name: str) -> Optional[TestItem]:
+    def _find_item(self, section: str, subgroup: str, name: str) -> Optional[TestItem]:
         for item in self.items:
-            if item.section == section and item.name == name:
+            if item.section == section and item.subgroup == subgroup and item.name == name:
                 return item
         return None
 
-    def _get_or_create(self, section: str, name: str) -> TestItem:
-        item = self._find_item(section, name)
+    def _get_or_create(self, section: str, subgroup: str, name: str) -> TestItem:
+        item = self._find_item(section, subgroup, name)
         if item is None:
-            item = TestItem(section=section, name=name)
+            item = TestItem(section=section, subgroup=subgroup, name=name)
             self.items.append(item)
         return item
 
-    def _scroll_to_item(self, section: str, name: str) -> None:
-        line_index = self._line_index_for_item(section, name)
+    def _scroll_to_item(self, section: str, subgroup: str, name: str) -> None:
+        line_index = self._line_index_for_item(section, subgroup, name)
         if line_index is None:
             return
 
@@ -495,18 +502,25 @@ class TestPanel(Vertical):
             immediate=True,
         )
 
-    def _line_index_for_item(self, section: str, name: str) -> Optional[int]:
+    def _line_index_for_item(self, section: str, subgroup: str, name: str) -> Optional[int]:
         line_index = 0
         current_section = None
+        current_subgroup = None
 
         for item in self.items:
             if item.section != current_section:
                 if current_section is not None:
                     line_index += 1
                 current_section = item.section
+                current_subgroup = None
                 line_index += 1
 
-            if item.section == section and item.name == name:
+            if item.subgroup != current_subgroup:
+                current_subgroup = item.subgroup
+                if format_subgroup_title(item.subgroup) is not None:
+                    line_index += 1
+
+            if item.section == section and item.subgroup == subgroup and item.name == name:
                 return line_index
 
             line_index += 1
@@ -518,12 +532,19 @@ class TestPanel(Vertical):
     def _refresh(self) -> None:
         lines = []
         current_section = None
+        current_subgroup = None
         for item in self.items:
             if item.section != current_section:
                 current_section = item.section
+                current_subgroup = None
                 if lines:
                     lines.append("")
                 lines.append(f"[{AMBER_DIM}]{SECTION_LABELS.get(item.section, item.section)}[/]")
+            if item.subgroup != current_subgroup:
+                current_subgroup = item.subgroup
+                subgroup_title = format_subgroup_title(item.subgroup)
+                if subgroup_title is not None:
+                    lines.append(f"[{AMBER_FAINT}]  {subgroup_title}[/]")
             if item.status == "wait":
                 lines.append(f"[{AMBER_DIM}]· {item.name}[/]")
             elif item.status == "run":
@@ -606,8 +627,9 @@ class KFSApp(App):
         self.expanded_panel: Optional[int] = None
         self.done = False
         self.boot_done = False
-        self.last_failed_item: Optional[tuple[int, str, str]] = None
+        self.last_failed_item: Optional[tuple[int, str, str, str]] = None
         self.pending_error_log: list[str] = []
+        self.seen_protocol_event = False
         self.section_totals: dict[str, int] = {}
         self.section_done: dict[str, int] = {}
         self.section_passed: dict[str, int] = {}
@@ -717,15 +739,19 @@ class KFSApp(App):
         if not stripped or stripped.startswith("=") or stripped == "KFS TESTS" or stripped.startswith("arch:"):
             return
 
+        if self.seen_protocol_event and (stripped.endswith(" PASS") or stripped.endswith(" FAIL")):
+            return
+
         if stripped.endswith(" PASS") or stripped.endswith(" FAIL"):
             passed = stripped.endswith(" PASS")
             name = stripped[:-5].strip()
             section = self.current_section or "SETUP"
+            subgroup = "-"
             panel_index = SECTION_TO_PANEL.get(self.current_section or "SETUP", 0)
             if passed:
-                self.call_from_thread(self._complete_item, panel_index, section, name, True, [])
+                self.call_from_thread(self._complete_item, panel_index, section, subgroup, name, True, [])
             else:
-                self.last_failed_item = (panel_index, section, name)
+                self.last_failed_item = (panel_index, section, subgroup, name)
                 self.pending_error_log = []
             return
 
@@ -735,6 +761,10 @@ class KFSApp(App):
     def _process_event(self, line: str) -> None:
         parts = line.split("|")
         kind = parts[1] if len(parts) > 1 else ""
+        self.seen_protocol_event = True
+
+        if kind != "result":
+            self._flush_pending_item()
 
         if kind == "suite":
             if len(parts) >= 4:
@@ -750,20 +780,42 @@ class KFSApp(App):
             self.current_section = parts[2]
             return
         if kind == "declare" and len(parts) >= 4:
-            section, name = parts[2], parts[3]
+            if len(parts) >= 5:
+                section, subgroup, name = parts[2], parts[3], parts[4]
+            else:
+                section, subgroup, name = parts[2], "-", parts[3]
             self.current_section = section
-            self.call_from_thread(self._declare_item, SECTION_TO_PANEL.get(section, 0), section, name)
+            self.call_from_thread(self._declare_item, SECTION_TO_PANEL.get(section, 0), section, subgroup, name)
             return
         if kind == "start" and len(parts) >= 4:
-            section, name = parts[2], parts[3]
+            if len(parts) >= 5:
+                section, subgroup, name = parts[2], parts[3], parts[4]
+            else:
+                section, subgroup, name = parts[2], "-", parts[3]
             self.current_section = section
-            self.call_from_thread(self._mark_running, SECTION_TO_PANEL.get(section, 0), section, name)
+            self.call_from_thread(self._mark_running, SECTION_TO_PANEL.get(section, 0), section, subgroup, name)
             return
         if kind == "result" and len(parts) >= 5:
-            section, name, status = parts[2], parts[3], parts[4]
+            if len(parts) >= 6:
+                section, subgroup, name, status = parts[2], parts[3], parts[4], parts[5]
+            else:
+                section, subgroup, name, status = parts[2], "-", parts[3], parts[4]
             self.current_section = section
             if status == "pass":
-                self.call_from_thread(self._complete_item, SECTION_TO_PANEL.get(section, 0), section, name, True, [])
+                self._flush_pending_item()
+                self.call_from_thread(
+                    self._complete_item,
+                    SECTION_TO_PANEL.get(section, 0),
+                    section,
+                    subgroup,
+                    name,
+                    True,
+                    [],
+                )
+            elif status == "fail":
+                self._flush_pending_item()
+                self.last_failed_item = (SECTION_TO_PANEL.get(section, 0), section, subgroup, name)
+                self.pending_error_log = []
             return
         if kind == "summary" and len(parts) >= 3:
             self.call_from_thread(self._finish, parts[2] == "pass")
@@ -771,11 +823,11 @@ class KFSApp(App):
     def _flush_pending_item(self) -> None:
         if self.last_failed_item is None:
             return
-        panel_index, section, name = self.last_failed_item
+        panel_index, section, subgroup, name = self.last_failed_item
         log = list(self.pending_error_log)
         self.last_failed_item = None
         self.pending_error_log = []
-        self.call_from_thread(self._complete_item, panel_index, section, name, False, log)
+        self.call_from_thread(self._complete_item, panel_index, section, subgroup, name, False, log)
 
     def _set_suite_total(self, total: int) -> None:
         self.suite_total = total
@@ -787,8 +839,8 @@ class KFSApp(App):
         self._update_bar()
         self._update_panel_summaries()
 
-    def _declare_item(self, panel_index: int, section: str, name: str) -> None:
-        created = self.query_one(f"#panel_{panel_index}", TestPanel).declare_item(section, name)
+    def _declare_item(self, panel_index: int, section: str, subgroup: str, name: str) -> None:
+        created = self.query_one(f"#panel_{panel_index}", TestPanel).declare_item(section, subgroup, name)
         if created:
             self.discovered_total += 1
             if section not in self.section_totals:
@@ -868,19 +920,27 @@ class KFSApp(App):
             cell.update(f"[bold {color}]{glyph}[/]")
             cell.display = True
 
-    def _mark_running(self, panel_index: int, section: str, name: str) -> None:
+    def _mark_running(self, panel_index: int, section: str, subgroup: str, name: str) -> None:
         if self.active_panel != panel_index or self.active_runner_started_at is None:
             self.active_runner_started_at = time.monotonic()
         self.active_panel = panel_index
-        self.query_one(f"#panel_{panel_index}", TestPanel).mark_running(section, name)
+        self.query_one(f"#panel_{panel_index}", TestPanel).mark_running(section, subgroup, name)
         self._update_panel_summaries()
         self._sync_active_runner()
 
-    def _complete_item(self, panel_index: int, section: str, name: str, passed: bool, error_log: list[str]) -> None:
+    def _complete_item(
+        self,
+        panel_index: int,
+        section: str,
+        subgroup: str,
+        name: str,
+        passed: bool,
+        error_log: list[str],
+    ) -> None:
         panel = self.query_one(f"#panel_{panel_index}", TestPanel)
-        item = panel._find_item(section, name)
+        item = panel._find_item(section, subgroup, name)
         previous_status = item.status if item is not None else None
-        panel.complete_item(section, name, passed, error_log)
+        panel.complete_item(section, subgroup, name, passed, error_log)
         if previous_status not in {"pass", "fail"}:
             if passed:
                 self.passed += 1

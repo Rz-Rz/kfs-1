@@ -162,16 +162,17 @@ emit_manifest() {
   done
 
   while IFS=$'\t' read -r current_section subgroup path test_case description; do
-    emit_event "declare" "${current_section}" "${description}"
+    emit_event "declare" "${current_section}" "${subgroup}" "${description}"
   done <"${entries}"
 }
 
 run_item() {
   local section="$1"
-  local title="$2"
-  shift 2
+  local subgroup="$2"
+  local title="$3"
+  shift 3
 
-  emit_event "start" "${section}" "${title}"
+  emit_event "start" "${section}" "${subgroup}" "${title}"
 
   color "1;34"
   printf '%s ' "${title}"
@@ -187,7 +188,7 @@ run_item() {
   if [[ "${rc}" -eq 0 ]]; then
     pass
     printf '\n'
-    emit_event "result" "${section}" "${title}" "pass"
+    emit_event "result" "${section}" "${subgroup}" "${title}" "pass"
     if [[ "${VERBOSE}" == "1" ]]; then
       cat "${log}" | indent
     fi
@@ -197,7 +198,7 @@ run_item() {
 
   fail
   printf '\n'
-  emit_event "result" "${section}" "${title}" "fail"
+  emit_event "result" "${section}" "${subgroup}" "${title}" "fail"
   cat "${log}" | indent
   rm -f "${log}"
   return "${rc}"
@@ -236,7 +237,7 @@ run_section() {
         reset_color
       fi
     fi
-    if ! run_item "${title}" "${description}" bash "${path}" "${ARCH}" "${test_case}"; then
+    if ! run_item "${title}" "${subgroup}" "${description}" bash "${path}" "${ARCH}" "${test_case}"; then
       emit_event "summary" "fail"
       exit 1
     fi
