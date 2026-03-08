@@ -1,15 +1,20 @@
+use super::kernel_types::KernelRange;
+
 pub fn layout_order_is_sane(
-    kernel_lo: usize,
-    kernel_hi: usize,
-    bss_lo: usize,
-    bss_hi: usize,
+    kernel: KernelRange,
+    bss: KernelRange,
     layout_override: bool,
 ) -> bool {
     if layout_override {
         return false;
     }
 
-    kernel_hi > kernel_lo && kernel_lo <= bss_lo && bss_lo <= bss_hi && bss_hi <= kernel_hi
+    let kernel_lo = kernel.start();
+    let kernel_hi = kernel.end();
+    let bss_lo = bss.start();
+    let bss_hi = bss.end();
+
+    !kernel.is_empty() && kernel_lo <= bss_lo && bss_lo <= bss_hi && bss_hi <= kernel_hi
 }
 
 pub fn vga_text_cell(color: u16, byte: u8) -> u16 {
