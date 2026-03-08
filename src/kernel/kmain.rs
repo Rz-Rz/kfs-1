@@ -3,6 +3,10 @@
 
 use core::panic::PanicInfo;
 
+#[path = "kmain/logic_impl.rs"]
+mod kmain_logic;
+use kmain_logic::{layout_order_is_sane, vga_text_cell};
+
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
 const VGA_COLOR_LIGHT_GREEN_ON_BLACK: u16 = 0x02;
 const COM1_DATA: u16 = 0x3f8;
@@ -99,24 +103,21 @@ fn layout_is_sane() -> bool {
     let kernel_hi = core::ptr::addr_of!(kernel_end) as usize;
     let bss_lo = core::ptr::addr_of!(bss_start) as usize;
     let bss_hi = core::ptr::addr_of!(bss_end) as usize;
-    let has_non_empty_kernel = kernel_hi > kernel_lo;
+    let layout_override =
+        unsafe { core::ptr::addr_of!(KFS_M4_LAYOUT_OVERRIDE).read_volatile() != 0 };
 
-    if unsafe { core::ptr::addr_of!(KFS_M4_LAYOUT_OVERRIDE).read_volatile() != 0 } {
-        return false;
-    }
-
-    has_non_empty_kernel && kernel_lo <= bss_lo && bss_lo <= bss_hi && bss_hi <= kernel_hi
+    layout_order_is_sane(kernel_lo, kernel_hi, bss_lo, bss_hi, layout_override)
 }
 
 fn write_42_to_vga() {
     unsafe {
         core::ptr::write_volatile(
             VGA_TEXT_BUFFER,
-            (VGA_COLOR_LIGHT_GREEN_ON_BLACK << 8) | (b'4' as u16),
+            vga_text_cell(VGA_COLOR_LIGHT_GREEN_ON_BLACK, b'4'),
         );
         core::ptr::write_volatile(
             VGA_TEXT_BUFFER.add(1),
-            (VGA_COLOR_LIGHT_GREEN_ON_BLACK << 8) | (b'2' as u16),
+            vga_text_cell(VGA_COLOR_LIGHT_GREEN_ON_BLACK, b'2'),
         );
     }
 }

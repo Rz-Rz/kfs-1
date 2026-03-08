@@ -125,6 +125,37 @@ run_direct_case() {
 }
 ```
 
+## Rust Host Unit Test Rules
+
+Use host-side Rust unit tests only for pure logic.
+
+Good candidates:
+
+- string and memory helpers
+- cursor math
+- layout/order predicates
+- byte/word encoding helpers
+
+Bad candidates:
+
+- port I/O
+- inline ASM
+- GRUB / boot entry flow
+- direct linker-symbol reads whose meaning depends on the final linked kernel image
+- QEMU PASS/FAIL exit plumbing
+
+When a kernel Rust file mixes pure logic with boot/runtime code:
+
+1. Extract the pure logic into a nested implementation file that is not compiled as its own
+   top-level kernel crate, for example `src/kernel/<area>/logic_impl.rs`.
+2. Include that file from the kernel entry file with `#[path = "..."] mod ...;`.
+3. Reuse the same implementation from `tests/host_*.rs` with `include!(...)`.
+4. Add a discoverable shell wrapper in `scripts/tests/` so the host runner can execute the
+   Rust unit tests one behavior at a time.
+
+This keeps host unit tests aligned with the kernel source while avoiding hosted tests for
+code that only makes sense in the booted kernel.
+
 ## How To Add A New Section
 
 If you want a brand new section directory to show up in the host test output, adding the directory alone is not enough.
@@ -212,6 +243,19 @@ them into:
 - `rust-avoids-extern-strlen`
 - `rust-avoids-extern-strcmp`
 - `release-kernel-links-string-helper-marker`
+
+#### `scripts/tests/kmain-logic.sh`
+
+Use this pattern when a Rust kernel file contains a small pure helper layer inside a larger
+boot/runtime path. Extract the pure helper logic, then expose host unit tests as granular
+discoverable cases such as:
+
+- `host-layout-order-unit-tests-pass`
+- `host-vga-cell-unit-tests-pass`
+- `rust-defines-layout-order-check`
+- `rust-defines-vga-text-cell`
+- `rust-kmain-uses-layout-order-check`
+- `rust-kmain-uses-vga-text-cell`
 
 ## Rebase Tips For Older Branches
 
