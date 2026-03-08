@@ -92,7 +92,7 @@ check_range_repr() {
 }
 
 check_wrapper_abi() {
-  find_pattern 'pub[[:space:]]+extern[[:space:]]+"C"[[:space:]]+fn[[:space:]]+kfs_' "$@"
+  find_pattern 'pub[[:space:]]+unsafe[[:space:]]+extern[[:space:]]+"C"[[:space:]]+fn[[:space:]]+kfs_' "$@"
 }
 
 check_private_impl_boundary() {

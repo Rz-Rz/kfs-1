@@ -23,6 +23,7 @@ rust_object_files := $(patsubst src/%.rs, \
 KFS_TEST_FORCE_FAIL ?= 0
 KFS_TEST_DIRTY_BSS ?= 0
 KFS_TEST_BAD_LAYOUT ?= 0
+KFS_TEST_BAD_STRING ?= 0
 
 TEST_ASM_DEFS := -DKFS_TEST=1
 ifeq ($(KFS_TEST_FORCE_FAIL),1)
@@ -33,6 +34,9 @@ TEST_ASM_DEFS += -DKFS_TEST_DIRTY_BSS=1
 endif
 ifeq ($(KFS_TEST_BAD_LAYOUT),1)
 TEST_ASM_DEFS += -DKFS_TEST_BAD_LAYOUT=1
+endif
+ifeq ($(KFS_TEST_BAD_STRING),1)
+TEST_ASM_DEFS += -DKFS_TEST_BAD_STRING=1
 endif
 
 TEST_TIMEOUT_SECS ?= 10
@@ -157,6 +161,7 @@ test-qemu: container-image-force
 		TEST_PASS_RC=$(TEST_PASS_RC) \
 		TEST_FAIL_RC=$(TEST_FAIL_RC) \
 		KFS_TEST_FORCE_FAIL=$(KFS_TEST_FORCE_FAIL) \
+		KFS_TEST_BAD_STRING=$(KFS_TEST_BAD_STRING) \
 		bash scripts/boot-tests/qemu-boot.sh $(arch)
 
 test:

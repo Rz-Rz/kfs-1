@@ -125,7 +125,7 @@ assert_files_exist() {
 
 assert_helper_abi_uses_primitive_types() {
   assert_pattern '#\[no_mangle\]' 'no_mangle helper export' "${STRING_SOURCE}"
-  assert_pattern 'pub[[:space:]]+extern[[:space:]]+"C"[[:space:]]+fn[[:space:]]+kfs_' 'extern C helper export' "${STRING_SOURCE}"
+  assert_pattern 'pub[[:space:]]+unsafe[[:space:]]+extern[[:space:]]+"C"[[:space:]]+fn[[:space:]]+kfs_' 'extern C helper export' "${STRING_SOURCE}"
   assert_no_pattern 'fn[[:space:]]+kfs_[A-Za-z0-9_]+\([^)]*(String|Vec|Option|Result|&|\[[^]]*\])' 'forbidden ABI types in helper exports' "${STRING_SOURCE}"
 }
 
@@ -179,7 +179,7 @@ run_direct_case() {
       ;;
     helper-wrappers-use-extern-c-and-no-mangle)
       assert_pattern '#\[no_mangle\]' 'no_mangle helper wrapper' "${STRING_SOURCE}"
-      assert_pattern 'pub[[:space:]]+extern[[:space:]]+"C"[[:space:]]+fn[[:space:]]+kfs_' 'extern C helper wrapper' "${STRING_SOURCE}"
+      assert_pattern 'pub[[:space:]]+unsafe[[:space:]]+extern[[:space:]]+"C"[[:space:]]+fn[[:space:]]+kfs_' 'extern C helper wrapper' "${STRING_SOURCE}"
       ;;
     helper-private-impl-not-imported-directly)
       assert_private_impl_boundary

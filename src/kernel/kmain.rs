@@ -28,18 +28,24 @@ pub static mut KFS_M4_BSS_CANARY: u32 = 0;
 #[no_mangle]
 pub static mut KFS_M4_LAYOUT_OVERRIDE: u32 = 0;
 
+#[no_mangle]
+pub static mut KFS_M5_STRING_OVERRIDE: u32 = 0;
+
 unsafe extern "C" {
     static kernel_start: u8;
     static kernel_end: u8;
     static bss_start: u8;
     static bss_end: u8;
     static kfs_test_mode: u8;
+    fn kfs_strlen(ptr: *const u8) -> usize;
+    fn kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32;
 }
 
 #[derive(Copy, Clone)]
 enum EarlyInitFailure {
     BssCanary,
     Layout,
+    StringHelpers,
 }
 
 #[panic_handler]
@@ -74,6 +80,7 @@ pub extern "C" fn kmain() -> ! {
         }
         Err(EarlyInitFailure::BssCanary) => runtime_fail("BSS_FAIL"),
         Err(EarlyInitFailure::Layout) => runtime_fail("LAYOUT_FAIL"),
+        Err(EarlyInitFailure::StringHelpers) => runtime_fail("STRING_HELPERS_FAIL"),
     }
 }
 
@@ -92,6 +99,14 @@ fn run_early_init() -> Result<(), EarlyInitFailure> {
 
     if is_test_mode() {
         serial_write_line("LAYOUT_OK");
+    }
+
+    if !string_helpers_are_sane() {
+        return Err(EarlyInitFailure::StringHelpers);
+    }
+
+    if is_test_mode() {
+        serial_write_line("STRING_HELPERS_OK");
     }
 
     Ok(())
@@ -114,6 +129,55 @@ fn layout_is_sane() -> bool {
         unsafe { core::ptr::addr_of!(KFS_M4_LAYOUT_OVERRIDE).read_volatile() != 0 };
 
     layout_order_is_sane(kernel, bss, layout_override)
+}
+
+fn string_helpers_are_sane() -> bool {
+    if string_override_requested() {
+        return false;
+    }
+
+    let empty = [0u8];
+    let embedded = [b'o', b'k', 0, b'x', 0];
+
+    if unsafe { kfs_strlen(empty.as_ptr()) } != 0 {
+        return false;
+    }
+
+    if unsafe { kfs_strlen(embedded.as_ptr()) } != 2 {
+        return false;
+    }
+
+    if is_test_mode() {
+        serial_write_line("STRLEN_OK");
+    }
+
+    let equal = *b"42\0";
+    let prefix = *b"ab\0";
+    let longer = *b"abc\0";
+    let high_lhs = [0x80, 0];
+    let high_rhs = [0x7f, 0];
+
+    if unsafe { kfs_strcmp(equal.as_ptr(), equal.as_ptr()) } != 0 {
+        return false;
+    }
+
+    if unsafe { kfs_strcmp(prefix.as_ptr(), longer.as_ptr()) } >= 0 {
+        return false;
+    }
+
+    if unsafe { kfs_strcmp(high_lhs.as_ptr(), high_rhs.as_ptr()) } <= 0 {
+        return false;
+    }
+
+    if is_test_mode() {
+        serial_write_line("STRCMP_OK");
+    }
+
+    true
+}
+
+fn string_override_requested() -> bool {
+    unsafe { core::ptr::addr_of!(KFS_M5_STRING_OVERRIDE).read_volatile() != 0 }
 }
 
 fn write_42_to_vga() {
