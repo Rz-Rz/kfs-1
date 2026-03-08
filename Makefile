@@ -16,13 +16,14 @@ assembly_object_files_test := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/test/%.o, $(assembly_source_files))
 
 rust_target := i686-unknown-linux-gnu
-rust_source_files := $(wildcard src/rust/*.rs) $(wildcard src/kernel/*.rs)
+rust_source_files := $(wildcard src/rust/*.rs) $(filter-out src/kernel/types.rs,$(wildcard src/kernel/*.rs))
 rust_object_files := $(patsubst src/%.rs, \
 	build/arch/$(arch)/rust/%.o, $(rust_source_files))
 
 KFS_TEST_FORCE_FAIL ?= 0
 KFS_TEST_DIRTY_BSS ?= 0
 KFS_TEST_BAD_LAYOUT ?= 0
+KFS_TEST_BAD_STRING ?= 0
 
 TEST_ASM_DEFS := -DKFS_TEST=1
 ifeq ($(KFS_TEST_FORCE_FAIL),1)
@@ -33,6 +34,9 @@ TEST_ASM_DEFS += -DKFS_TEST_DIRTY_BSS=1
 endif
 ifeq ($(KFS_TEST_BAD_LAYOUT),1)
 TEST_ASM_DEFS += -DKFS_TEST_BAD_LAYOUT=1
+endif
+ifeq ($(KFS_TEST_BAD_STRING),1)
+TEST_ASM_DEFS += -DKFS_TEST_BAD_STRING=1
 endif
 
 TEST_TIMEOUT_SECS ?= 10
@@ -45,6 +49,7 @@ test_ui_python := $(if $(wildcard $(test_ui_venv)/bin/python),$(test_ui_venv)/bi
 	container-image container-image-force container-shell container-env-check \
 	container-all container-iso container-run container-qemu-smoke \
 	container-bootstrap container-smoke \
+	metrics-sync \
 	test test-plain test-ui test-ui-demo test-ui-bootstrap \
 	dev iso-in-container run-in-container \
 	iso-test test-qemu \
@@ -156,6 +161,7 @@ test-qemu: container-image-force
 		TEST_PASS_RC=$(TEST_PASS_RC) \
 		TEST_FAIL_RC=$(TEST_FAIL_RC) \
 		KFS_TEST_FORCE_FAIL=$(KFS_TEST_FORCE_FAIL) \
+		KFS_TEST_BAD_STRING=$(KFS_TEST_BAD_STRING) \
 		bash scripts/boot-tests/qemu-boot.sh $(arch)
 
 test:
@@ -175,7 +181,7 @@ test:
 		exec bash scripts/test-host.sh $(arch)'
 
 test-plain:
-	@bash scripts/test-host.sh $(arch)
+	@$(PYTHON) scripts/kfs_test_runner.py --arch $(arch) --make-target test-plain
 
 test-ui:
 	@KFS_TEST_UI=1 $(MAKE) --no-print-directory test arch=$(arch)
@@ -187,6 +193,9 @@ test-ui-bootstrap:
 	@$(PYTHON) -m venv "$(test_ui_venv)"
 	@"$(test_ui_venv)/bin/python" -m pip install --upgrade pip
 	@"$(test_ui_venv)/bin/pip" install -r requirements.txt
+
+metrics-sync:
+	@$(PYTHON) scripts/kfs_metrics_sync.py
 
 dev: container-shell
 	@true

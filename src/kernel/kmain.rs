@@ -3,15 +3,22 @@
 
 use core::panic::PanicInfo;
 
+#[path = "types.rs"]
+mod kernel_types;
+#[path = "kmain/logic_impl.rs"]
+mod kmain_logic;
+use kernel_types::{KernelRange, Port};
+use kmain_logic::{layout_order_is_sane, vga_text_cell};
+
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
 const VGA_COLOR_LIGHT_GREEN_ON_BLACK: u16 = 0x02;
-const COM1_DATA: u16 = 0x3f8;
-const COM1_INTERRUPT_ENABLE: u16 = COM1_DATA + 1;
-const COM1_FIFO_CONTROL: u16 = COM1_DATA + 2;
-const COM1_LINE_CONTROL: u16 = COM1_DATA + 3;
-const COM1_MODEM_CONTROL: u16 = COM1_DATA + 4;
-const COM1_LINE_STATUS: u16 = COM1_DATA + 5;
-const QEMU_DEBUG_EXIT_PORT: u16 = 0xf4;
+const COM1_DATA: Port = Port::new(0x3f8);
+const COM1_INTERRUPT_ENABLE: Port = COM1_DATA.offset(1);
+const COM1_FIFO_CONTROL: Port = COM1_DATA.offset(2);
+const COM1_LINE_CONTROL: Port = COM1_DATA.offset(3);
+const COM1_MODEM_CONTROL: Port = COM1_DATA.offset(4);
+const COM1_LINE_STATUS: Port = COM1_DATA.offset(5);
+const QEMU_DEBUG_EXIT_PORT: Port = Port::new(0xf4);
 const QEMU_EXIT_PASS: u8 = 0x10;
 const QEMU_EXIT_FAIL: u8 = 0x11;
 
@@ -21,18 +28,24 @@ pub static mut KFS_M4_BSS_CANARY: u32 = 0;
 #[no_mangle]
 pub static mut KFS_M4_LAYOUT_OVERRIDE: u32 = 0;
 
+#[no_mangle]
+pub static mut KFS_M5_STRING_OVERRIDE: u32 = 0;
+
 unsafe extern "C" {
     static kernel_start: u8;
     static kernel_end: u8;
     static bss_start: u8;
     static bss_end: u8;
     static kfs_test_mode: u8;
+    fn kfs_strlen(ptr: *const u8) -> usize;
+    fn kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32;
 }
 
 #[derive(Copy, Clone)]
 enum EarlyInitFailure {
     BssCanary,
     Layout,
+    StringHelpers,
 }
 
 #[panic_handler]
@@ -67,6 +80,7 @@ pub extern "C" fn kmain() -> ! {
         }
         Err(EarlyInitFailure::BssCanary) => runtime_fail("BSS_FAIL"),
         Err(EarlyInitFailure::Layout) => runtime_fail("LAYOUT_FAIL"),
+        Err(EarlyInitFailure::StringHelpers) => runtime_fail("STRING_HELPERS_FAIL"),
     }
 }
 
@@ -87,6 +101,14 @@ fn run_early_init() -> Result<(), EarlyInitFailure> {
         serial_write_line("LAYOUT_OK");
     }
 
+    if !string_helpers_are_sane() {
+        return Err(EarlyInitFailure::StringHelpers);
+    }
+
+    if is_test_mode() {
+        serial_write_line("STRING_HELPERS_OK");
+    }
+
     Ok(())
 }
 
@@ -95,28 +117,78 @@ fn bss_canary_is_zero() -> bool {
 }
 
 fn layout_is_sane() -> bool {
-    let kernel_lo = core::ptr::addr_of!(kernel_start) as usize;
-    let kernel_hi = core::ptr::addr_of!(kernel_end) as usize;
-    let bss_lo = core::ptr::addr_of!(bss_start) as usize;
-    let bss_hi = core::ptr::addr_of!(bss_end) as usize;
-    let has_non_empty_kernel = kernel_hi > kernel_lo;
+    let kernel = KernelRange::new(
+        core::ptr::addr_of!(kernel_start) as usize,
+        core::ptr::addr_of!(kernel_end) as usize,
+    );
+    let bss = KernelRange::new(
+        core::ptr::addr_of!(bss_start) as usize,
+        core::ptr::addr_of!(bss_end) as usize,
+    );
+    let layout_override =
+        unsafe { core::ptr::addr_of!(KFS_M4_LAYOUT_OVERRIDE).read_volatile() != 0 };
 
-    if unsafe { core::ptr::addr_of!(KFS_M4_LAYOUT_OVERRIDE).read_volatile() != 0 } {
+    layout_order_is_sane(kernel, bss, layout_override)
+}
+
+fn string_helpers_are_sane() -> bool {
+    if string_override_requested() {
         return false;
     }
 
-    has_non_empty_kernel && kernel_lo <= bss_lo && bss_lo <= bss_hi && bss_hi <= kernel_hi
+    let empty = [0u8];
+    let embedded = [b'o', b'k', 0, b'x', 0];
+
+    if unsafe { kfs_strlen(empty.as_ptr()) } != 0 {
+        return false;
+    }
+
+    if unsafe { kfs_strlen(embedded.as_ptr()) } != 2 {
+        return false;
+    }
+
+    if is_test_mode() {
+        serial_write_line("STRLEN_OK");
+    }
+
+    let equal = *b"42\0";
+    let prefix = *b"ab\0";
+    let longer = *b"abc\0";
+    let high_lhs = [0x80, 0];
+    let high_rhs = [0x7f, 0];
+
+    if unsafe { kfs_strcmp(equal.as_ptr(), equal.as_ptr()) } != 0 {
+        return false;
+    }
+
+    if unsafe { kfs_strcmp(prefix.as_ptr(), longer.as_ptr()) } >= 0 {
+        return false;
+    }
+
+    if unsafe { kfs_strcmp(high_lhs.as_ptr(), high_rhs.as_ptr()) } <= 0 {
+        return false;
+    }
+
+    if is_test_mode() {
+        serial_write_line("STRCMP_OK");
+    }
+
+    true
+}
+
+fn string_override_requested() -> bool {
+    unsafe { core::ptr::addr_of!(KFS_M5_STRING_OVERRIDE).read_volatile() != 0 }
 }
 
 fn write_42_to_vga() {
     unsafe {
         core::ptr::write_volatile(
             VGA_TEXT_BUFFER,
-            (VGA_COLOR_LIGHT_GREEN_ON_BLACK << 8) | (b'4' as u16),
+            vga_text_cell(VGA_COLOR_LIGHT_GREEN_ON_BLACK, b'4'),
         );
         core::ptr::write_volatile(
             VGA_TEXT_BUFFER.add(1),
-            (VGA_COLOR_LIGHT_GREEN_ON_BLACK << 8) | (b'2' as u16),
+            vga_text_cell(VGA_COLOR_LIGHT_GREEN_ON_BLACK, b'2'),
         );
     }
 }
@@ -170,20 +242,20 @@ fn qemu_exit(code: u8) -> ! {
     halt_forever()
 }
 
-unsafe fn outb(port: u16, value: u8) {
+unsafe fn outb(port: Port, value: u8) {
     core::arch::asm!(
         "out dx, al",
-        in("dx") port,
+        in("dx") port.as_u16(),
         in("al") value,
         options(nomem, nostack, preserves_flags)
     );
 }
 
-unsafe fn inb(port: u16) -> u8 {
+unsafe fn inb(port: Port) -> u8 {
     let value: u8;
     core::arch::asm!(
         "in al, dx",
-        in("dx") port,
+        in("dx") port.as_u16(),
         out("al") value,
         options(nomem, nostack, preserves_flags)
     );

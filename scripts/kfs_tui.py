@@ -12,7 +12,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import math
 import os
 import re
 import subprocess
@@ -26,7 +25,11 @@ from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Grid, Horizontal, Vertical, VerticalScroll
+from textual.geometry import Size
+from textual.widget import Widget
 from textual.widgets import Static
+
+from kfs_metrics import DashboardSnapshot, default_db_path, load_dashboard, repo_root_for
 
 AMBER = "#FFB300"
 AMBER_DIM = "#7A5500"
@@ -42,7 +45,6 @@ BLACK = "#000000"
 ACTIVE_CYCLE_SECS = 5.0
 ACTIVE_SEGMENT_RATIO = 0.10
 RUNNER_TICK_SECS = 0.05
-EKG_TICK_SECS = 0.12
 MAX_ACTIVE_CELLS = 128
 
 CSS = f"""
@@ -52,13 +54,13 @@ Screen {{
 }}
 
 #topbar {{
-    height: 3;
+    height: 2;
     border-bottom: solid {AMBER_DIM};
-    padding: 0 2;
+    padding: 0 1;
 }}
 
 #title {{
-    width: 30;
+    width: 18;
     color: {AMBER_GLOW};
     text-style: bold;
 }}
@@ -68,21 +70,21 @@ Screen {{
 }}
 
 #counter {{
-    width: 24;
-    text-align: right;
+    width: 108;
+    text-align: left;
     color: {AMBER_DIM};
 }}
 
 #grid {{
     grid-size: 2 2;
-    grid-gutter: 1;
+    grid-gutter: 0 1;
     padding: 0 1;
     height: 1fr;
 }}
 
 .panel {{
     border: solid {AMBER_DIM};
-    padding: 0 1;
+    padding: 0;
     layers: base overlay;
 }}
 
@@ -120,7 +122,7 @@ Screen {{
 
 .panel-scroll {{
     height: 1fr;
-    padding: 1 1 1 1;
+    padding: 0;
     layer: base;
 }}
 
@@ -133,10 +135,64 @@ Screen {{
     display: none;
 }}
 
-#ekg_bar {{
-    height: 7;
+#metrics_bar {{
+    height: auto;
     border-top: solid {AMBER_DIM};
+    padding: 0;
+}}
+
+#metrics_layout {{
+    height: auto;
+}}
+
+#metrics_side_label {{
+    width: 8;
+    height: 100%;
+    border-right: double {AMBER_DIM};
     padding: 0 0;
+    color: {AMBER_GLOW};
+    text-style: bold;
+    text-align: center;
+    content-align: center middle;
+}}
+
+#metrics_cards {{
+    height: auto;
+    width: 1fr;
+}}
+
+.metric-card {{
+    width: 1fr;
+    height: auto;
+    border: solid {AMBER_DIM};
+    padding: 0 0;
+    margin: 0;
+    text-align: center;
+    content-align: center top;
+}}
+
+.metric-card:hover {{
+    border: double {AMBER_GLOW};
+}}
+
+.metric-card-good {{
+    border: solid {GREEN_OK};
+}}
+
+.metric-card-warn {{
+    border: solid {AMBER};
+}}
+
+.metric-card-bad {{
+    border: solid {RED_BRIGHT};
+}}
+
+.metric-card-idle {{
+    border: solid {AMBER_DIM};
+}}
+
+.metrics-footer {{
+    display: none;
 }}
 
 #boot_overlay {{
@@ -181,17 +237,6 @@ SECTION_LABELS = {
     "REJECTION TESTS": "REJECTION",
     "BOOT TESTS": "BOOT",
 }
-EKG_MIN_WIDTH = 32
-EKG_ROWS = 5
-EKG_SUBROWS_PER_ROW = 4
-EKG_ZERO_THRESHOLD = 0.02
-HEARTBEAT_KERNEL = [
-    0, 0, 0, 0, 0, 0,
-    -1, -2, -1, 0,
-    1, 0, 2, 1, 3, 2, 4, 3, 2, 1,
-    3, 2, 1, 0, 2, 1, 0, 1, 0,
-    0, 0, 0, 0, 0, 0,
-]
 BOOT_FRAMES = [
     """\
 ╔══════════════════════════════════════════╗
@@ -254,92 +299,16 @@ def strip_ansi(value: str) -> str:
     return ANSI_ESCAPE.sub("", value)
 
 
-def _wrapped_phase_distance(phase: float, center: float) -> float:
-    delta = phase - center
-    if delta > 0.5:
-        delta -= 1.0
-    elif delta < -0.5:
-        delta += 1.0
-    return delta
-
-
-def _gaussian_pulse(phase: float, center: float, width: float, amplitude: float) -> float:
-    delta = _wrapped_phase_distance(phase, center)
-    sigma = max(width, 1e-6)
-    return amplitude * math.exp(-0.5 * (delta / sigma) ** 2)
-
-
-def heartbeat_sample(phase: float) -> float:
-    wrapped = phase % 1.0
-    value = 0.0
-    value += _gaussian_pulse(wrapped, center=0.18, width=0.028, amplitude=0.10)   # P
-    value += _gaussian_pulse(wrapped, center=0.33, width=0.014, amplitude=-0.22)  # Q
-    value += _gaussian_pulse(wrapped, center=0.38, width=0.020, amplitude=0.98)   # R
-    value += _gaussian_pulse(wrapped, center=0.46, width=0.018, amplitude=-0.42)  # S
-    value += _gaussian_pulse(wrapped, center=0.79, width=0.045, amplitude=0.14)   # T
-
-    recovery_phase = wrapped - 0.49
-    if 0.0 <= recovery_phase <= 0.23:
-        envelope = math.exp(-recovery_phase * 9.0)
-        value += 0.18 * envelope * math.sin(2.0 * math.pi * 11.0 * recovery_phase)
-
-    return max(-1.0, min(1.0, value))
-
-
-def render_ekg(samples: list[float], width: int) -> str:
-    chart_width = max(width, EKG_MIN_WIDTH)
-    display = list(samples)[-chart_width:]
-    if len(display) < chart_width:
-        display = ([0.0] * (chart_width - len(display))) + display
-
-    total_subrows = EKG_ROWS * EKG_SUBROWS_PER_ROW
-    center_subrow = total_subrows // 2
-    if not display:
-        return ""
-
-    positions: list[float] = []
-    for value in display:
-        clamped = max(-1.0, min(1.0, value))
-        if abs(clamped) < EKG_ZERO_THRESHOLD:
-            clamped = 0.0
-        positions.append(center_subrow - (clamped * (center_subrow - 1)))
-
-    rows: list[str] = []
-    baseline_cell_row = center_subrow // EKG_SUBROWS_PER_ROW
-    for cell_row in range(EKG_ROWS):
-        line_chars: list[str] = []
-        for x in range(chart_width):
-            position = max(0.0, min(float(total_subrows - 1), positions[x]))
-            cell_position = position / EKG_SUBROWS_PER_ROW
-            point_row = int(cell_position)
-            frac = cell_position - point_row
-
-            if cell_row == baseline_cell_row and abs(position - center_subrow) < 0.55:
-                line_chars.append("▀")
-            elif cell_row != point_row:
-                line_chars.append(" ")
-            elif frac < 0.34:
-                line_chars.append("▀")
-            elif frac > 0.66:
-                line_chars.append("▄")
-            else:
-                prev_pos = positions[x - 1] if x > 0 else position
-                next_pos = positions[x + 1] if x + 1 < chart_width else position
-                if next_pos > prev_pos:
-                    line_chars.append("▐")
-                elif next_pos < prev_pos:
-                    line_chars.append("▌")
-                else:
-                    line_chars.append("▀" if cell_row <= baseline_cell_row else "▄")
-        rows.append("".join(line_chars))
-
-    rendered = "\n".join(rows)
-    return f"[bold {AMBER_GLOW}]{rendered}[/]"
+def format_subgroup_title(subgroup: str) -> Optional[str]:
+    if subgroup == "-":
+        return None
+    return subgroup.replace("/", " / ").replace("-", " ").replace("_", " ").upper()
 
 
 @dataclass
 class TestItem:
     section: str
+    subgroup: str
     name: str
     status: str = "wait"
     error_log: list[str] = field(default_factory=list)
@@ -356,6 +325,40 @@ class BootOverlay(Static):
 class PanicOverlay(Static):
     def compose(self) -> ComposeResult:
         yield Static(f"[{RED_BRIGHT}]{PANIC_ART}[/]")
+
+
+class MetricCardWidget(Widget):
+    can_focus = True
+
+    def __init__(self, card_index: int, **kwargs):
+        super().__init__(**kwargs)
+        self.card_index = card_index
+        self.card_text = f"[{AMBER_DIM}]No data[/]"
+
+    def set_card(self, markup: str, tooltip: Optional[str]) -> None:
+        self.card_text = markup
+        self.tooltip = tooltip
+        self.refresh(layout=True)
+
+    def render(self) -> Text:
+        text = Text.from_markup(self.card_text)
+        text.justify = "center"
+        return text
+
+    def get_content_height(self, container: Size, viewport: Size, width: int) -> int:
+        return self.card_text.count("\n") + 1
+
+    def on_enter(self) -> None:
+        return None
+
+    def on_focus(self) -> None:
+        return None
+
+    def on_leave(self) -> None:
+        return None
+
+    def on_blur(self) -> None:
+        return None
 
 
 class TestPanel(Vertical):
@@ -441,25 +444,25 @@ class TestPanel(Vertical):
         with VerticalScroll(id=f"panel_scroll_{self.panel_id}", classes="panel-scroll"):
             yield Static("", id=f"panel_content_{self.panel_id}")
 
-    def declare_item(self, section: str, name: str) -> bool:
-        if self._find_item(section, name) is None:
-            self.items.append(TestItem(section=section, name=name))
+    def declare_item(self, section: str, subgroup: str, name: str) -> bool:
+        if self._find_item(section, subgroup, name) is None:
+            self.items.append(TestItem(section=section, subgroup=subgroup, name=name))
             self._refresh()
             return True
         return False
 
-    def mark_running(self, section: str, name: str) -> None:
-        item = self._get_or_create(section, name)
+    def mark_running(self, section: str, subgroup: str, name: str) -> None:
+        item = self._get_or_create(section, subgroup, name)
         item.status = "run"
         self._refresh()
-        self._scroll_to_item(section, name)
+        self._scroll_to_item(section, subgroup, name)
 
-    def complete_item(self, section: str, name: str, passed: bool, error_log: list[str]) -> None:
-        item = self._get_or_create(section, name)
+    def complete_item(self, section: str, subgroup: str, name: str, passed: bool, error_log: list[str]) -> None:
+        item = self._get_or_create(section, subgroup, name)
         item.status = "pass" if passed else "fail"
         item.error_log = error_log
         self._refresh()
-        self._scroll_to_item(section, name)
+        self._scroll_to_item(section, subgroup, name)
 
     def update_stats(self, heading: str, summary_lines: list[str], state: str) -> None:
         self.heading = heading
@@ -467,21 +470,21 @@ class TestPanel(Vertical):
         self.visual_state = state
         self._apply_visual_state()
 
-    def _find_item(self, section: str, name: str) -> Optional[TestItem]:
+    def _find_item(self, section: str, subgroup: str, name: str) -> Optional[TestItem]:
         for item in self.items:
-            if item.section == section and item.name == name:
+            if item.section == section and item.subgroup == subgroup and item.name == name:
                 return item
         return None
 
-    def _get_or_create(self, section: str, name: str) -> TestItem:
-        item = self._find_item(section, name)
+    def _get_or_create(self, section: str, subgroup: str, name: str) -> TestItem:
+        item = self._find_item(section, subgroup, name)
         if item is None:
-            item = TestItem(section=section, name=name)
+            item = TestItem(section=section, subgroup=subgroup, name=name)
             self.items.append(item)
         return item
 
-    def _scroll_to_item(self, section: str, name: str) -> None:
-        line_index = self._line_index_for_item(section, name)
+    def _scroll_to_item(self, section: str, subgroup: str, name: str) -> None:
+        line_index = self._line_index_for_item(section, subgroup, name)
         if line_index is None:
             return
 
@@ -495,18 +498,25 @@ class TestPanel(Vertical):
             immediate=True,
         )
 
-    def _line_index_for_item(self, section: str, name: str) -> Optional[int]:
+    def _line_index_for_item(self, section: str, subgroup: str, name: str) -> Optional[int]:
         line_index = 0
         current_section = None
+        current_subgroup = None
 
         for item in self.items:
             if item.section != current_section:
                 if current_section is not None:
                     line_index += 1
                 current_section = item.section
+                current_subgroup = None
                 line_index += 1
 
-            if item.section == section and item.name == name:
+            if item.subgroup != current_subgroup:
+                current_subgroup = item.subgroup
+                if format_subgroup_title(item.subgroup) is not None:
+                    line_index += 1
+
+            if item.section == section and item.subgroup == subgroup and item.name == name:
                 return line_index
 
             line_index += 1
@@ -518,12 +528,19 @@ class TestPanel(Vertical):
     def _refresh(self) -> None:
         lines = []
         current_section = None
+        current_subgroup = None
         for item in self.items:
             if item.section != current_section:
                 current_section = item.section
+                current_subgroup = None
                 if lines:
                     lines.append("")
                 lines.append(f"[{AMBER_DIM}]{SECTION_LABELS.get(item.section, item.section)}[/]")
+            if item.subgroup != current_subgroup:
+                current_subgroup = item.subgroup
+                subgroup_title = format_subgroup_title(item.subgroup)
+                if subgroup_title is not None:
+                    lines.append(f"[{AMBER_FAINT}]  {subgroup_title}[/]")
             if item.status == "wait":
                 lines.append(f"[{AMBER_DIM}]· {item.name}[/]")
             elif item.status == "run":
@@ -543,48 +560,154 @@ class TestPanel(Vertical):
         self.app.toggle_panel(self.panel_id)
 
 
-class EKGBar(Static):
+class MetricsBar(Vertical):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.samples: list[float] = []
-        self.phase = 0.0
-        self.elapsed = 0.0
-        self.event_nudge = 0.0
+        self.cards = []
 
-    def _chart_width(self) -> int:
-        return max(int(self.size.width), EKG_MIN_WIDTH)
+    @staticmethod
+    def _tone_color(tone: str) -> str:
+        if tone == "good":
+            return GREEN_OK
+        if tone == "warn":
+            return AMBER
+        if tone == "bad":
+            return RED_BRIGHT
+        return AMBER_DIM
 
-    def _append_sample(self, value: float) -> None:
-        self.samples.append(max(-1.2, min(1.2, value)))
-        keep = self._chart_width() * 4
-        if len(self.samples) > keep:
-            self.samples = self.samples[-keep:]
+    def compose(self) -> ComposeResult:
+        with Horizontal(id="metrics_layout"):
+            yield Static("D\nO\nR\nA", id="metrics_side_label")
+            with Horizontal(id="metrics_cards"):
+                for index in range(4):
+                    yield MetricCardWidget(index, id=f"metric_card_{index}", classes="metric-card")
 
-    def _next_sample(self) -> float:
-        # Slow sweep so the analytic waveform leaves long flat baseline sections.
-        beat_period = 3.8
-        beat_gain = 1.0
+    def _status_chip(self, card) -> str:
+        color = self._tone_color(card.tone)
+        label = card.tier if card.tone != "idle" else "NO DATA"
+        return f"[black on {color}] {label} [/]"
 
-        self.phase = (self.phase + (RUNNER_TICK_SECS / max(beat_period, 0.7))) % 1.0
-        base = heartbeat_sample(self.phase)
-        baseline_wander = 0.0
+    def _tier_labels(self, card) -> str:
+        color = self._tone_color(card.tone)
+        labels = ["LOW", "MED", "HIGH", "ELITE"]
+        parts = []
+        for label in labels:
+            if label == card.tier and card.tone != "idle":
+                parts.append(f"[bold {color}]{label}[/]")
+            else:
+                parts.append(f"[{AMBER_DIM}]{label}[/]")
+        return "  ".join(parts)
 
-        value = (base * beat_gain) + baseline_wander + self.event_nudge
-        self.event_nudge *= 0.65
-        self.elapsed += RUNNER_TICK_SECS
-        return value
+    @staticmethod
+    def _metric_tooltip(card) -> Text:
+        info = {
+            "DF": (
+                "Deploy Freq",
+                "How often changes land successfully in a green run.",
+                "Higher is better.",
+                "LOW means rare delivery. ELITE means very frequent delivery.",
+            ),
+            "LT": (
+                "Lead Time",
+                "How long a change takes to go from commit to green integration.",
+                "Lower is better.",
+                "LOW means slow delivery. ELITE means changes land quickly.",
+            ),
+            "CFR": (
+                "Change Fail",
+                "How many delivered changes cause a failing run.",
+                "Lower is better.",
+                "LOW means many failures. ELITE means failures are rare.",
+            ),
+            "MTTR": (
+                "MTTR",
+                "How long it takes to recover after a failing run.",
+                "Lower is better.",
+                "LOW means recovery is slow. ELITE means recovery is fast.",
+            ),
+        }
+        title, meaning, direction, tiers = info.get(
+            card.key,
+            (card.label, "Metric definition unavailable.", "", ""),
+        )
+        tooltip = Text()
+        tooltip.append(f"{title}\n", style=f"bold {AMBER_GLOW}")
+        tooltip.append("\n")
+        tooltip.append("WHAT\n", style=f"bold {GREEN_OK}")
+        tooltip.append(f"  {meaning}\n")
+        if direction:
+            tooltip.append("\n")
+            tooltip.append("HOW TO READ\n", style=f"bold {AMBER}")
+            tooltip.append(f"  {direction}\n")
+        if tiers:
+            tooltip.append("\n")
+            tooltip.append("BANDS\n", style=f"bold {AMBER}")
+            tooltip.append(f"  {tiers}\n")
+        tooltip.append("\n")
+        tooltip.append("THRESHOLDS\n", style=f"bold {AMBER_DIM}")
+        tooltip.append(f"  {card.explain}")
+        return tooltip
 
-    def _redraw(self) -> None:
-        self.update(render_ekg(self.samples, self._chart_width()))
+    def _render_threshold_graph(self, card) -> tuple[str, str]:
+        colors = [RED_BRIGHT] * 3 + [AMBER] * 3 + [AMBER_GLOW] * 3 + [GREEN_OK] * 3
+        marker_index = card.gauge.find("◆")
+        scale_parts = []
+        for index, color in enumerate(colors):
+            scale_parts.append(f"[{color}]■[/]")
+        pointer_prefix = " " * max(marker_index, 0)
+        pointer_line = f"{pointer_prefix}[{colors[max(marker_index, 0)]}]▲[/]" if marker_index >= 0 else ""
+        return "".join(scale_parts), pointer_line
 
-    def add_result(self, passed: bool) -> None:
-        self.event_nudge += 0.005 if passed else -0.015
-        self._append_sample(self._next_sample())
-        self._redraw()
+    def _delta_label(self, card) -> str:
+        if card.delta == "flat":
+            return f"[{AMBER_DIM}]=[/]"
+        if card.delta == "n/a":
+            return f"[{AMBER_DIM}]n/a[/]"
+        positive = card.delta.startswith("↑")
+        color = GREEN_OK if positive else RED_BRIGHT
+        return f"[{color}]{card.delta}[/]"
 
-    def tick(self) -> None:
-        self._append_sample(self._next_sample())
-        self._redraw()
+    def _format_card(self, card, baseline_label: str) -> str:
+        color = self._tone_color(card.tone)
+        scale_line, pointer_line = self._render_threshold_graph(card)
+        return (
+            f"[bold {AMBER}]{card.label}[/]\n"
+            f"[bold {color}]{card.value}[/]  {self._delta_label(card)}\n"
+            f"{self._tier_labels(card)}\n"
+            f"{scale_line}\n"
+            f"{pointer_line}"
+        )
+
+    def update_metrics(
+        self,
+        snapshot: DashboardSnapshot,
+        arch: str,
+        active_section: Optional[str],
+        elapsed_seconds: float,
+        passed: int,
+        failed: int,
+        discovered_total: int,
+        suite_total: int,
+        finished: bool,
+    ) -> None:
+        self.cards = list(snapshot.cards)
+
+        for index in range(4):
+            widget = self.query_one(f"#metric_card_{index}", MetricCardWidget)
+            for class_name in ("metric-card-good", "metric-card-warn", "metric-card-bad", "metric-card-idle"):
+                widget.remove_class(class_name)
+
+            if index < len(snapshot.cards):
+                card = snapshot.cards[index]
+                card_text = self._format_card(card, snapshot.baseline_label)
+                widget.set_card(
+                    card_text,
+                    self._metric_tooltip(card),
+                )
+                widget.add_class(f"metric-card-{card.tone}")
+            else:
+                widget.set_card(f"[{AMBER_DIM}]No data[/]", "No metric data yet.")
+                widget.add_class("metric-card-idle")
 
 
 class KFSApp(App):
@@ -606,14 +729,25 @@ class KFSApp(App):
         self.expanded_panel: Optional[int] = None
         self.done = False
         self.boot_done = False
-        self.last_failed_item: Optional[tuple[int, str, str]] = None
+        self.last_failed_item: Optional[tuple[int, str, str, str]] = None
         self.pending_error_log: list[str] = []
+        self.seen_protocol_event = False
         self.section_totals: dict[str, int] = {}
         self.section_done: dict[str, int] = {}
         self.section_passed: dict[str, int] = {}
         self.section_failed: dict[str, int] = {}
         self.active_cells: list[Static] = []
-        self.ekg_tick_accum = 0.0
+        self.repo_root = repo_root_for(__file__)
+        self.db_path = default_db_path(self.repo_root)
+        self.current_branch = "HEAD"
+        self.metrics_snapshot = DashboardSnapshot(
+            scope_branch="pending",
+            scope_state="unknown",
+            baseline_label="pending",
+            assumption="collecting history",
+            cards=[],
+        )
+        self.run_started_at: Optional[float] = None
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
@@ -625,12 +759,23 @@ class KFSApp(App):
                 yield TestPanel(index, title, id=f"panel_{index}", classes="panel")
         for index in range(MAX_ACTIVE_CELLS):
             yield Static("", id=f"active_cell_{index}", classes="active-runner-cell")
-        yield EKGBar(id="ekg_bar")
+        yield MetricsBar(id="metrics_bar")
         yield BootOverlay(id="boot_overlay")
         yield PanicOverlay(id="panic_overlay")
 
     def on_mount(self) -> None:
         self.active_cells = [self.query_one(f"#active_cell_{index}", Static) for index in range(MAX_ACTIVE_CELLS)]
+        self.current_branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=self.repo_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False,
+        ).stdout.strip() or "HEAD"
+        self.run_started_at = time.monotonic()
+        self._update_top_status()
+        self._refresh_metrics_display(reload_snapshot=True)
         self.set_interval(RUNNER_TICK_SECS, self._tick)
         self._boot_and_run()
 
@@ -692,6 +837,7 @@ class KFSApp(App):
     def _hide_boot(self) -> None:
         self.query_one("#boot_overlay").display = False
         self.boot_done = True
+        self._refresh_metrics_display()
 
     def _consume_lines(self, stream) -> None:
         for raw_line in stream:
@@ -717,15 +863,19 @@ class KFSApp(App):
         if not stripped or stripped.startswith("=") or stripped == "KFS TESTS" or stripped.startswith("arch:"):
             return
 
+        if self.seen_protocol_event and (stripped.endswith(" PASS") or stripped.endswith(" FAIL")):
+            return
+
         if stripped.endswith(" PASS") or stripped.endswith(" FAIL"):
             passed = stripped.endswith(" PASS")
             name = stripped[:-5].strip()
             section = self.current_section or "SETUP"
+            subgroup = "-"
             panel_index = SECTION_TO_PANEL.get(self.current_section or "SETUP", 0)
             if passed:
-                self.call_from_thread(self._complete_item, panel_index, section, name, True, [])
+                self.call_from_thread(self._complete_item, panel_index, section, subgroup, name, True, [])
             else:
-                self.last_failed_item = (panel_index, section, name)
+                self.last_failed_item = (panel_index, section, subgroup, name)
                 self.pending_error_log = []
             return
 
@@ -735,6 +885,10 @@ class KFSApp(App):
     def _process_event(self, line: str) -> None:
         parts = line.split("|")
         kind = parts[1] if len(parts) > 1 else ""
+        self.seen_protocol_event = True
+
+        if kind != "result":
+            self._flush_pending_item()
 
         if kind == "suite":
             if len(parts) >= 4:
@@ -750,20 +904,42 @@ class KFSApp(App):
             self.current_section = parts[2]
             return
         if kind == "declare" and len(parts) >= 4:
-            section, name = parts[2], parts[3]
+            if len(parts) >= 5:
+                section, subgroup, name = parts[2], parts[3], parts[4]
+            else:
+                section, subgroup, name = parts[2], "-", parts[3]
             self.current_section = section
-            self.call_from_thread(self._declare_item, SECTION_TO_PANEL.get(section, 0), section, name)
+            self.call_from_thread(self._declare_item, SECTION_TO_PANEL.get(section, 0), section, subgroup, name)
             return
         if kind == "start" and len(parts) >= 4:
-            section, name = parts[2], parts[3]
+            if len(parts) >= 5:
+                section, subgroup, name = parts[2], parts[3], parts[4]
+            else:
+                section, subgroup, name = parts[2], "-", parts[3]
             self.current_section = section
-            self.call_from_thread(self._mark_running, SECTION_TO_PANEL.get(section, 0), section, name)
+            self.call_from_thread(self._mark_running, SECTION_TO_PANEL.get(section, 0), section, subgroup, name)
             return
         if kind == "result" and len(parts) >= 5:
-            section, name, status = parts[2], parts[3], parts[4]
+            if len(parts) >= 6:
+                section, subgroup, name, status = parts[2], parts[3], parts[4], parts[5]
+            else:
+                section, subgroup, name, status = parts[2], "-", parts[3], parts[4]
             self.current_section = section
             if status == "pass":
-                self.call_from_thread(self._complete_item, SECTION_TO_PANEL.get(section, 0), section, name, True, [])
+                self._flush_pending_item()
+                self.call_from_thread(
+                    self._complete_item,
+                    SECTION_TO_PANEL.get(section, 0),
+                    section,
+                    subgroup,
+                    name,
+                    True,
+                    [],
+                )
+            elif status == "fail":
+                self._flush_pending_item()
+                self.last_failed_item = (SECTION_TO_PANEL.get(section, 0), section, subgroup, name)
+                self.pending_error_log = []
             return
         if kind == "summary" and len(parts) >= 3:
             self.call_from_thread(self._finish, parts[2] == "pass")
@@ -771,11 +947,11 @@ class KFSApp(App):
     def _flush_pending_item(self) -> None:
         if self.last_failed_item is None:
             return
-        panel_index, section, name = self.last_failed_item
+        panel_index, section, subgroup, name = self.last_failed_item
         log = list(self.pending_error_log)
         self.last_failed_item = None
         self.pending_error_log = []
-        self.call_from_thread(self._complete_item, panel_index, section, name, False, log)
+        self.call_from_thread(self._complete_item, panel_index, section, subgroup, name, False, log)
 
     def _set_suite_total(self, total: int) -> None:
         self.suite_total = total
@@ -787,8 +963,8 @@ class KFSApp(App):
         self._update_bar()
         self._update_panel_summaries()
 
-    def _declare_item(self, panel_index: int, section: str, name: str) -> None:
-        created = self.query_one(f"#panel_{panel_index}", TestPanel).declare_item(section, name)
+    def _declare_item(self, panel_index: int, section: str, subgroup: str, name: str) -> None:
+        created = self.query_one(f"#panel_{panel_index}", TestPanel).declare_item(section, subgroup, name)
         if created:
             self.discovered_total += 1
             if section not in self.section_totals:
@@ -868,19 +1044,27 @@ class KFSApp(App):
             cell.update(f"[bold {color}]{glyph}[/]")
             cell.display = True
 
-    def _mark_running(self, panel_index: int, section: str, name: str) -> None:
+    def _mark_running(self, panel_index: int, section: str, subgroup: str, name: str) -> None:
         if self.active_panel != panel_index or self.active_runner_started_at is None:
             self.active_runner_started_at = time.monotonic()
         self.active_panel = panel_index
-        self.query_one(f"#panel_{panel_index}", TestPanel).mark_running(section, name)
+        self.query_one(f"#panel_{panel_index}", TestPanel).mark_running(section, subgroup, name)
         self._update_panel_summaries()
         self._sync_active_runner()
 
-    def _complete_item(self, panel_index: int, section: str, name: str, passed: bool, error_log: list[str]) -> None:
+    def _complete_item(
+        self,
+        panel_index: int,
+        section: str,
+        subgroup: str,
+        name: str,
+        passed: bool,
+        error_log: list[str],
+    ) -> None:
         panel = self.query_one(f"#panel_{panel_index}", TestPanel)
-        item = panel._find_item(section, name)
+        item = panel._find_item(section, subgroup, name)
         previous_status = item.status if item is not None else None
-        panel.complete_item(section, name, passed, error_log)
+        panel.complete_item(section, subgroup, name, passed, error_log)
         if previous_status not in {"pass", "fail"}:
             if passed:
                 self.passed += 1
@@ -889,7 +1073,6 @@ class KFSApp(App):
                 self.failed += 1
                 self.section_failed[section] = self.section_failed.get(section, 0) + 1
             self.section_done[section] = self.section_done.get(section, 0) + 1
-            self.query_one("#ekg_bar", EKGBar).add_result(passed)
             self._update_bar()
             self._update_panel_summaries()
 
@@ -902,9 +1085,45 @@ class KFSApp(App):
         self.query_one("#progress_bar", Static).update(
             f"[{color}]{'▓' * filled}{'░' * (40 - filled)}[/] [{AMBER}]{pct}%[/]"
         )
-        fail_part = f"  [{RED_BRIGHT}]{self.failed} fail[/]" if self.failed else ""
+        self._update_top_status()
+        self._refresh_metrics_display()
+
+    def _update_top_status(self) -> None:
+        total = max(self.suite_total or self.discovered_total, self.passed + self.failed, 1)
+        done = self.passed + self.failed
+        active_label = "DONE" if self.done else (self.current_section or "WAITING")
+        elapsed = self._elapsed_seconds()
+        branch_label = self.current_branch
+        if len(branch_label) > 28:
+            branch_label = f"{branch_label[:25]}..."
         self.query_one("#counter", Static).update(
-            f"[{AMBER}]{done}/{total} complete[/]  [{GREEN_OK}]{self.passed} pass[/]{fail_part}"
+            f"[{AMBER}]branch[/]={branch_label}  "
+            f"[{AMBER}]arch[/]={self.arch}  "
+            f"[{AMBER}]elapsed[/]={elapsed:4.1f}s  "
+            f"[{AMBER}]active[/]={active_label}  "
+            f"[{AMBER}]done[/]={done}/{total}  "
+            f"[{GREEN_OK}]pass[/]={self.passed}  "
+            f"[{RED_BRIGHT}]fail[/]={self.failed}"
+        )
+
+    def _elapsed_seconds(self) -> float:
+        if self.run_started_at is None:
+            return 0.0
+        return max(0.0, time.monotonic() - self.run_started_at)
+
+    def _refresh_metrics_display(self, reload_snapshot: bool = False) -> None:
+        if reload_snapshot:
+            self.metrics_snapshot = load_dashboard(self.db_path, self.repo_root, self.current_branch)
+        self.query_one("#metrics_bar", MetricsBar).update_metrics(
+            snapshot=self.metrics_snapshot,
+            arch=self.arch,
+            active_section=self.current_section,
+            elapsed_seconds=self._elapsed_seconds(),
+            passed=self.passed,
+            failed=self.failed,
+            discovered_total=self.discovered_total,
+            suite_total=self.suite_total,
+            finished=self.done,
         )
 
     def _update_panel_summaries(self) -> None:
@@ -938,19 +1157,15 @@ class KFSApp(App):
         self.active_runner_started_at = None
         self.active_panel = None
         self._update_panel_summaries()
+        self._refresh_metrics_display(reload_snapshot=True)
         self._sync_active_runner()
         if not passed:
             self.query_one("#panic_overlay").display = True
 
     def _tick(self) -> None:
         if self.boot_done and not self.done:
-            self.ekg_tick_accum += RUNNER_TICK_SECS
-            if self.ekg_tick_accum >= EKG_TICK_SECS:
-                self.ekg_tick_accum -= EKG_TICK_SECS
-                try:
-                    self.query_one("#ekg_bar", EKGBar).tick()
-                except Exception:
-                    return
+            self._update_top_status()
+            self._refresh_metrics_display()
             self._sync_active_runner()
 
     def toggle_panel(self, panel_id: int) -> None:
