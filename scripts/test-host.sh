@@ -267,13 +267,13 @@ fi
 
 color "1;34"; printf '%s\n' "SETUP"; reset_color
 emit_event "section" "SETUP"
-if ! run_item "SETUP" "Rebuild the container toolchain image" \
+if ! run_item "SETUP" "-" "Rebuild the container toolchain image" \
   env KFS_FORCE_IMAGE_BUILD=1 bash scripts/container.sh build-image; then
   emit_event "summary" "fail"
   exit 1
 fi
 
-if ! run_item "SETUP" "Verify tools exist" \
+if ! run_item "SETUP" "-" "Verify tools exist" \
   bash scripts/container.sh env-check; then
   emit_event "summary" "fail"
   exit 1
