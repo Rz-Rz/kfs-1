@@ -45,6 +45,7 @@ test_ui_python := $(if $(wildcard $(test_ui_venv)/bin/python),$(test_ui_venv)/bi
 	container-image container-image-force container-shell container-env-check \
 	container-all container-iso container-run container-qemu-smoke \
 	container-bootstrap container-smoke \
+	metrics-sync \
 	test test-plain test-ui test-ui-demo test-ui-bootstrap \
 	dev iso-in-container run-in-container \
 	iso-test test-qemu \
@@ -175,7 +176,7 @@ test:
 		exec bash scripts/test-host.sh $(arch)'
 
 test-plain:
-	@bash scripts/test-host.sh $(arch)
+	@$(PYTHON) scripts/kfs_test_runner.py --arch $(arch) --make-target test-plain
 
 test-ui:
 	@KFS_TEST_UI=1 $(MAKE) --no-print-directory test arch=$(arch)
@@ -187,6 +188,9 @@ test-ui-bootstrap:
 	@$(PYTHON) -m venv "$(test_ui_venv)"
 	@"$(test_ui_venv)/bin/python" -m pip install --upgrade pip
 	@"$(test_ui_venv)/bin/pip" install -r requirements.txt
+
+metrics-sync:
+	@$(PYTHON) scripts/kfs_metrics_sync.py
 
 dev: container-shell
 	@true

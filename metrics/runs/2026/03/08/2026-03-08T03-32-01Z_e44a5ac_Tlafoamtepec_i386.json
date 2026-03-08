@@ -1,0 +1,617 @@
+{
+  "arch": "i386",
+  "cases": [
+    {
+      "name": "Rebuild the container toolchain image",
+      "section": "SETUP",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "Verify tools exist",
+      "section": "SETUP",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release ISO is bootable",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release IMG is bootable",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "linker script defines .rodata",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "linker script defines .data",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "linker script defines .bss",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel contains .text",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel contains .rodata",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel contains .data",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel contains .bss",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release rodata marker lands in .rodata",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release data marker lands in .data",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release bss marker lands in .bss",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release .bss is emitted as NOBITS",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "host layout-order unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host VGA text cell unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Rust defines the pure layout-order helper",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Rust defines the VGA text cell helper",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kmain uses the shared layout-order helper",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kmain uses the shared VGA text cell helper",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host strlen unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host strcmp unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Rust defines strlen in the kernel helper module",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Rust defines strcmp in the kernel helper module",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel helper module does not fall back to extern strlen",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel helper module does not fall back to extern strcmp",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "release kernel links kfs_string_helpers_marker",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "linker script captures .rodata subsections",
+      "section": "STABILITY TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "linker script captures .data subsections",
+      "section": "STABILITY TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "linker script captures .bss subsections",
+      "section": "STABILITY TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "linker script captures COMMON symbols",
+      "section": "STABILITY TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rodata subsection marker still lands in .rodata",
+      "section": "STABILITY TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "data subsection marker still lands in .data",
+      "section": "STABILITY TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "bss subsection marker still lands in .bss",
+      "section": "STABILITY TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "COMMON symbol is folded into .bss",
+      "section": "STABILITY TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "allocatable sections stay on the allowlist",
+      "section": "STABILITY TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "test-host publishes a complete TUI manifest before execution",
+      "section": "STABILITY TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects forced .interp / PT_INTERP metadata",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects forced .dynamic metadata",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects an unresolved external symbol",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects libc/dynamic-loader marker strings",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects bss_start before kernel_start",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects bss_end before bss_start",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects kernel_end before bss_end",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects a non-zero BSS canary at runtime",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "dirty BSS failure stops before layout success",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects a bad runtime layout assumption",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "layout failure stops before early-init success",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects missing .text section",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects .text with wrong section type",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects missing .rodata section",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects .rodata with wrong section type",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects missing .data section",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects .data with wrong section type",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects missing .bss section",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "rejects .bss with wrong section type",
+      "section": "REJECTION TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "build the ISO artifact",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "build the IMG artifact",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "kernel includes the Rust marker symbol",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "kernel exposes the ASM entry symbol",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "kernel has no PT_INTERP segment",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "kernel has no .interp section",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "kernel has no .dynamic section",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "kernel has no undefined symbols",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "kernel has no libc marker strings",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "kernel has no loader marker strings",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "Rust kmain path ends in a halt loop",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "ASM boot path provides a halt loop",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "panic handler converges to the halt path",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kmain disassembly contains cli/hlt",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel exports kernel_start",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel exports kernel_end",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel exports bss_start",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel exports bss_end",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel links kfs_layout_symbols_marker",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release layout symbols are monotonic",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "test kernel exports kernel_start",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "test kernel exports kernel_end",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "test kernel exports bss_start",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "test kernel exports bss_end",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "test kernel links kfs_layout_symbols_marker",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "test layout symbols are monotonic",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "Rust declares extern \"C\" layout symbols",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "Rust references kernel_start",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "Rust references kernel_end",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "Rust references bss_start",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "Rust references bss_end",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "GRUB boots the ISO artifact",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "GRUB boots the IMG artifact",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release boot code calls kmain",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel exports kmain",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "runtime reaches Rust kmain",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "runtime confirms BSS starts at zero",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "runtime confirms exported layout bounds",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "runtime completes early init before normal flow",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "runtime markers appear in the expected order",
+      "section": "BOOT TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    }
+  ],
+  "duration_ms": 47574,
+  "exit_code": 0,
+  "failed": 0,
+  "finished_at": "2026-03-08T03:32:01.207427+00:00",
+  "git": {
+    "branch": "feat/5.2-added-strlen-strcmp",
+    "dirty_worktree": true,
+    "first_unique_commit_at": "2026-03-08T01:29:02+01:00",
+    "first_unique_commit_sha": "e1278b8116cf51c17808ea3c542ba1e10e2bb220",
+    "head_commit_at": "2026-03-08T02:10:51+01:00",
+    "head_sha": "e44a5ac284c2c5e42007d7928fbba0457e347ad9",
+    "merge_base_sha": "cbb687c4d5ebe5a5f5fefebec76f6094bf3462da",
+    "protected_branch": "main",
+    "protected_sha": "cbb687c4d5ebe5a5f5fefebec76f6094bf3462da"
+  },
+  "make_target": "test-plain",
+  "passed": 97,
+  "run_id": "2026-03-08T03-32-01Z_e44a5ac_Tlafoamtepec_i386",
+  "schema_version": 1,
+  "section_failed": {},
+  "section_passed": {
+    "BOOT TESTS": 40,
+    "REJECTION TESTS": 19,
+    "SETUP": 2,
+    "STABILITY TESTS": 10,
+    "TESTS": 26
+  },
+  "section_totals": {},
+  "started_at": "2026-03-08T03:31:13.632658+00:00",
+  "suite_total": 97
+}
