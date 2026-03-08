@@ -873,56 +873,1078 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 ## Base Epic M5: Basic Kernel Library (Helpers)
 
-### Feature M5.1: Use Rust native core types (no custom type layer required)
-Implementation tasks:
-- Use Rust primitive/core types directly in kernel code (`usize`, `u8`, `u16`, `u32`, `i32`).
-- Avoid host runtime/headers (`std`, libc), keep kernel code freestanding.
+#### Subject basis
+- Chapter II requires "a basic kernel library, with basics functions and types".
+- Chapter III.2.2 forbids linking the kernel against any existing library on the host.
+- Chapter IV.0.1 says that, once boot/link/basic kernel code exist, the kernel may add helpers
+  such as kernel types and basic functions like `strlen` and `strcmp`.
 
-Acceptance criteria:
-- Kernel code stays freestanding while using native Rust types directly.
+#### Current repo truth
+- Status: exists now
+  - `src/kernel/string.rs`
+  - `src/kernel/string/string_impl.rs`
+  - `tests/host_string.rs`
+  - `scripts/tests/unit/string-helpers.sh`
+- Status: exists now
+  - raw `strlen` and `strcmp` loops exist in `src/kernel/string/string_impl.rs`
+- Status: missing now
+  - `src/kernel/types.rs`
+  - `src/kernel/types/*`
+  - `tests/host_types.rs`
+  - `scripts/tests/unit/type-architecture.sh`
+  - `scripts/boot-tests/type-architecture.sh`
+  - `scripts/rejection-tests/type-architecture-rejections.sh`
+- Status: missing now
+  - `kfs_strlen`
+  - `kfs_strcmp`
+  - any real release-path string-helper integration
+  - `scripts/boot-tests/string-runtime.sh`
+  - `scripts/rejection-tests/string-rejections.sh`
+- Status: missing now
+  - the full memory-helper family:
+    - `src/kernel/memory.rs`
+    - `src/kernel/memory/memory_impl.rs`
+    - `tests/host_memory.rs`
+    - `scripts/tests/unit/memory-helpers.sh`
+    - `scripts/boot-tests/memory-runtime.sh`
+    - `scripts/rejection-tests/memory-rejections.sh`
+- Status: exists now
+  - the current string implementation exports only `kfs_string_helpers_marker`, not the real helper
+    ABI
+- Status: exists now
+  - current host tests cover only basic empty/normal/equality/prefix/ordering cases
+- Status: exists now
+  - current string implementation uses volatile reads for ordinary RAM strings; that is a design
+    mismatch with the intended helper contract
 
-Implementation scope:
-- `RUST` (kernel library)
+#### Target end-state
+- Status: build now
+  - a real in-repo helper layer with explicit module, type, and ABI rules
+  - `M5.1` scaffold and immediate semantic types:
+    - `Port(u16)`
+    - `KernelRange { start, end }`
+  - `M5.2` mandatory string family:
+    - `strlen`
+    - `strcmp`
+    - `kfs_strlen`
+    - `kfs_strcmp`
+  - matching `UT/WP/SM/AT/RT` proof assets for `M5.1` and `M5.2`
+- Status: build now
+  - epic closure also requires `M5.3`:
+    - `memcpy`
+    - `memset`
+    - `kfs_memcpy`
+    - `kfs_memset`
+    - matching `UT/WP/SM/AT/RT` proof assets
+- Status: define now, integrate later
+  - semantic-type ownership for later domains:
+    - `ColorCode(u8)`
+    - `VgaCell(u16)`
+    - `CursorPos { row, col }`
+    - `PhysAddr(usize)`
+    - `VirtAddr(usize)`
+    - `PageFrame(usize)`
+    - `PageCount(usize)`
+    - `Pid(u32)`
+    - `Fd(u32)`
+    - `KernelError`
+- Status: future only
+  - standalone `libk`
+  - allocator-backed helper APIs
+  - user-space-facing helper boundaries
+  - rich text/string abstractions
+  - `memmove` and other non-minimal helper families
 
-Proof / tests (definition of done):
-- WP-M5.1-1 (no std in kernel code): `rg -n "\\bstd::|extern\\s+crate\\s+std\\b" -S src | rg -v "tests?/|host"`
-- WP-M5.1-2 (native core types are used): `rg -n "\\b(usize|u8|u16|u32|i32)\\b" -S src/kernel src/rust`
-- WP-M5.1-3 (build proof): `make arch=i386` succeeds with freestanding settings (no host headers/stdlib linked into the kernel)
+#### Intent
+- Establish the first kernel-owned freestanding helper layer between `M4` and `M6`.
+- Decide the helper-layer architecture once so later families do not reinvent files, ABI, and type
+  rules.
+- Split ownership cleanly:
+  - `M5.1`: scaffold, semantic-type entry point, and low-level ABI conventions
+  - `M5.2`: mandatory string helpers named by the subject
+  - `M5.3`: derived memory helpers needed for later scaling
 
-### Feature M5.2: Minimal string helpers (`strlen`, `strcmp`)
-Implementation tasks:
-- Implement `strlen` and `strcmp` (explicitly mentioned by the subject).
+#### Architecture decision
+- Decision:
+  - Keep the first helper layer inside the kernel tree for KFS_1 rather than introducing a separate
+    `libk` project now.
+  - Why:
+    - the subject requires a kernel-owned library, not a separate package boundary
+  - Source:
+    - `docs/subject.pdf`
+    - OSDev Sysroot
+    - Linux From Scratch
+  - Immediate consumer:
+    - `string`
+  - Future consumer:
+    - `memory`, `screen`, and later subsystems
+- Decision:
+  - Use one public type facade plus domain modules for semantic kernel types.
+  - Why:
+    - later kernel growth needs one discoverable type entry point without collapsing into alias-only
+      noise
+  - Source:
+    - repo-derived from the subject plus OSDev Rust / Port I/O / Printing To Screen
+  - Immediate consumer:
+    - `Port`, `KernelRange`
+  - Future consumer:
+    - VGA, paging, process, and fs layers
+- Decision:
+  - Use one public family file plus one private leaf implementation file per helper family.
+  - Why:
+    - this is the smallest structure that still separates Rust-facing API, exported low-level ABI,
+      and leaf algorithms
+  - Source:
+    - repo-derived from subject constraints plus OSDev Sysroot / C Library guidance
+  - Immediate consumer:
+    - `string`
+  - Future consumer:
+    - `memory` and later helper families
+- Decision:
+  - Keep the low-level helper ABI narrow, explicit, and artifact-verifiable.
+  - Why:
+    - early-kernel exported helpers must stay freestanding, stable, and easy to prove in the final
+      ELF
+  - Source:
+    - `docs/subject.pdf`
+    - OSDev Rust
+    - OSDev C Library
+    - Linux From Scratch
+  - Immediate consumer:
+    - exported `kfs_*` helper symbols
+  - Future consumer:
+    - later ASM/cross-boundary consumers and artifact/runtime proofs
 
-Acceptance criteria:
-- Helpers behave correctly for typical strings used by your screen interface.
+#### Implementation contract
+- Build now:
+  - `M5.1` scaffold and immediate semantic types
+  - `M5.2` full string-helper family
+  - epic closure also requires `M5.3`
+- Define now, integrate later:
+  - later semantic-type ownership and first consumer for screen, memory, process, fs, and shared
+    error domains
+- Future only:
+  - standalone `libk`
+  - richer helper families beyond the minimal kernel foundation
 
-Implementation scope:
-- `RUST` (pure helper functions; unit-testable on host)
+#### Data / ABI conventions
+- Primitive/core-compatible scalar vocabulary:
+  - `usize` for lengths, counts, indices, and address-sized arithmetic
+  - `u8` for bytes, character bytes, fill values, and packed byte fields
+  - `u16` for x86 ports and packed two-byte hardware cells
+  - `u32` for fixed 32-bit hardware/protocol values and later stable kernel IDs
+  - `i32` for tri-state comparison or low-level status returns where sign matters
+  - raw pointers for low-level memory/string boundaries
+- Exported low-level helper ABI rules:
+  - symbol prefix: `kfs_`
+  - `#[no_mangle] pub unsafe extern "C" fn ...`
+  - primitive/core-compatible scalars and raw pointers only
+  - no references, slices, `String`, `Vec`, `Option`, `Result`, trait objects, or allocator-backed
+    types
+- Semantic-type layout rules:
+  - single-scalar semantic wrappers use `#[repr(transparent)]`
+  - multi-field structural types use `#[repr(C)]`
 
-Proof / tests (definition of done):
-- UT-M5.2-1 (host strlen unit tests): `bash scripts/tests/unit/string-helpers.sh i386 host-strlen-unit-tests-pass`
-- UT-M5.2-2 (host strcmp unit tests): `bash scripts/tests/unit/string-helpers.sh i386 host-strcmp-unit-tests-pass`
-- WP-M5.2-3 (release kernel links the helper object): `bash scripts/tests/unit/string-helpers.sh i386 release-kernel-links-string-helper-marker`
-- WP-M5.2-4 (no libc fallback): `bash scripts/tests/unit/string-helpers.sh i386 rust-avoids-extern-strlen && bash scripts/tests/unit/string-helpers.sh i386 rust-avoids-extern-strcmp`
+#### Integration contract
+- Immediate runtime consumers:
+  - serial/port I/O path uses `Port`
+  - runtime layout-span consumers use `KernelRange` instead of naked `(start, end)` pairs
+  - `kmain` owns the first string-helper sanity path until `M6` becomes the first natural string
+    consumer
+  - `kmain` owns the first memory-helper sanity path if `M5.3` exists and no more natural consumer
+    exists yet
+- Next subsystem consumers:
+  - `M6` for VGA-related types and helper consumers
+  - later memory/process/fs subjects for the rest of the semantic type program
+- Ownership boundary:
+  - `M4` still owns early-init/failure-path infrastructure
+  - `M5` owns the helper contracts and their kernel integration points
+  - `M6` owns the first ordinary screen/text consumer
 
-### Feature M5.3: Minimal memory helpers (`memcpy`, `memset`)
-Implementation tasks:
-- Implement `memcpy`/`memset` (not explicitly demanded, but very useful immediately).
+#### Acceptance criteria
+- The repo contains a real in-repo helper layer and not a paper-only helper concept.
+- The helper layer has explicit module, semantic-type, and ABI rules.
+- `M5.1` states exactly what is built now and what is only reserved for later owner epics.
+- `M5.2` is specified as a real release-path dependency, not just linked dead code.
+- `M5.3` is either specified and implemented to the same proof standard or left explicitly open.
+- Current repo truth is kept separate from target end-state.
 
-Acceptance criteria:
-- Used by screen clear/scroll logic later (or verified by simple calls).
+#### Proof matrix
+- `WP-M5-1`
+  - Assertion:
+    - the repo exposes the required helper scaffold and immediate semantic-type facade
+  - Evidence:
+    - `bash scripts/tests/unit/type-architecture.sh i386 helper-boundary-files-exist`
+    - `bash scripts/tests/unit/type-architecture.sh i386 helper-abi-uses-primitive-core-types`
+  - Failure caught:
+    - paper-only helper architecture or undefined low-level ABI rules
+  - Status:
+    - to add
+- `WP-M5-2`
+  - Assertion:
+    - the release kernel exports the mandatory string-helper ABI and the repo avoids hosted string
+      fallbacks
+  - Evidence:
+    - `bash scripts/tests/unit/string-helpers.sh i386 release-kernel-exports-kfs-strlen`
+    - `bash scripts/tests/unit/string-helpers.sh i386 release-kernel-exports-kfs-strcmp`
+    - `bash scripts/tests/unit/string-helpers.sh i386 rust-avoids-extern-strlen`
+    - `bash scripts/tests/unit/string-helpers.sh i386 rust-avoids-extern-strcmp`
+  - Failure caught:
+    - `M5` claimed complete while the final artifact still lacks the real string-helper ABI or
+      still depends on host-library string helpers
+  - Status:
+    - to add
+- `SM-M5-3`
+  - Assertion:
+    - the running kernel reaches the mandatory string-helper path and emits ordered success markers
+  - Evidence:
+    - `bash scripts/boot-tests/string-runtime.sh i386 runtime-confirms-string-helpers`
+    - `bash scripts/boot-tests/string-runtime.sh i386 runtime-string-markers-are-ordered`
+  - Failure caught:
+    - helpers linked but dead in the running kernel or only partially integrated
+  - Status:
+    - to add
 
-Implementation scope:
-- `RUST` (pure helper functions; unit-testable on host)
+#### Common bad implementations
+- Paper-only helper architecture with no real boundaries
+- Helpers linked but not consumed by the running kernel
+- Hosted fallbacks hidden behind the build
+- Cosmetic alias types instead of real semantic kernel types
+- Under-specified helper contracts that later subsystems cannot safely build on
 
-Proof / tests (definition of done):
-- UT-M5.3-1 (host unit tests): create `tests/host_mem.rs` and run `rustc --test -o build/ut_mem tests/host_mem.rs && ./build/ut_mem`
-- WP-M5.3-2 (used from screen code once implemented): `rg -n "\\b(memcpy|memset)\\b" -S src | rg -v "tests?/|host"`
+#### Explicit exclusions
+- `M5` does not own entry, layout/BSS validation, or halt behavior; those remain in `M4`.
+- `M5` does not own the first real screen writer; that remains in `M6`.
+- `M5` does not define a user-space-ready libc or allocator-backed helper layer.
+
+#### Source basis
+- `docs/subject.pdf`
+- OSDev Rust: <https://wiki.osdev.org/Rust>
+- OSDev Sysroot: <https://wiki.osdev.org/Sysroot>
+- OSDev C Library: <https://wiki.osdev.org/C_Library>
+- OSDev Port I/O: <https://wiki.osdev.org/Port_IO>
+- OSDev Printing To Screen: <https://wiki.osdev.org/Printing_To_Screen>
+- OSDev Text Mode Cursor: <https://wiki.osdev.org/Text_Mode_Cursor>
+- OSDev Why do I need a Cross Compiler?: <https://wiki.osdev.org/Why_do_I_need_a_Cross_Compiler>
+- Linux From Scratch book: <https://www.linuxfromscratch.org/lfs/downloads/stable-systemd/LFS-BOOK-13.0-NOCHUNKS.html>
+
+### Feature M5.1: Helper-library scaffold, type architecture, and ABI/data conventions
+
+#### Subject basis
+- The subject requires a basic kernel library with basic functions and types.
+- The subject forbids linking the kernel against host libraries.
+- The subject does not define the helper-module architecture, helper ABI, or kernel-type tree.
+  Those are repo design decisions that must still align with freestanding-kernel constraints.
+
+#### Current repo truth
+- Status: exists now
+  - `src/kernel/string.rs`
+  - `src/kernel/string/string_impl.rs`
+- Status: missing now
+  - `src/kernel/types.rs`
+  - `src/kernel/types/*`
+  - `tests/host_types.rs`
+  - `scripts/tests/unit/type-architecture.sh`
+  - `scripts/boot-tests/type-architecture.sh`
+  - `scripts/rejection-tests/type-architecture-rejections.sh`
+- Status: exists now
+  - the repo already has the start of a public/private helper split for the string family
+- Status: missing now
+  - any explicit type facade
+  - any semantic type implementation
+  - any enforced low-level ABI policy beyond ad hoc current code shape
+
+#### Target end-state
+- Status: build now
+  - `src/kernel/types.rs`
+  - `src/kernel/types/port.rs`
+  - `src/kernel/types/range.rs`
+  - `tests/host_types.rs`
+  - `scripts/tests/unit/type-architecture.sh`
+  - `scripts/boot-tests/type-architecture.sh`
+  - `scripts/rejection-tests/type-architecture-rejections.sh`
+  - a single helper-family layout rule for all current/future helper families
+- Status: define now, integrate later
+  - later semantic-type ownership is recorded, not built here:
+    - VGA domain -> first owner: `M6`
+    - memory domain -> first owner: later memory/paging epic
+    - process domain -> first owner: later task/process epic
+    - fs domain -> first owner: later fs/vfs epic
+    - shared error domain -> first owner: first later epic with multiple recoverable subsystem
+      errors
+- Status: future only
+  - semantic types that are not yet owned by a real subsystem implementation
+  - any alias-only primitive wrapper layer
+
+#### Intent
+- Define the permanent helper-library scaffold that later families plug into.
+- Define the low-level helper ABI once so later helper families follow one convention.
+- Build only the semantic types that have immediate kernel consumers now.
+- Reserve later semantic types explicitly so later epics do not reinvent names and ownership.
+
+#### Architecture decision
+- Decision:
+  - Use one public type facade at `src/kernel/types.rs`.
+  - Why:
+    - the repo needs one discoverable access point for semantic types
+  - Source:
+    - repo-derived from the subject plus OSDev Rust and Sysroot
+  - Immediate consumer:
+    - `Port`, `KernelRange`
+  - Future consumer:
+    - VGA, memory, task, and fs layers
+- Decision:
+  - Keep built-now and reserved-later types separated by domain ownership.
+  - Why:
+    - the feature must tell the reader what to build now without pretending every later domain
+      type already belongs in the tree
+  - Source:
+    - repo-derived from later-kernel scaling constraints plus OSDev Port I/O / VGA guidance
+  - Immediate consumer:
+    - `port`, `range`
+  - Future consumer:
+    - `vga`, `addr`, `page`, `task`, `fs`, `error`
+- Decision:
+  - Use one public family file and one private leaf implementation file per helper family.
+  - Why:
+    - public Rust API, exported low-level ABI, and leaf algorithms must not collapse into one
+      undocumented surface
+  - Source:
+    - repo-derived from subject constraints plus OSDev Sysroot / C Library direction
+  - Immediate consumer:
+    - `string`
+  - Future consumer:
+    - `memory` and later helper families
+- Decision:
+  - Use primitive/core-compatible scalars directly in the low-level ABI and reserve semantic
+    wrappers for real domain meaning.
+  - Why:
+    - alias-only primitive types are noise; real semantic wrappers buy clarity and invariants
+  - Source:
+    - OSDev Rust
+    - repo-derived architectural scaling constraint
+  - Immediate consumer:
+    - helper ABI and `Port` / `KernelRange`
+  - Future consumer:
+    - typed VGA, address, page, task, and fs domains
+
+#### Implementation contract
+- Build now:
+  - `src/kernel/types.rs`
+  - `src/kernel/types/port.rs`
+  - `src/kernel/types/range.rs`
+  - `Port(u16)`
+  - `KernelRange { start, end }`
+  - `tests/host_types.rs`
+  - `scripts/tests/unit/type-architecture.sh`
+  - `scripts/boot-tests/type-architecture.sh`
+  - `scripts/rejection-tests/type-architecture-rejections.sh`
+  - one consistent helper-family naming/layout rule:
+    - family `string` -> `src/kernel/string.rs` + `src/kernel/string/string_impl.rs`
+    - family `memory` -> `src/kernel/memory.rs` + `src/kernel/memory/memory_impl.rs`
+    - any later helper family follows the same `src/kernel/<name>.rs` plus
+      `src/kernel/<name>/<name>_impl.rs` pattern
+- Define now, integrate later:
+  - record later semantic-type ownership only:
+    - VGA domain -> `ColorCode(u8)`, `VgaCell(u16)`, `CursorPos { row, col }` -> `M6`
+    - memory domain -> `PhysAddr(usize)`, `VirtAddr(usize)`, `PageFrame(usize)`,
+      `PageCount(usize)` -> later memory/paging epic
+    - process domain -> `Pid(u32)` -> later task/process epic
+    - fs domain -> `Fd(u32)` -> later fs/vfs epic
+    - shared error domain -> `KernelError` -> later subsystem-error epic
+- Future only:
+  - any semantic type not tied to an owned current or later kernel domain
+
+#### Data / ABI conventions
+- Primitive/core-compatible scalar vocabulary used directly:
+  - `usize`
+  - `u8`
+  - `u16`
+  - `u32`
+  - `i32`
+  - raw pointers
+- Meaning of that vocabulary in this repo:
+  - `usize`: lengths, counts, indices, address-sized arithmetic
+  - `u8`: bytes, character bytes, fill values, packed byte fields
+  - `u16`: x86 ports and packed VGA cells
+  - `u32`: fixed 32-bit hardware/protocol values and later stable kernel IDs
+  - `i32`: tri-state comparison/status values
+  - raw pointers: exported low-level helper boundaries only
+- Exported low-level helper ABI must:
+  - use the `kfs_` prefix
+  - use `#[no_mangle] pub unsafe extern "C" fn ...`
+  - use only primitive/core-compatible scalars and raw pointers
+- Exported low-level helper ABI must not:
+  - expose references
+  - expose slices
+  - expose `String`
+  - expose `Vec`
+  - expose `Option`
+  - expose `Result`
+  - expose trait objects
+  - expose allocator-backed types
+- Semantic-type layout rules:
+  - single-scalar semantic wrappers use `#[repr(transparent)]`
+  - multi-field structural types use `#[repr(C)]`
+  - `Port` is the required built-now transparent wrapper
+  - `KernelRange` is the required built-now C-layout structural type
+
+#### Integration contract
+- Immediate runtime/use path:
+  - serial and x86 port I/O paths consume `Port`
+  - runtime layout-span consumers consume `KernelRange` instead of naked `(start, end)` pairs
+- Deferred runtime/use path:
+  - `M6` consumes VGA-domain types
+  - later memory/process/fs subjects consume the later semantic types
+- Boundary rule:
+  - other kernel code calls public family modules and public semantic types
+  - other kernel code does not import private helper implementation files directly
+
+#### Acceptance criteria
+- The repo has one discoverable type facade and one helper-family layout rule.
+- `Port` and `KernelRange` are real built-now types, not only names in prose.
+- The low-level helper ABI is defined precisely enough that later families can reuse it without
+  guessing.
+- Later semantic types are clearly marked as reserved ownership, not implied present deliverables
+  or placeholder modules to build now.
+- No alias-only primitive layer exists.
+- Other kernel code calls public helper boundaries, not private helper implementation files.
+
+#### Proof matrix
+- `UT-M5.1-1`
+  - Assertion:
+    - `Port` preserves wrapped value and supports register-offset math correctly
+  - Evidence:
+    - `tests/host_types.rs`
+    - `scripts/tests/unit/type-architecture.sh i386 port-host-unit-tests-pass`
+  - Failure caught:
+    - width drift and wrong register-offset behavior
+  - Status:
+    - to add
+- `UT-M5.1-2`
+  - Assertion:
+    - `KernelRange` enforces empty/containment/length semantics correctly
+  - Evidence:
+    - `tests/host_types.rs`
+    - `scripts/tests/unit/type-architecture.sh i386 kernel-range-host-unit-tests-pass`
+  - Failure caught:
+    - off-by-one and bad range-math behavior
+  - Status:
+    - to add
+- `WP-M5.1-3`
+  - Assertion:
+    - the repo exposes the required type facade and helper-family file layout
+  - Evidence:
+    - `scripts/tests/unit/type-architecture.sh i386 helper-boundary-files-exist`
+  - Failure caught:
+    - fake architecture with no discoverable public/private split
+  - Status:
+    - to add
+- `WP-M5.1-4`
+  - Assertion:
+    - the exported helper ABI uses only primitive/core-compatible scalars and raw pointers
+  - Evidence:
+    - `scripts/tests/unit/type-architecture.sh i386 helper-abi-uses-primitive-core-types`
+  - Failure caught:
+    - hosted/allocator-backed types leaking into the low-level ABI
+  - Status:
+    - to add
+- `WP-M5.1-5`
+  - Assertion:
+    - the kernel helper/type layer avoids `std` and alias-only primitive wrappers
+  - Evidence:
+    - `scripts/tests/unit/type-architecture.sh i386 kernel-helper-code-avoids-std`
+    - `scripts/tests/unit/type-architecture.sh i386 no-alias-only-primitive-layer`
+  - Failure caught:
+    - hosted drift and fake type architecture
+  - Status:
+    - to add
+- `WP-M5.1-6`
+  - Assertion:
+    - built-now semantic types and exported helper wrappers keep the required repr and ABI markers
+  - Evidence:
+    - `scripts/tests/unit/type-architecture.sh i386 port-uses-repr-transparent`
+    - `scripts/tests/unit/type-architecture.sh i386 kernel-range-uses-repr-c`
+    - `scripts/tests/unit/type-architecture.sh i386 helper-wrappers-use-extern-c-and-no-mangle`
+  - Failure caught:
+    - layout drift and ABI drift that break later low-level consumers
+  - Status:
+    - to add
+- `SM-M5.1-7`
+  - Assertion:
+    - runtime serial/port and layout paths still work through the built-now semantic types
+  - Evidence:
+    - `scripts/boot-tests/type-architecture.sh i386 runtime-serial-path-works-with-port`
+    - `scripts/boot-tests/type-architecture.sh i386 runtime-layout-path-works-with-kernel-range`
+  - Failure caught:
+    - types defined in isolation but not integrated into real kernel paths
+  - Status:
+    - to add
+- `AT-M5.1-8`
+  - Assertion:
+    - public kernel code does not bypass helper public surfaces or drift back to raw scalar use
+      where `Port` and `KernelRange` are required
+  - Evidence:
+    - `scripts/tests/unit/type-architecture.sh i386 helper-private-impl-not-imported-directly`
+    - `scripts/tests/unit/type-architecture.sh i386 serial-path-uses-port-type`
+    - `scripts/tests/unit/type-architecture.sh i386 layout-path-uses-kernel-range-type`
+  - Failure caught:
+    - architectural collapse of public/private boundaries and semantic-type bypass drift
+  - Status:
+    - to add
+- `RT-M5.1-9`
+  - Assertion:
+    - hosted-type drift, alias-only primitive drift, missing repr markers, and private-helper
+      imports fail the repo gates
+  - Evidence:
+    - `scripts/rejection-tests/type-architecture-rejections.sh i386 std-in-helper-layer-fails`
+    - `scripts/rejection-tests/type-architecture-rejections.sh i386 alias-only-primitive-layer-fails`
+    - `scripts/rejection-tests/type-architecture-rejections.sh i386 port-missing-repr-transparent-fails`
+    - `scripts/rejection-tests/type-architecture-rejections.sh i386 kernel-range-missing-repr-c-fails`
+    - `scripts/rejection-tests/type-architecture-rejections.sh i386 helper-wrapper-missing-extern-c-fails`
+    - `scripts/rejection-tests/type-architecture-rejections.sh i386 private-helper-import-fails`
+  - Failure caught:
+    - the scaffold eroding silently over time
+  - Status:
+    - to add
+
+#### Common bad implementations
+- Saying "use Rust primitives" without defining the helper ABI at all
+- Creating a fake alias-only `types` layer
+- Letting other kernel code import private helper implementation files
+- Creating placeholder modules for later semantic types and pretending that counts as integration
+
+#### Explicit exclusions
+- `M5.1` does not implement string-helper or memory-helper semantics.
+- `M5.1` does not require every later semantic type to be integrated now.
+- `M5.1` does not authorize allocator-backed or hosted abstractions in the low-level helper ABI.
+- `M5.1` does not create placeholder modules for later semantic types just to make the tree look
+  complete.
+
+#### Source basis
+- `docs/subject.pdf`
+- OSDev Rust: <https://wiki.osdev.org/Rust>
+- OSDev Sysroot: <https://wiki.osdev.org/Sysroot>
+- OSDev C Library: <https://wiki.osdev.org/C_Library>
+- OSDev Port I/O: <https://wiki.osdev.org/Port_IO>
+- OSDev Printing To Screen: <https://wiki.osdev.org/Printing_To_Screen>
+- OSDev Text Mode Cursor: <https://wiki.osdev.org/Text_Mode_Cursor>
+- Linux From Scratch book: <https://www.linuxfromscratch.org/lfs/downloads/stable-systemd/LFS-BOOK-13.0-NOCHUNKS.html>
+
+### Feature M5.2: Mandatory string helper family (`strlen`, `strcmp`)
+
+#### Subject basis
+- The subject explicitly names `strlen` and `strcmp`.
+- The subject also forbids solving this by linking against host libraries.
+
+#### Current repo truth
+- Status: exists now
+  - raw `strlen` and `strcmp` loops exist in `src/kernel/string/string_impl.rs`
+  - basic host tests exist in `tests/host_string.rs`
+  - basic unit/source/marker script exists in `scripts/tests/unit/string-helpers.sh`
+- Status: missing now
+  - `kfs_strlen`
+  - `kfs_strcmp`
+  - release-path string-helper integration
+  - `scripts/boot-tests/string-runtime.sh`
+  - `scripts/rejection-tests/string-rejections.sh`
+- Status: exists now
+  - `src/kernel/string.rs` exports only `kfs_string_helpers_marker`
+- Status: exists now
+  - current host tests do not yet cover embedded-NUL stop behavior or high-byte ordering
+- Status: exists now
+  - current implementation uses volatile reads for ordinary RAM strings
+
+#### Target end-state
+- Status: build now
+  - `kfs_strlen`
+  - `kfs_strcmp`
+  - richer host tests covering empty, normal, embedded-NUL, equality, prefix, first-difference,
+    and high-byte ordering cases
+  - `scripts/boot-tests/string-runtime.sh`
+  - `scripts/rejection-tests/string-rejections.sh`
+  - one real release-path helper sanity path until `M6` becomes the natural string consumer
+- Status: define now, integrate later
+  - later screen/text subsystem as the primary ordinary consumer after `M6`
+- Status: future only
+  - null-pointer recovery
+  - unterminated-buffer recovery
+  - user-buffer validation
+  - UTF-8 or rich text semantics
+
+#### Intent
+- Implement the first mandatory reusable helper family in the kernel-owned helper layer.
+- Define an honest string contract for this project stage:
+  valid NUL-terminated byte strings in ordinary kernel-owned RAM.
+- Prove both helper semantics and release-path integration.
+
+#### Architecture decision
+- Decision:
+  - keep the public Rust family API and exported wrappers in `src/kernel/string.rs`
+  - Why:
+    - one file should define the string family’s public/internal kernel surface and exported helper
+      ABI
+  - Source:
+    - repo-derived from M5.1 architecture plus OSDev Sysroot / C Library
+  - Immediate consumer:
+    - `kmain` sanity path
+  - Future consumer:
+    - `M6` screen/text path
+- Decision:
+  - keep the leaf algorithms in `src/kernel/string/string_impl.rs`
+  - Why:
+    - pure helper semantics need an isolated leaf file for unit testing and review
+  - Source:
+    - repo-derived from subject constraints plus OSDev C Library direction
+  - Immediate consumer:
+    - host tests and wrappers
+  - Future consumer:
+    - later string-adjacent helpers
+- Decision:
+  - model these helpers as ordinary RAM byte-string helpers, not MMIO helpers
+  - Why:
+    - string helpers must not blur the line between normal memory and device memory
+  - Source:
+    - OSDev Rust
+    - repo-derived architecture boundary
+  - Immediate consumer:
+    - current kernel strings
+  - Future consumer:
+    - screen/debug/parser code
+- Decision:
+  - specify `strcmp` by sign-compatible ordering, not exact subtraction value
+  - Why:
+    - the kernel needs ordering semantics, not a falsely over-specified arithmetic contract
+  - Source:
+    - repo-derived from the role of `strcmp` plus standard freestanding string behavior
+  - Immediate consumer:
+    - host tests and release sanity path
+  - Future consumer:
+    - later parser/debug/text code
+
+#### Implementation contract
+- Build now:
+  - `src/kernel/string/string_impl.rs`
+    - `strlen(ptr: *const u8) -> usize`
+    - `strcmp(lhs: *const u8, rhs: *const u8) -> i32`
+  - `src/kernel/string.rs`
+    - public Rust family API
+    - `kfs_strlen(ptr: *const u8) -> usize`
+    - `kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32`
+    - optional marker symbol only as secondary proof aid
+  - `tests/host_string.rs`
+  - `scripts/tests/unit/string-helpers.sh`
+  - `scripts/boot-tests/string-runtime.sh`
+  - `scripts/rejection-tests/string-rejections.sh`
+  - one release-path string-helper sanity path owned by `kmain`
+- Define now, integrate later:
+  - `M6` screen/text layer as the first natural subsystem consumer
+- Future only:
+  - richer string/text abstractions
+
+#### Data / ABI conventions
+- `strlen`
+  - input: pointer to a valid NUL-terminated byte string in kernel-owned RAM
+  - output: number of bytes before the first NUL terminator
+- `strcmp`
+  - inputs: pointers to valid NUL-terminated byte strings in kernel-owned RAM
+  - output: `0` for equality, negative for left smaller, positive for left greater
+  - tests must check sign semantics, not exact subtraction magnitude
+- Out of contract:
+  - null pointers
+  - missing terminators
+  - user memory
+  - UTF-8/text semantics
+  - MMIO/device memory
+- Required exported wrapper signatures:
+  - `kfs_strlen(ptr: *const u8) -> usize`
+  - `kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32`
+
+#### Integration contract
+- Immediate runtime path:
+  - `kmain` owns the first release-path helper sanity path until `M6` becomes the natural
+    subsystem consumer
+  - the release path calls `kfs_strlen` first, then `kfs_strcmp`
+  - runtime emits fixed ordered markers:
+    - `STRLEN_OK`
+    - `STRCMP_OK`
+    - `STRING_HELPERS_OK`
+  - any failed string-helper self-check emits `STRING_HELPERS_FAIL` and must stop before the later
+    normal-flow marker
+- Later runtime path:
+  - `M6` becomes the first ordinary subsystem consumer
+- Ownership rule:
+  - `M5.2` may reuse `M4` failure/reporting structure but does not own that structure
+
+#### Acceptance criteria
+- The repo implements kernel-owned `strlen` and `strcmp` with the contracts above.
+- The final kernel exports `kfs_strlen` and `kfs_strcmp`.
+- The release path proves real helper use.
+- The feature explicitly rejects hosted fallbacks and volatile/MMIO string semantics.
+
+#### Proof matrix
+- `UT-M5.2-1`
+  - Assertion:
+    - `strlen` returns correct lengths for empty and ordinary strings
+  - Evidence:
+    - `tests/host_string.rs`
+    - `scripts/tests/unit/string-helpers.sh i386 host-strlen-unit-tests-pass`
+  - Failure caught:
+    - broken loop termination and count logic
+  - Status:
+    - exists now
+- `UT-M5.2-2`
+  - Assertion:
+    - `strcmp` returns correct sign behavior for equality and ordinary ordering
+  - Evidence:
+    - `tests/host_string.rs`
+    - `scripts/tests/unit/string-helpers.sh i386 host-strcmp-unit-tests-pass`
+  - Failure caught:
+    - wrong comparison sign for common cases
+  - Status:
+    - exists now
+- `UT-M5.2-3`
+  - Assertion:
+    - `strlen` stops at the first NUL and `strcmp` behaves correctly on high-byte cases
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 host-strlen-embedded-nul-stops-first`
+    - `scripts/tests/unit/string-helpers.sh i386 host-strcmp-high-byte-ordering`
+  - Failure caught:
+    - scanning past first NUL and signed-byte ordering mistakes
+  - Status:
+    - to add
+- `WP-M5.2-4`
+  - Assertion:
+    - the repo defines the raw string helper functions in the kernel
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 rust-defines-strlen`
+    - `scripts/tests/unit/string-helpers.sh i386 rust-defines-strcmp`
+  - Failure caught:
+    - helpers only existing as external fallbacks
+  - Status:
+    - exists now
+- `WP-M5.2-5`
+  - Assertion:
+    - the repo exports `kfs_strlen` and `kfs_strcmp`
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 rust-exports-kfs-strlen`
+    - `scripts/tests/unit/string-helpers.sh i386 rust-exports-kfs-strcmp`
+  - Failure caught:
+    - no real low-level helper ABI despite the feature claiming one
+  - Status:
+    - to add
+- `WP-M5.2-6`
+  - Assertion:
+    - no hosted fallback is used
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 rust-avoids-extern-strlen`
+    - `scripts/tests/unit/string-helpers.sh i386 rust-avoids-extern-strcmp`
+  - Failure caught:
+    - hidden host-library dependence
+  - Status:
+    - exists now
+- `WP-M5.2-7`
+  - Assertion:
+    - the release kernel exports the real helper ABI
+  - Evidence:
+    - `scripts/tests/unit/string-helpers.sh i386 release-kernel-exports-kfs-strlen`
+    - `scripts/tests/unit/string-helpers.sh i386 release-kernel-exports-kfs-strcmp`
+  - Failure caught:
+    - wrappers defined in source but absent from the artifact
+  - Status:
+    - to add
+- `SM-M5.2-8`
+  - Assertion:
+    - the release path reaches `kfs_strlen` and `kfs_strcmp`
+  - Evidence:
+    - `scripts/boot-tests/string-runtime.sh i386 release-kmain-calls-kfs-strlen`
+    - `scripts/boot-tests/string-runtime.sh i386 release-kmain-calls-kfs-strcmp`
+    - `scripts/boot-tests/string-runtime.sh i386 runtime-confirms-string-helpers`
+  - Failure caught:
+    - helpers linked but dead in the running kernel
+  - Status:
+    - to add
+- `AT-M5.2-9`
+  - Assertion:
+    - runtime markers stay ordered as `STRLEN_OK -> STRCMP_OK -> STRING_HELPERS_OK` and the
+      implementation stays free of volatile ordinary-memory reads
+  - Evidence:
+    - `scripts/boot-tests/string-runtime.sh i386 runtime-string-markers-are-ordered`
+    - `scripts/tests/unit/string-helpers.sh i386 string-helpers-avoid-volatile-reads`
+  - Failure caught:
+    - fake integration proof and wrong memory model for ordinary strings
+  - Status:
+    - to add
+- `RT-M5.2-10`
+  - Assertion:
+    - broken string-helper integration emits `STRING_HELPERS_FAIL` and stops the later normal flow
+  - Evidence:
+    - `scripts/rejection-tests/string-rejections.sh i386 bad-string-self-check-fails`
+    - `scripts/rejection-tests/string-rejections.sh i386 bad-string-stops-before-normal-flow`
+  - Failure caught:
+    - kernel silently continuing after a foundational helper failure
+  - Status:
+    - to add
+
+#### Common bad implementations
+- scanning past the first NUL and still passing trivial strings
+- wrong sign behavior for prefix or high-byte cases
+- wrappers absent from the release artifact
+- helpers reachable only in tests
+- volatile ordinary-memory reads
+
+#### Explicit exclusions
+- `M5.2` does not promise null-pointer handling.
+- `M5.2` does not promise unterminated-buffer recovery.
+- `M5.2` does not define user-buffer safety.
+- `M5.2` does not define UTF-8 or text-format semantics.
+
+#### Source basis
+- `docs/subject.pdf`
+- OSDev Rust: <https://wiki.osdev.org/Rust>
+- OSDev Sysroot: <https://wiki.osdev.org/Sysroot>
+- OSDev C Library: <https://wiki.osdev.org/C_Library>
+- Linux From Scratch book: <https://www.linuxfromscratch.org/lfs/downloads/stable-systemd/LFS-BOOK-13.0-NOCHUNKS.html>
+
+### Feature M5.3: Derived memory helper family (`memcpy`, `memset`)
+
+#### Subject basis
+- The subject does not name `memcpy` and `memset` explicitly.
+- The subject does require a basic kernel library, and later screen/buffer work naturally depends on
+  byte-copy and byte-fill primitives.
+- Therefore `M5.3` is repo-derived scaling scope, not a literal quoted subject item.
+
+#### Current repo truth
+- Status: missing now
+  - `src/kernel/memory.rs`
+  - `src/kernel/memory/memory_impl.rs`
+  - `tests/host_memory.rs`
+  - `scripts/tests/unit/memory-helpers.sh`
+  - `scripts/boot-tests/memory-runtime.sh`
+  - `scripts/rejection-tests/memory-rejections.sh`
+  - any memory-helper runtime integration
+
+#### Target end-state
+- Status: build now
+  - `src/kernel/memory.rs`
+  - `src/kernel/memory/memory_impl.rs`
+  - `tests/host_memory.rs`
+  - `scripts/tests/unit/memory-helpers.sh`
+  - `scripts/boot-tests/memory-runtime.sh`
+  - `scripts/rejection-tests/memory-rejections.sh`
+  - `kfs_memcpy`
+  - `kfs_memset`
+  - one `kmain`-owned runtime sanity path until a more natural buffer consumer exists
+- Status: define now, integrate later
+  - `M6` or the first real buffer consumer as the natural subsystem user
+- Status: future only
+  - `memmove`
+  - allocator-backed buffer abstractions
+  - MMIO/device-memory copy semantics
+
+#### Intent
+- Add the next foundational helper family so later screen and buffer work does not smuggle in hosted
+  assumptions.
+- Keep the contract narrow and honest: valid ordinary RAM buffers only.
+
+#### Architecture decision
+- Decision:
+  - use the same family structure as `M5.2`:
+    - public family file
+    - exported ABI wrappers
+    - private leaf implementation file
+  - Why:
+    - helper families should share one architectural pattern
+  - Source:
+    - repo-derived from `M5.1` plus OSDev Sysroot / C Library
+  - Immediate consumer:
+    - `kmain`-owned runtime sanity path
+  - Future consumer:
+    - screen/buffer code
+- Decision:
+  - use plain byte loops first
+  - Why:
+    - correctness and proofability matter more than premature optimization here
+  - Source:
+    - repo-derived from early-kernel stage constraints
+  - Immediate consumer:
+    - host/unit proof
+  - Future consumer:
+    - later optimized versions if ever justified
+- Decision:
+  - treat `memcpy` as non-overlap-safe and do not smuggle `memmove` semantics into it
+  - Why:
+    - the helper contract must stay honest and minimal
+  - Source:
+    - OSDev C Library
+    - repo-derived helper-boundary discipline
+  - Immediate consumer:
+    - host/unit proof
+  - Future consumer:
+    - later buffer-management code
+
+#### Implementation contract
+- Build now:
+  - `src/kernel/memory/memory_impl.rs`
+    - `memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
+    - `memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
+  - `src/kernel/memory.rs`
+    - public Rust family API
+    - `kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
+    - `kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
+  - `tests/host_memory.rs`
+  - `scripts/tests/unit/memory-helpers.sh`
+  - `scripts/boot-tests/memory-runtime.sh`
+  - `scripts/rejection-tests/memory-rejections.sh`
+  - one `kmain`-owned runtime sanity path until a more natural buffer consumer exists
+- Define now, integrate later:
+  - `M6` and later buffer consumers as the first natural subsystem users
+- Future only:
+  - `memmove` and richer buffer abstractions
+
+#### Data / ABI conventions
+- `memcpy`
+  - inputs: valid non-overlapping ordinary RAM buffers plus `len`
+  - output: original destination pointer
+- `memset`
+  - inputs: valid ordinary RAM buffer, fill byte, and `len`
+  - output: original destination pointer
+- Zero-length operations are valid and must not write outside the requested range.
+- Out of contract:
+  - overlap-safe movement beyond real `memcpy`
+  - invalid-pointer recovery
+  - MMIO/device semantics
+  - allocator behavior
+- Required exported wrapper signatures:
+  - `kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
+  - `kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
+
+#### Integration contract
+- Immediate runtime path:
+  - until a natural buffer consumer exists, `kmain` owns one fixed runtime sanity path
+  - that path calls `kfs_memcpy` first, then `kfs_memset`
+  - runtime emits fixed ordered markers:
+    - `MEMCPY_OK`
+    - `MEMSET_OK`
+    - `MEMORY_HELPERS_OK`
+  - any failed memory-helper self-check emits `MEMORY_HELPERS_FAIL` and must stop before the later
+    normal-flow marker
+- Later runtime path:
+  - `M6` and later buffer-management code become ordinary consumers
+
+#### Acceptance criteria
+- The repo implements kernel-owned `memcpy` and `memset` with the contracts above.
+- The final kernel exports `kfs_memcpy` and `kfs_memset`.
+- Zero-length and sentinel-style edge cases are covered.
+- The feature explicitly rejects hosted fallbacks, MMIO semantics, and fake `memmove` behavior.
+
+#### Proof matrix
+- `UT-M5.3-1`
+  - Assertion:
+    - `memcpy` copies bytes correctly on valid non-overlapping ranges
+  - Evidence:
+    - `tests/host_memory.rs`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-unit-tests-pass`
+  - Failure caught:
+    - wrong copy semantics
+  - Status:
+    - to add
+- `UT-M5.3-2`
+  - Assertion:
+    - `memset` fills bytes correctly
+  - Evidence:
+    - `tests/host_memory.rs`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memset-unit-tests-pass`
+  - Failure caught:
+    - wrong fill semantics
+  - Status:
+    - to add
+- `UT-M5.3-3`
+  - Assertion:
+    - zero-length operations and destination-pointer return behavior are correct
+  - Evidence:
+    - `tests/host_memory.rs`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memory-zero-length-behavior`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memory-return-pointer-behavior`
+  - Failure caught:
+    - off-by-one writes and wrong return values
+  - Status:
+    - to add
+- `WP-M5.3-4`
+  - Assertion:
+    - the repo exports `kfs_memcpy` and `kfs_memset` and avoids hosted fallbacks
+  - Evidence:
+    - `scripts/tests/unit/memory-helpers.sh i386 rust-exports-kfs-memcpy`
+    - `scripts/tests/unit/memory-helpers.sh i386 rust-exports-kfs-memset`
+    - `scripts/tests/unit/memory-helpers.sh i386 rust-avoids-extern-memcpy`
+    - `scripts/tests/unit/memory-helpers.sh i386 rust-avoids-extern-memset`
+  - Failure caught:
+    - missing helper ABI or hidden host-library dependence
+  - Status:
+    - to add
+- `SM-M5.3-5`
+  - Assertion:
+    - the running kernel reaches the memory-helper path
+  - Evidence:
+    - `scripts/boot-tests/memory-runtime.sh i386 release-kmain-calls-kfs-memcpy`
+    - `scripts/boot-tests/memory-runtime.sh i386 release-kmain-calls-kfs-memset`
+    - `scripts/boot-tests/memory-runtime.sh i386 runtime-confirms-memory-helpers`
+  - Failure caught:
+    - helpers linked but dead in the running kernel
+  - Status:
+    - to add
+- `AT-M5.3-6`
+  - Assertion:
+    - sentinel tests catch out-of-range writes, runtime markers stay ordered as
+      `MEMCPY_OK -> MEMSET_OK -> MEMORY_HELPERS_OK`, and the implementation avoids volatile
+      ordinary-RAM semantics
+  - Evidence:
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-sentinel-bounds`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memset-sentinel-bounds`
+    - `scripts/tests/unit/memory-helpers.sh i386 memory-helpers-avoid-volatile-writes`
+    - `scripts/boot-tests/memory-runtime.sh i386 runtime-memory-markers-are-ordered`
+  - Failure caught:
+    - hidden off-by-one bugs and wrong memory model
+  - Status:
+    - to add
+- `RT-M5.3-7`
+  - Assertion:
+    - broken memory-helper integration emits `MEMORY_HELPERS_FAIL` and stops the later normal flow
+  - Evidence:
+    - `scripts/rejection-tests/memory-rejections.sh i386 bad-memory-self-check-fails`
+    - `scripts/rejection-tests/memory-rejections.sh i386 bad-memory-stops-before-normal-flow`
+  - Failure caught:
+    - kernel silently continuing after a foundational memory-helper failure
+  - Status:
+    - to add
+
+#### Common bad implementations
+- treating `memcpy` as overlap-safe `memmove`
+- off-by-one writes hidden until sentinel checks exist
+- wrong destination-pointer return behavior
+- volatile semantics for ordinary RAM helpers
+- helpers linked but never executed by the running kernel
+
+#### Explicit exclusions
+- `M5.3` does not define `memmove`.
+- `M5.3` does not promise invalid-pointer recovery.
+- `M5.3` does not define MMIO/device-memory copy semantics.
+- `M5.3` does not define allocation or ownership semantics.
+
+#### Source basis
+- `docs/subject.pdf`
+- OSDev Sysroot: <https://wiki.osdev.org/Sysroot>
+- OSDev C Library: <https://wiki.osdev.org/C_Library>
+- OSDev Why do I need a Cross Compiler?: <https://wiki.osdev.org/Why_do_I_need_a_Cross_Compiler>
+- Linux From Scratch book: <https://www.linuxfromscratch.org/lfs/downloads/stable-systemd/LFS-BOOK-13.0-NOCHUNKS.html>
 
 ### Definition of Done (M5)
-- `strlen/strcmp (+ memcpy/memset)` exist in a "kernel library" location and are used by kernel code.
-- Kernel code is allowed to use Rust native core types directly (no mandatory custom type module).
-- No host libc functions are used for these basics.
+- `M5.1` defines and builds the helper scaffold, immediate semantic types, and ABI/data conventions.
+- `M5.2` builds the subject-explicit string family with meaningful `UT/WP/SM/AT/RT` coverage.
+- `M5.3` either builds the derived memory family to the same standard or remains the only explicitly
+  named incomplete part of the epic.
+- `M5` is not considered complete if current repo truth and target end-state are blurred together.
+- `M5` is not considered complete if proof items are listed without failure modes or status.
 
 ---
 
