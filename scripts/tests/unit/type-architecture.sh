@@ -132,11 +132,19 @@ assert_helper_abi_uses_primitive_types() {
 assert_private_impl_boundary() {
   local offenders
 
-  offenders="$(
-    find src/kernel -type f -name '*.rs' -print0 |
-      xargs -0 rg -n '(string/string_impl|memory/memory_impl)\.rs' -S 2>/dev/null |
-      grep -vE '^src/kernel/(string|memory)\.rs:' || true
-  )"
+  if command -v rg >/dev/null 2>&1; then
+    offenders="$(
+      find src/kernel -type f -name '*.rs' -print0 |
+        xargs -0 rg -n '(string/string_impl|memory/memory_impl)\.rs' -S 2>/dev/null |
+        grep -vE '^src/kernel/(string|memory)\.rs:' || true
+    )"
+  else
+    offenders="$(
+      find src/kernel -type f -name '*.rs' -print0 |
+        xargs -0 grep -En '(string/string_impl|memory/memory_impl)\.rs' 2>/dev/null |
+        grep -vE '^src/kernel/(string|memory)\.rs:' || true
+    )"
+  fi
 
   if [[ -n "${offenders}" ]]; then
     echo "FAIL src: found private helper import outside public boundary file"

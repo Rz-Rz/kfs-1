@@ -900,7 +900,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - a real release-path string-helper integration in `src/kernel/kmain.rs`
   - `scripts/boot-tests/string-runtime.sh`
   - `scripts/rejection-tests/string-rejections.sh`
-- Status: missing now
+- Status: exists now
   - the full memory-helper family:
     - `src/kernel/memory.rs`
     - `src/kernel/memory/memory_impl.rs`
@@ -908,6 +908,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
     - `scripts/tests/unit/memory-helpers.sh`
     - `scripts/boot-tests/memory-runtime.sh`
     - `scripts/rejection-tests/memory-rejections.sh`
+  - a real release-path memory-helper integration in `src/kernel/kmain.rs`
 - Status: exists now
   - the current string implementation exports the real helper ABI:
     - `kfs_strlen`
@@ -917,6 +918,11 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
     ordering cases
 - Status: exists now
   - current string implementation uses ordinary reads for ordinary RAM strings
+- Status: exists now
+  - current memory host tests cover ordinary copy/fill, zero-byte fill, zero-length behavior,
+    return-pointer behavior, same-pointer copy, unaligned copy, and sentinel-preserving bounds
+- Status: exists now
+  - current memory implementation uses ordinary reads and writes for ordinary RAM buffers
 
 #### Target end-state
 - Status: build now
@@ -1067,7 +1073,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 - The helper layer has explicit module, semantic-type, and ABI rules.
 - `M5.1` states exactly what is built now and what is only reserved for later owner epics.
 - `M5.2` is specified as a real release-path dependency, not just linked dead code.
-- `M5.3` is either specified and implemented to the same proof standard or left explicitly open.
+- `M5.3` is specified and implemented to the same proof standard as `M5.2`.
 - Current repo truth is kept separate from target end-state.
 
 #### Proof matrix
@@ -1080,31 +1086,38 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - paper-only helper architecture or undefined low-level ABI rules
   - Status:
-    - to add
+    - exists now
 - `WP-M5-2`
   - Assertion:
-    - the release kernel exports the mandatory string-helper ABI and the repo avoids hosted string
+    - the release kernel exports the mandatory helper ABI and the repo avoids hosted helper
       fallbacks
   - Evidence:
     - `bash scripts/tests/unit/string-helpers.sh i386 release-kernel-exports-kfs-strlen`
     - `bash scripts/tests/unit/string-helpers.sh i386 release-kernel-exports-kfs-strcmp`
     - `bash scripts/tests/unit/string-helpers.sh i386 rust-avoids-extern-strlen`
     - `bash scripts/tests/unit/string-helpers.sh i386 rust-avoids-extern-strcmp`
+    - `bash scripts/tests/unit/memory-helpers.sh i386 release-kernel-exports-kfs-memcpy`
+    - `bash scripts/tests/unit/memory-helpers.sh i386 release-kernel-exports-kfs-memset`
+    - `bash scripts/tests/unit/memory-helpers.sh i386 rust-avoids-extern-memcpy`
+    - `bash scripts/tests/unit/memory-helpers.sh i386 rust-avoids-extern-memset`
   - Failure caught:
-    - `M5` claimed complete while the final artifact still lacks the real string-helper ABI or
-      still depends on host-library string helpers
+    - `M5` claimed complete while the final artifact still lacks the real helper ABI or still
+      depends on host-library helpers
   - Status:
-    - to add
+    - exists now
 - `SM-M5-3`
   - Assertion:
-    - the running kernel reaches the mandatory string-helper path and emits ordered success markers
+    - the running kernel reaches the mandatory string-helper and memory-helper paths and emits
+      ordered success markers
   - Evidence:
     - `bash scripts/boot-tests/string-runtime.sh i386 runtime-confirms-string-helpers`
     - `bash scripts/boot-tests/string-runtime.sh i386 runtime-string-markers-are-ordered`
+    - `bash scripts/boot-tests/memory-runtime.sh i386 runtime-confirms-memory-helpers`
+    - `bash scripts/boot-tests/memory-runtime.sh i386 runtime-memory-markers-are-ordered`
   - Failure caught:
     - helpers linked but dead in the running kernel or only partially integrated
   - Status:
-    - to add
+    - exists now
 
 #### Common bad implementations
 - Paper-only helper architecture with no real boundaries
@@ -2147,14 +2160,14 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 - Therefore `M5.3` is repo-derived scaling scope, not a literal quoted subject item.
 
 #### Current repo truth
-- Status: missing now
+- Status: exists now
   - `src/kernel/memory.rs`
   - `src/kernel/memory/memory_impl.rs`
   - `tests/host_memory.rs`
   - `scripts/tests/unit/memory-helpers.sh`
   - `scripts/boot-tests/memory-runtime.sh`
   - `scripts/rejection-tests/memory-rejections.sh`
-  - any memory-helper runtime integration
+  - one `kmain`-owned runtime sanity path that reaches `kfs_memcpy` before `kfs_memset`
 
 #### Target end-state
 - Status: build now
@@ -2278,14 +2291,14 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `memcpy` is therefore part of the repo’s scaling contract, not a literal quoted subject item
 
 ##### Current repo truth
-- Status: missing now
+- Status: exists now
   - raw `memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
   - `kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
   - `tests/host_memory.rs`
   - `scripts/tests/unit/memory-helpers.sh`
   - `scripts/boot-tests/memory-runtime.sh`
   - `scripts/rejection-tests/memory-rejections.sh`
-  - any runtime path that reaches `kfs_memcpy`
+  - the `kmain` runtime path reaches `kfs_memcpy` before `kfs_memset`
 
 ##### Target end-state
 - Status: build now
@@ -2394,24 +2407,26 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 ##### Proof matrix
 - `UT-M5.3.a-1`
   - Assertion:
-    - `memcpy` copies bytes correctly on ordinary non-overlapping ranges
+    - `memcpy` copies bytes correctly on ordinary and unaligned non-overlapping ranges
   - Evidence:
     - `tests/host_memory.rs`
     - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-unit-tests-pass`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-unaligned-pointers`
   - Failure caught:
     - wrong copy direction or wrong byte count
   - Status:
-    - to add
+    - exists now
 - `UT-M5.3.a-2`
   - Assertion:
-    - zero-length copy and destination-pointer return behavior are correct
+    - zero-length copy, same-pointer copy, and destination-pointer return behavior are correct
   - Evidence:
     - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-zero-length-behavior`
     - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-return-pointer-behavior`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-same-pointer`
   - Failure caught:
-    - off-by-one writes and wrong public contract
+    - off-by-one writes, self-copy corruption, and wrong public contract
   - Status:
-    - to add
+    - exists now
 - `AT-M5.3.a-3`
   - Assertion:
     - sentinel tests catch writes outside the requested range
@@ -2420,7 +2435,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - out-of-range writes hidden by naive happy-path tests
   - Status:
-    - to add
+    - exists now
 - `WP-M5.3.a-4`
   - Assertion:
     - the repo exports `kfs_memcpy` in source and in the release kernel artifact
@@ -2430,7 +2445,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - helper logic existing only as an internal function with no stable low-level ABI
   - Status:
-    - to add
+    - exists now
 - `SM-M5.3.a-5`
   - Assertion:
     - the release runtime path reaches `kfs_memcpy` and emits `MEMCPY_OK`
@@ -2440,16 +2455,17 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - linked helper code that is never executed by the running kernel
   - Status:
-    - to add
+    - exists now
 - `RT-M5.3.a-6`
   - Assertion:
     - a broken `memcpy` self-check emits `MEMORY_HELPERS_FAIL` and stops later normal flow
   - Evidence:
     - `scripts/rejection-tests/memory-rejections.sh i386 bad-memory-self-check-fails`
+    - `scripts/rejection-tests/memory-rejections.sh i386 bad-memory-stops-before-normal-flow`
   - Failure caught:
     - kernel continuing after a foundational memory-copy mismatch
   - Status:
-    - to add
+    - exists now
 
 ##### Common bad implementations
 - writing one byte too many at the end of the range
@@ -2478,14 +2494,14 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `memset` is therefore part of the repo’s scaling contract, not a literal quoted subject item
 
 ##### Current repo truth
-- Status: missing now
+- Status: exists now
   - raw `memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
   - `kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
   - `tests/host_memory.rs`
   - `scripts/tests/unit/memory-helpers.sh`
   - `scripts/boot-tests/memory-runtime.sh`
   - `scripts/rejection-tests/memory-rejections.sh`
-  - any runtime path that reaches `kfs_memset`
+  - the `kmain` runtime path reaches `kfs_memset` after `kfs_memcpy`
 
 ##### Target end-state
 - Status: build now
@@ -2599,10 +2615,11 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Evidence:
     - `tests/host_memory.rs`
     - `scripts/tests/unit/memory-helpers.sh i386 host-memset-unit-tests-pass`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memset-zero-byte-fill`
   - Failure caught:
     - wrong fill value or incomplete range coverage
   - Status:
-    - to add
+    - exists now
 - `UT-M5.3.b-2`
   - Assertion:
     - zero-length fill and destination-pointer return behavior are correct
@@ -2612,7 +2629,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - off-by-one writes and wrong public contract
   - Status:
-    - to add
+    - exists now
 - `AT-M5.3.b-3`
   - Assertion:
     - sentinel tests catch writes outside the requested range
@@ -2621,7 +2638,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - out-of-range writes hidden by naive happy-path tests
   - Status:
-    - to add
+    - exists now
 - `WP-M5.3.b-4`
   - Assertion:
     - the repo exports `kfs_memset` in source and in the release kernel artifact
@@ -2631,7 +2648,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - helper logic existing only as an internal function with no stable low-level ABI
   - Status:
-    - to add
+    - exists now
 - `SM-M5.3.b-5`
   - Assertion:
     - the release runtime path reaches `kfs_memset` and emits `MEMSET_OK`
@@ -2641,16 +2658,17 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - linked helper code that is never executed by the running kernel
   - Status:
-    - to add
+    - exists now
 - `RT-M5.3.b-6`
   - Assertion:
     - a broken `memset` self-check emits `MEMORY_HELPERS_FAIL` and stops later normal flow
   - Evidence:
     - `scripts/rejection-tests/memory-rejections.sh i386 bad-memory-self-check-fails`
+    - `scripts/rejection-tests/memory-rejections.sh i386 bad-memory-stops-before-normal-flow`
   - Failure caught:
     - kernel continuing after a foundational memory-fill mismatch
   - Status:
-    - to add
+    - exists now
 
 ##### Common bad implementations
 - writing one byte too many at the end of the range
@@ -2691,35 +2709,40 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 #### Proof matrix
 - `UT-M5.3-1`
   - Assertion:
-    - `memcpy` copies bytes correctly on valid non-overlapping ranges
+    - `memcpy` copies bytes correctly on valid ordinary-RAM ranges, including unaligned starts
   - Evidence:
     - `tests/host_memory.rs`
     - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-unit-tests-pass`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-unaligned-pointers`
   - Failure caught:
     - wrong copy semantics
   - Status:
-    - to add
+    - exists now
 - `UT-M5.3-2`
   - Assertion:
-    - `memset` fills bytes correctly
+    - `memset` fills bytes correctly for zero and non-zero byte values
   - Evidence:
     - `tests/host_memory.rs`
     - `scripts/tests/unit/memory-helpers.sh i386 host-memset-unit-tests-pass`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memset-zero-byte-fill`
   - Failure caught:
     - wrong fill semantics
   - Status:
-    - to add
+    - exists now
 - `UT-M5.3-3`
   - Assertion:
-    - zero-length operations and destination-pointer return behavior are correct
+    - zero-length operations, same-pointer copy, and destination-pointer return behavior are correct
   - Evidence:
     - `tests/host_memory.rs`
-    - `scripts/tests/unit/memory-helpers.sh i386 host-memory-zero-length-behavior`
-    - `scripts/tests/unit/memory-helpers.sh i386 host-memory-return-pointer-behavior`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-zero-length-behavior`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memset-zero-length-behavior`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-return-pointer-behavior`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memset-return-pointer-behavior`
+    - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-same-pointer`
   - Failure caught:
-    - off-by-one writes and wrong return values
+    - off-by-one writes, self-copy corruption, and wrong return values
   - Status:
-    - to add
+    - exists now
 - `WP-M5.3-4`
   - Assertion:
     - the repo exports `kfs_memcpy` and `kfs_memset` and avoids hosted fallbacks
@@ -2731,7 +2754,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - missing helper ABI or hidden host-library dependence
   - Status:
-    - to add
+    - exists now
 - `SM-M5.3-5`
   - Assertion:
     - the running kernel reaches the memory-helper path
@@ -2742,7 +2765,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - helpers linked but dead in the running kernel
   - Status:
-    - to add
+    - exists now
 - `AT-M5.3-6`
   - Assertion:
     - sentinel tests catch out-of-range writes, runtime markers stay ordered as
@@ -2751,12 +2774,12 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Evidence:
     - `scripts/tests/unit/memory-helpers.sh i386 host-memcpy-sentinel-bounds`
     - `scripts/tests/unit/memory-helpers.sh i386 host-memset-sentinel-bounds`
-    - `scripts/tests/unit/memory-helpers.sh i386 memory-helpers-avoid-volatile-writes`
+    - `scripts/tests/unit/memory-helpers.sh i386 memory-helpers-avoid-volatile-access`
     - `scripts/boot-tests/memory-runtime.sh i386 runtime-memory-markers-are-ordered`
   - Failure caught:
     - hidden off-by-one bugs and wrong memory model
   - Status:
-    - to add
+    - exists now
 - `RT-M5.3-7`
   - Assertion:
     - broken memory-helper integration emits `MEMORY_HELPERS_FAIL` and stops the later normal flow
@@ -2766,7 +2789,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Failure caught:
     - kernel silently continuing after a foundational memory-helper failure
   - Status:
-    - to add
+    - exists now
 
 #### Common bad implementations
 - treating `memcpy` as overlap-safe `memmove`

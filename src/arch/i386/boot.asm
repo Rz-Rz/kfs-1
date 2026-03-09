@@ -4,6 +4,7 @@ extern kmain
 extern KFS_M4_BSS_CANARY
 extern KFS_M4_LAYOUT_OVERRIDE
 extern KFS_M5_STRING_OVERRIDE
+extern KFS_M5_MEMORY_OVERRIDE
 
 section .bss
 align 16
@@ -41,6 +42,9 @@ start:
 %endif
 %ifdef KFS_TEST_BAD_STRING
     mov dword [KFS_M5_STRING_OVERRIDE], 1
+%endif
+%ifdef KFS_TEST_BAD_MEMORY
+    mov dword [KFS_M5_MEMORY_OVERRIDE], 1
 %endif
     call kmain
     jmp halt_loop
