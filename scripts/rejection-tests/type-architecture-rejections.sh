@@ -98,11 +98,19 @@ check_wrapper_abi() {
 check_private_impl_boundary() {
   local offenders
 
-  offenders="$(
-    find "${TMPDIR}/src/kernel" -type f -name '*.rs' -print0 |
-      xargs -0 rg -n '(string/string_impl|memory/memory_impl)\.rs' -S 2>/dev/null |
-      grep -vE "^${TMPDIR}/src/kernel/string\\.rs:" || true
-  )"
+  if command -v rg >/dev/null 2>&1; then
+    offenders="$(
+      find "${TMPDIR}/src/kernel" -type f -name '*.rs' -print0 |
+        xargs -0 rg -n '(string/string_impl|memory/memory_impl)\.rs' -S 2>/dev/null |
+        grep -vE "^${TMPDIR}/src/kernel/(string|memory)\\.rs:" || true
+    )"
+  else
+    offenders="$(
+      find "${TMPDIR}/src/kernel" -type f -name '*.rs' -print0 |
+        xargs -0 grep -En '(string/string_impl|memory/memory_impl)\.rs' 2>/dev/null |
+        grep -vE "^${TMPDIR}/src/kernel/(string|memory)\\.rs:" || true
+    )"
+  fi
 
   [[ -z "${offenders}" ]]
 }
