@@ -31,6 +31,9 @@ pub static mut KFS_M4_LAYOUT_OVERRIDE: u32 = 0;
 #[no_mangle]
 pub static mut KFS_M5_STRING_OVERRIDE: u32 = 0;
 
+#[no_mangle]
+pub static mut KFS_M5_MEMORY_OVERRIDE: u32 = 0;
+
 unsafe extern "C" {
     static kernel_start: u8;
     static kernel_end: u8;
@@ -39,6 +42,8 @@ unsafe extern "C" {
     static kfs_test_mode: u8;
     fn kfs_strlen(ptr: *const u8) -> usize;
     fn kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32;
+    fn kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8;
+    fn kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8;
 }
 
 #[derive(Copy, Clone)]
@@ -46,6 +51,7 @@ enum EarlyInitFailure {
     BssCanary,
     Layout,
     StringHelpers,
+    MemoryHelpers,
 }
 
 #[panic_handler]
@@ -81,6 +87,7 @@ pub extern "C" fn kmain() -> ! {
         Err(EarlyInitFailure::BssCanary) => runtime_fail("BSS_FAIL"),
         Err(EarlyInitFailure::Layout) => runtime_fail("LAYOUT_FAIL"),
         Err(EarlyInitFailure::StringHelpers) => runtime_fail("STRING_HELPERS_FAIL"),
+        Err(EarlyInitFailure::MemoryHelpers) => runtime_fail("MEMORY_HELPERS_FAIL"),
     }
 }
 
@@ -107,6 +114,14 @@ fn run_early_init() -> Result<(), EarlyInitFailure> {
 
     if is_test_mode() {
         serial_write_line("STRING_HELPERS_OK");
+    }
+
+    if !memory_helpers_are_sane() {
+        return Err(EarlyInitFailure::MemoryHelpers);
+    }
+
+    if is_test_mode() {
+        serial_write_line("MEMORY_HELPERS_OK");
     }
 
     Ok(())
@@ -178,6 +193,51 @@ fn string_helpers_are_sane() -> bool {
 
 fn string_override_requested() -> bool {
     unsafe { core::ptr::addr_of!(KFS_M5_STRING_OVERRIDE).read_volatile() != 0 }
+}
+
+fn memory_helpers_are_sane() -> bool {
+    if memory_override_requested() {
+        return false;
+    }
+
+    let src = [1u8, 2u8, 3u8];
+    let mut dst = [0xAAu8, 0xBBu8, 0xCCu8, 0xDDu8, 0xEEu8];
+    let copy_dst = unsafe { dst.as_mut_ptr().add(1) };
+    let copy_return = unsafe { kfs_memcpy(copy_dst, src.as_ptr(), src.len()) };
+
+    if copy_return != copy_dst {
+        return false;
+    }
+
+    if dst != [0xAAu8, 1u8, 2u8, 3u8, 0xEEu8] {
+        return false;
+    }
+
+    if is_test_mode() {
+        serial_write_line("MEMCPY_OK");
+    }
+
+    let mut fill = [0x11u8, 0x22u8, 0x33u8, 0x44u8, 0x55u8];
+    let fill_dst = unsafe { fill.as_mut_ptr().add(1) };
+    let fill_return = unsafe { kfs_memset(fill_dst, 0x99u8, 3) };
+
+    if fill_return != fill_dst {
+        return false;
+    }
+
+    if fill != [0x11u8, 0x99u8, 0x99u8, 0x99u8, 0x55u8] {
+        return false;
+    }
+
+    if is_test_mode() {
+        serial_write_line("MEMSET_OK");
+    }
+
+    true
+}
+
+fn memory_override_requested() -> bool {
+    unsafe { core::ptr::addr_of!(KFS_M5_MEMORY_OVERRIDE).read_volatile() != 0 }
 }
 
 fn write_42_to_vga() {

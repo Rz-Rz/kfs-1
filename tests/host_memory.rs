@@ -70,6 +70,15 @@ fn memset_basic_fill() {
 }
 
 #[test]
+fn memset_zero_byte_fill() {
+    let mut buf = [0x11u8, 0x22u8, 0x33u8, 0x44u8];
+    unsafe {
+        memset(buf.as_mut_ptr(), 0u8, buf.len());
+    }
+    assert_eq!(buf, [0u8; 4]);
+}
+
+#[test]
 fn memset_zero_length_keeps_buffer() {
     let mut buf = [1u8, 2u8, 3u8];
     unsafe {

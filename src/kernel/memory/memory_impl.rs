@@ -9,6 +9,7 @@ pub unsafe fn memory_copy_impl(dst: *mut u8, src: *const u8, len: usize) -> *mut
     dst
 }
 
+#[allow(dead_code)]
 pub unsafe fn memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8 {
     unsafe { memory_copy_impl(dst, src, len) }
 }
@@ -23,6 +24,7 @@ pub unsafe fn memory_set_impl(dst: *mut u8, value: u8, len: usize) -> *mut u8 {
     dst
 }
 
+#[allow(dead_code)]
 pub unsafe fn memset(dst: *mut u8, value: u8, len: usize) -> *mut u8 {
     unsafe { memory_set_impl(dst, value, len) }
 }

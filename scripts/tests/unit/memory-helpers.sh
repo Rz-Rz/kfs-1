@@ -17,8 +17,11 @@ list_cases() {
 host-memcpy-unit-tests-pass
 host-memcpy-zero-length-behavior
 host-memcpy-return-pointer-behavior
+host-memcpy-same-pointer
+host-memcpy-unaligned-pointers
 host-memcpy-sentinel-bounds
 host-memset-unit-tests-pass
+host-memset-zero-byte-fill
 host-memset-zero-length-behavior
 host-memset-return-pointer-behavior
 host-memset-sentinel-bounds
@@ -39,8 +42,11 @@ describe_case() {
     host-memcpy-unit-tests-pass) printf '%s\n' "host memcpy baseline unit tests pass" ;;
     host-memcpy-zero-length-behavior) printf '%s\n' "host memcpy zero-length behavior is correct" ;;
     host-memcpy-return-pointer-behavior) printf '%s\n' "host memcpy returns the original destination pointer" ;;
+    host-memcpy-same-pointer) printf '%s\n' "host memcpy preserves data when source and destination pointers are identical" ;;
+    host-memcpy-unaligned-pointers) printf '%s\n' "host memcpy handles unaligned ordinary-memory pointers" ;;
     host-memcpy-sentinel-bounds) printf '%s\n' "host memcpy preserves bytes outside the requested range" ;;
     host-memset-unit-tests-pass) printf '%s\n' "host memset baseline unit tests pass" ;;
+    host-memset-zero-byte-fill) printf '%s\n' "host memset fills ordinary memory with the zero byte value" ;;
     host-memset-zero-length-behavior) printf '%s\n' "host memset zero-length behavior is correct" ;;
     host-memset-return-pointer-behavior) printf '%s\n' "host memset returns the original destination pointer" ;;
     host-memset-sentinel-bounds) printf '%s\n' "host memset preserves bytes outside the requested range" ;;
@@ -128,7 +134,6 @@ run_direct_case() {
   case "${CASE}" in
     host-memcpy-unit-tests-pass)
       run_host_tests 'memcpy_basic_copy'
-      run_host_tests 'memcpy_unaligned_pointers'
       ;;
     host-memcpy-zero-length-behavior)
       run_host_tests 'memcpy_zero_length_keeps_destination'
@@ -136,11 +141,20 @@ run_direct_case() {
     host-memcpy-return-pointer-behavior)
       run_host_tests 'memcpy_returns_original_destination_pointer'
       ;;
+    host-memcpy-same-pointer)
+      run_host_tests 'memcpy_allows_same_pointer'
+      ;;
+    host-memcpy-unaligned-pointers)
+      run_host_tests 'memcpy_unaligned_pointers'
+      ;;
     host-memcpy-sentinel-bounds)
       run_host_tests 'memcpy_preserves_outside_range'
       ;;
     host-memset-unit-tests-pass)
       run_host_tests 'memset_basic_fill'
+      ;;
+    host-memset-zero-byte-fill)
+      run_host_tests 'memset_zero_byte_fill'
       ;;
     host-memset-zero-length-behavior)
       run_host_tests 'memset_zero_length_keeps_buffer'
@@ -187,7 +201,7 @@ run_direct_case() {
 }
 
 main() {
-  if [[ "${1:-}" == "--list" ]]; then
+  if [[ "${1:-}" == "--list" ]] || [[ "${2:-}" == "--list" ]]; then
     list_cases
     exit 0
   fi
@@ -195,6 +209,12 @@ main() {
   if [[ "${1:-}" == "--description" ]]; then
     [[ -n "${2:-}" ]] || die "usage: $0 --description <case>"
     describe_case "${2}"
+    exit 0
+  fi
+
+  if [[ "${2:-}" == "--description" ]]; then
+    [[ -n "${3:-}" ]] || die "usage: $0 <arch> --description <case>"
+    describe_case "${3}"
     exit 0
   fi
 
