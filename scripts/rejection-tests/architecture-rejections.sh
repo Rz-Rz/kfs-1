@@ -9,9 +9,11 @@ list_cases() {
   cat <<'EOF'
 new-top-level-kernel-peer-file-fails
 disallowed-first-level-layer-fails
+missing-required-artifact-fails
 types-abi-export-fails
 private-leaf-import-fails
 raw-hardware-in-services-fails
+abi-export-outside-target-facade-fails
 per-file-kernel-build-fails
 exports-allowlist-drift-fails
 EOF
@@ -21,9 +23,11 @@ describe_case() {
   case "$1" in
     new-top-level-kernel-peer-file-fails) printf '%s\n' "rejects a new top-level kernel peer file" ;;
     disallowed-first-level-layer-fails) printf '%s\n' "rejects a disallowed first-level kernel layer" ;;
+    missing-required-artifact-fails) printf '%s\n' "rejects a missing required future-architecture artifact" ;;
     types-abi-export-fails) printf '%s\n' "rejects ABI exports in the types layer" ;;
     private-leaf-import-fails) printf '%s\n' "rejects private leaf imports outside the owning facade" ;;
     raw-hardware-in-services-fails) printf '%s\n' "rejects raw hardware access in services" ;;
+    abi-export-outside-target-facade-fails) printf '%s\n' "rejects ABI export markers outside target facade files" ;;
     per-file-kernel-build-fails) printf '%s\n' "rejects per-file kernel compilation in the Makefile" ;;
     exports-allowlist-drift-fails) printf '%s\n' "rejects unexpected export allowlist drift" ;;
     *) return 1 ;;
@@ -57,6 +61,14 @@ EOF
 pub fn kmain() {}
 EOF
 
+  cat >"${TMPDIR}/src/kernel/core/init.rs" <<'EOF'
+pub fn init() {}
+EOF
+
+  cat >"${TMPDIR}/src/kernel/core/panic.rs" <<'EOF'
+pub fn halt_forever() -> ! { loop {} }
+EOF
+
   cat >"${TMPDIR}/src/kernel/machine/port.rs" <<'EOF'
 #[repr(transparent)]
 pub struct Port(u16);
@@ -71,6 +83,23 @@ EOF
 pub struct KernelRange {
     start: usize,
     end: usize,
+}
+EOF
+
+  cat >"${TMPDIR}/src/kernel/types/screen.rs" <<'EOF'
+#[repr(transparent)]
+pub struct ColorCode(pub u8);
+
+#[repr(C)]
+pub struct ScreenCell {
+    pub ascii: u8,
+    pub color: ColorCode,
+}
+
+#[repr(C)]
+pub struct CursorPos {
+    pub row: usize,
+    pub col: usize,
 }
 EOF
 
@@ -147,6 +176,32 @@ EOF
   [[ "${actual}" == "${expected}" ]]
 }
 
+check_required_artifacts_exist() {
+  local missing=0
+  local path
+
+  while IFS= read -r path; do
+    [[ -f "${TMPDIR}/${path}" ]] || missing=1
+  done <<'EOF'
+src/kernel.rs
+src/kernel/core/entry.rs
+src/kernel/core/init.rs
+src/kernel/core/panic.rs
+src/kernel/machine/port.rs
+src/kernel/types/range.rs
+src/kernel/types/screen.rs
+src/kernel/klib/string/mod.rs
+src/kernel/klib/string/imp.rs
+src/kernel/klib/memory/mod.rs
+src/kernel/klib/memory/imp.rs
+src/kernel/drivers/vga_text/mod.rs
+src/kernel/drivers/vga_text/writer.rs
+src/kernel/services/console.rs
+EOF
+
+  [[ "${missing}" -eq 0 ]]
+}
+
 check_no_types_abi_export() {
   ! rg -n '#\[no_mangle\]|extern[[:space:]]+"C"' "${TMPDIR}/src/kernel/types" >/dev/null
 }
@@ -157,6 +212,11 @@ check_no_private_leaf_imports() {
 
 check_no_raw_hardware_in_services() {
   ! rg -n '0x[bB]8000|write_volatile|read_volatile|\binb\b|\boutb\b' "${TMPDIR}/src/kernel/services" >/dev/null
+}
+
+check_abi_exports_only_in_target_facades() {
+  ! rg -n '#\[no_mangle\]|extern[[:space:]]+"C"' "${TMPDIR}/src/kernel" -g '*.rs' |
+    grep -vE '^.*/src/kernel/(core/entry\.rs|klib/string/mod\.rs|klib/memory/mod\.rs):' >/dev/null
 }
 
 check_no_per_file_kernel_build() {
@@ -184,6 +244,10 @@ run_case() {
       mkdir -p "${TMPDIR}/src/kernel/experimental"
       expect_failure "disallowed first-level kernel layer" check_first_level_allowlist
       ;;
+    missing-required-artifact-fails)
+      rm -f "${TMPDIR}/src/kernel/types/screen.rs"
+      expect_failure "missing required architecture artifact" check_required_artifacts_exist
+      ;;
     types-abi-export-fails)
       printf '\n#[no_mangle]\npub extern "C" fn leaked() {}\n' >>"${TMPDIR}/src/kernel/types/range.rs"
       expect_failure "ABI export in types layer" check_no_types_abi_export
@@ -195,6 +259,10 @@ run_case() {
     raw-hardware-in-services-fails)
       printf '\nconst VGA_PTR: *mut u16 = 0xb8000 as *mut u16;\n' >>"${TMPDIR}/src/kernel/services/console.rs"
       expect_failure "raw hardware access in services" check_no_raw_hardware_in_services
+      ;;
+    abi-export-outside-target-facade-fails)
+      printf '\n#[no_mangle]\npub extern "C" fn leaked_driver_abi() {}\n' >>"${TMPDIR}/src/kernel/drivers/vga_text/writer.rs"
+      expect_failure "ABI export outside target facade" check_abi_exports_only_in_target_facades
       ;;
     per-file-kernel-build-fails)
       printf '\nrust_source_files := $(wildcard src/kernel/*.rs)\n' >>"${TMPDIR}/Makefile"

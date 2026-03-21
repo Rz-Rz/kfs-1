@@ -10,12 +10,14 @@ ALLOWLIST="${SCRIPT_DIR}/fixtures/exports.${ARCH}.allowlist"
 list_cases() {
   cat <<'EOF'
 target-tree-has-kernel-root
+required-architecture-artifacts-exist
 kernel-first-level-dirs-match-allowlist
 no-top-level-kernel-peer-files
 private-leaves-stay-under-owning-subsystem
 forbidden-leaf-imports-are-absent
 types-has-no-abi-exports
 core-services-types-have-no-raw-hardware-access
+abi-exports-live-only-in-target-facades
 exports-match-allowlist
 makefile-does-not-compile-src-kernel-peers-individually
 rust-kernel-entrypoint-is-src-kernel-rs
@@ -25,12 +27,14 @@ EOF
 describe_case() {
   case "$1" in
     target-tree-has-kernel-root) printf '%s\n' "kernel Rust tree is rooted at src/kernel.rs" ;;
+    required-architecture-artifacts-exist) printf '%s\n' "all required future-architecture artifacts exist" ;;
     kernel-first-level-dirs-match-allowlist) printf '%s\n' "kernel first-level directories match the architecture allowlist" ;;
     no-top-level-kernel-peer-files) printf '%s\n' "no legacy peer files remain under src/kernel" ;;
     private-leaves-stay-under-owning-subsystem) printf '%s\n' "private leaves stay under their owning subsystem directories" ;;
     forbidden-leaf-imports-are-absent) printf '%s\n' "private leaves are not imported outside their owning facade" ;;
     types-has-no-abi-exports) printf '%s\n' "types layer does not export ABI symbols" ;;
     core-services-types-have-no-raw-hardware-access) printf '%s\n' "core, services, and types avoid raw hardware access" ;;
+    abi-exports-live-only-in-target-facades) printf '%s\n' "ABI exports live only in target entry and klib facade files" ;;
     exports-match-allowlist) printf '%s\n' "kernel exports match the architecture allowlist exactly" ;;
     makefile-does-not-compile-src-kernel-peers-individually) printf '%s\n' "Makefile does not compile src/kernel peer files individually" ;;
     rust-kernel-entrypoint-is-src-kernel-rs) printf '%s\n' "Makefile uses src/kernel.rs as the kernel Rust entrypoint" ;;
@@ -61,6 +65,38 @@ assert_kernel_root_exists() {
   }
 
   echo "PASS ${CASE}: src/kernel.rs exists"
+}
+
+assert_required_architecture_artifacts_exist() {
+  local missing=()
+  local path
+
+  while IFS= read -r path; do
+    [[ -f "${REPO_ROOT}/${path}" ]] || missing+=("${path}")
+  done <<'EOF'
+src/kernel.rs
+src/kernel/core/entry.rs
+src/kernel/core/init.rs
+src/kernel/core/panic.rs
+src/kernel/machine/port.rs
+src/kernel/types/range.rs
+src/kernel/types/screen.rs
+src/kernel/klib/string/mod.rs
+src/kernel/klib/string/imp.rs
+src/kernel/klib/memory/mod.rs
+src/kernel/klib/memory/imp.rs
+src/kernel/drivers/vga_text/mod.rs
+src/kernel/drivers/vga_text/writer.rs
+src/kernel/services/console.rs
+EOF
+
+  if [[ "${#missing[@]}" -gt 0 ]]; then
+    echo "FAIL ${CASE}: missing required architecture artifacts"
+    printf '%s\n' "${missing[@]}"
+    return 1
+  fi
+
+  echo "PASS ${CASE}: all required architecture artifacts exist"
 }
 
 assert_first_level_dirs_match_allowlist() {
@@ -199,6 +235,24 @@ assert_no_raw_hardware_access_in_high_layers() {
   echo "PASS ${CASE}: core/services/types avoid raw hardware access"
 }
 
+assert_abi_exports_live_only_in_target_facades() {
+  local offenders
+
+  offenders="$(
+    find "${REPO_ROOT}/src/kernel" -type f -name '*.rs' -print0 |
+      xargs -0 rg -n '#\[no_mangle\]|extern[[:space:]]+"C"' -S 2>/dev/null |
+      grep -vE '^.*/src/kernel/(core/entry\.rs|klib/string/mod\.rs|klib/memory/mod\.rs):' || true
+  )"
+
+  if [[ -n "${offenders}" ]]; then
+    echo "FAIL ${CASE}: found ABI export markers outside target facade files"
+    printf '%s\n' "${offenders}"
+    return 1
+  fi
+
+  echo "PASS ${CASE}: ABI export markers stay in target facade files"
+}
+
 collect_actual_exports() {
   bash "${REPO_ROOT}/scripts/container.sh" run -- \
     bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -g --defined-only 'build/kernel-${ARCH}.bin' | awk '{print \$3}' | sed '/^$/d' | sort -u"
@@ -257,6 +311,9 @@ run_case() {
     target-tree-has-kernel-root)
       assert_kernel_root_exists
       ;;
+    required-architecture-artifacts-exist)
+      assert_required_architecture_artifacts_exist
+      ;;
     kernel-first-level-dirs-match-allowlist)
       assert_first_level_dirs_match_allowlist
       ;;
@@ -274,6 +331,9 @@ run_case() {
       ;;
     core-services-types-have-no-raw-hardware-access)
       assert_no_raw_hardware_access_in_high_layers
+      ;;
+    abi-exports-live-only-in-target-facades)
+      assert_abi_exports_live_only_in_target_facades
       ;;
     exports-match-allowlist)
       assert_exports_match_allowlist
