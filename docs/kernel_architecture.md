@@ -33,14 +33,17 @@ Primary sources:
 - `Makefile`
 
 External sources:
-- OSDev kernel-family pages
-- Phil Opp's subsystem design examples
-- Linux internal subsystem/driver-model documentation
+- OSDev Wiki pages on kernel families and monolithic kernels
+- *Writing an OS in Rust* (Philipp Oppermann), especially VGA/module-encapsulation examples
+- *The Rust Programming Language*, Chapter 7, for modules, paths, and privacy
+- OSTEP and xv6 material for monolithic-vs-microkernel vocabulary
 
 ---
 
 ## 2. Current repo status
-Added basic vga writer & used it in kmain + added test for vga writer… 
+
+This section is descriptive, not normative.
+It records what the repository does today before proposing a cleaner target architecture.
 
 
 ### 2.1 Present status
@@ -73,6 +76,8 @@ Added basic vga writer & used it in kmain + added test for vga writer…
   - `vga_init`
   - `vga_putc`
   - `vga_puts`
+- some exported symbols exist for proof/test purposes rather than normal Rust-to-Rust calls:
+  - `kfs_vga_writer_marker`
 
 - other boundaries are pure source inclusion:
   - `types.rs`
@@ -172,7 +177,7 @@ Why to keep/change:
 
 ### ABI-style symbol boundaries
 
-Exammple:
+Example:
 
 ```rust
 // src/kernel/string.rs
@@ -228,7 +233,7 @@ In short: the repo is not choosing between architecture options; it is running m
 
 ---
 
-## 3. Architecture defintion
+## 3. Architecture definition
 
 - what counts as a kernel subsystem
 - what counts as a private implementation detail
@@ -245,10 +250,9 @@ The rest of this document tries to answer that question with explicit alternativ
 
 ### 4.1 Kernel-family comparison
 
-We tried to build a benchkmark of different well-known kernel architectures ( to the best of my efforts and knowledge).
-This is the high-level family comparison from OSDev-style architecture choices.
+This section compares the main kernel-family options using criteria relevant to this repo.
 
-| Architecture family | Description | Internal boundary style | Strengths | Weaknesses | Long-term growth | Fit 
+| Architecture family | Description | Internal boundary style | Strengths | Weaknesses | Long-term growth | Fit |
 |---|---|---|---|---|---|---|
 | Flat monolith | one kernel with little separation | almost none | fastest bring-up | becomes tangled quickly | poor | poor |
 | Monolithic kernel | one kernel with internal subsystems | source/module boundaries | simple, efficient, common hobby-kernel path | needs discipline | strong | strong |
@@ -354,7 +358,7 @@ Effect:
 - low-level kernel entry surfaces remain stable and callable through ABI
 - private algorithms, typed helpers, and policy logic stay Rust-internal
 
-Immediate consequence for this repo:
+Immediate consequence under the proposed rule:
 - This stays ABI:
   - `src/arch/i386/boot.asm -> kmain`
   - linker symbols such as `kernel_start`, `kernel_end`, `bss_start`, `bss_end` used from `src/kernel/kmain.rs`
@@ -362,7 +366,7 @@ Immediate consequence for this repo:
 - This also stays ABI on purpose:
   - `src/kernel/string.rs` exporting `kfs_strlen` and `kfs_strcmp`
   - `src/kernel/memory.rs` exporting `kfs_memcpy` and `kfs_memset`
-  - `src/kernel/vga.rs` exporting `vga_init`, `vga_putc`, and `vga_puts`
+  - `src/kernel/vga.rs` exporting `vga_init`, `vga_putc`, `vga_puts`, and the proof marker `kfs_vga_writer_marker`
 - This stays internal-only Rust:
   - `src/kernel/string/string_impl.rs` remains the private leaf for `kfs_strlen` and `kfs_strcmp`
   - `src/kernel/memory/memory_impl.rs` remains the private leaf for `kfs_memcpy` and `kfs_memset`
@@ -376,7 +380,7 @@ Immediate consequence for this repo:
 ### 4.4 Type and helper comparison
 
 
-The fore ABI strategy decides which files are stable binary surfaces.
+The ABI strategy decides which files are stable binary surfaces.
 The type/helper model then decides what is allowed to cross those surfaces and what must stay behind them.
 
 **If ABI is used everywhere:**
@@ -385,7 +389,8 @@ The type/helper model then decides what is allowed to cross those surfaces and w
 
 **If there is no internal ABI at all:**
 - helpers and drivers can stay purely Rust-internal
-- but you lose the stable low-level symbol surfaces that we alrady used and is requested by the subject, uses for helper/device entry files
+- but you lose the low-level symbol surfaces that the repo currently uses for helper/device entry files
+- that is a repo design tradeoff, not a subject-mandated requirement
 
 **With the chosen stratified ABI model:**
 - low-level ABI-surface files *should expose primitive or low-level signatures*
@@ -441,14 +446,14 @@ Result:
 - helper/device entry surfaces can still stay low-level where needed
 - typed semantics stay behind or beside ABI surfaces instead of forcing every call to become raw
 
-Wiht both this ABI exposure and type modelign decided, we observe that :
+With both the ABI exposure and type model decided, we can state the file-role rule more clearly:
 - `string.rs`, `memory.rs`, and `vga.rs` are ABI-surface files
 - `string_impl.rs` and `memory_impl.rs` are private leaf implementations
 - `types.rs` and `types/*` keep semantic concepts such as `Port` and `KernelRange`
-- therefore shouldnt be exporting `Port` or `KernelRange` as ABI wrappers just because helper/device files use ABI
-- therefore shouldnt be moving helper logic into `types` just because helper files and type files are both "low level"
+- therefore `Port` and `KernelRange` should not become ABI wrappers just because helper/device files use ABI
+- therefore helper logic should not move into `types` just because helper files and type files are both "low level"
 
-**Type-systme recommendation**:
+**Type-system recommendation**:
 - shared types should exist only for stable domain concepts
 - helper routines should live in a dedicated kernel-library layer
 - hardware-facing logic should not leak directly into orchestration
@@ -459,7 +464,7 @@ Wiht both this ABI exposure and type modelign decided, we observe that :
 
 ### 5.1 Chosen architecture
 
-**Proposion:**
+**Proposition:**
 - use a statically linked monolithic kernel
 - organize it as layered Rust subsystems with a stratified kernel ABI model
 - keep ABI only where the boundary is either:
@@ -476,9 +481,10 @@ Why:
 Justifications:
 - the subject requires a bootable monolithic kernel, helper families such as `strlen` / `strcmp`, and a screen interface
 - OSDev monolithic-kernel guidance supports one kernel binary with internal subsystem ownership
+- the Rust module/privacy model supports keeping implementation details behind explicit module boundaries
 - Phil Opp's VGA writer approach supports keeping stateful device logic encapsulated instead of spreading raw memory writes through `kmain`
 
-Current-rule  *status-quo of the repo*:
+Current rule for the status quo repo:
 - `src/arch/i386/*` and linker symbols remain true external/toolchain ABI edges
 - `src/kernel/kmain.rs`, `src/kernel/string.rs`, `src/kernel/memory.rs`, and `src/kernel/vga.rs` are the current designated ABI-surface files
 - `src/kernel/string/string_impl.rs`, `src/kernel/memory/memory_impl.rs`, `src/kernel/kmain/logic_impl.rs`, `src/kernel/types.rs`, and `src/kernel/types/*` are internal files and must not become exported ABI surfaces by default
@@ -515,7 +521,7 @@ Important current-repo note:
 - some future layers are still collapsed together in one file
 - the architecture model still matters because it tells us where new code belongs and what may depend on what
 
-| Layer | Layman explanation | Present in| Typical future contents | May depend on | Must not depend on |
+| Layer | Layman explanation | Present in | Typical future contents | May depend on | Must not depend on |
 |---|---|---|---|---|---|
 | `arch` | get the CPU into the kernel and define the binary layout | `src/arch/i386/boot.asm`, `src/arch/i386/linker.ld` | interrupt stubs, GDT/IDT entry glue, linker symbols | none | upper layers |
 | `machine` | wrap raw machine details in typed primitives | `src/kernel/types/port.rs` is machine-adjacent today | `inb/outb`, register wrappers, CPU flags helpers | `arch` | services/core policy |
@@ -672,8 +678,8 @@ Purpose:
 - provide a cleaner API above one or more drivers
 - hide raw device details from the rest of the kernel
 
-**This layer is mostly future-state in the current repo.
- This is not needed now**
+This layer is mostly future-state in the current repo.
+It does not need to exist as a separate file yet, but the role should be reserved now so later features have a clear home.
 
 Example:
 
@@ -1081,6 +1087,9 @@ Read this table as the control plan:
 
 ## 6. Target repository structure
 
+This section is target-state, not a claim about the current tree.
+Until the refactor is complete, the repo remains in a migration stage where the current files continue to exist, but new architecture work should move toward this structure instead of reinforcing the legacy one.
+
 Section `5` chose a layered monolithic kernel. This section turns that decision into a concrete tree.
 If the tree does not encode the layers, then the architecture is still only a diagram.
 
@@ -1170,7 +1179,8 @@ These files are not examples. They are part of the architecture.
 | `src/kernel/drivers/vga_text/writer.rs` | `drivers` | VGA text hardware leaf | must exist |
 | `src/kernel/services/console.rs` | `services` | console service facade | must exist |
 
-The architecture is not implemented until every required artifact above exists.
+The target architecture is not fully implemented until every required artifact above exists.
+Before that point, this section should be read as the destination tree, not as a statement that the current repo already matches it.
 
 ### 6.3 Why this tree matters
 
@@ -1191,6 +1201,14 @@ Enforced by:
 - Level 2: hooks and CI must block build changes that break the one-tree kernel model
 - Level 3: build-shape checks must inspect the Rust compiler entrypoint and reject per-file kernel compilation
 - Level 4: stability tests should keep the one-tree build model from regressing
+
+Current status:
+- the repo does not enforce this final build shape today
+- `Makefile` still compiles top-level `src/kernel/*.rs` files independently, so the one-tree build model is currently a target-state rule
+- the most realistic immediate enforcement work is:
+  - detect the current per-file build shape explicitly
+  - block architecture changes that make it worse
+  - switch the build to `src/kernel.rs` before claiming full enforcement
 
 ### 7.1 Final build shape
 
@@ -1387,7 +1405,45 @@ This means:
 
 ### 10.2 Required exported symbol set
 
-The architecture defines this exact exported symbol set:
+This section has two modes on purpose:
+- transitional current-state exports, which describe the repo as it exists during migration
+- target exports after the tree/build refactor from `§6` and `§7`
+
+Until the target tree exists, the current-state table is the authoritative allowlist for this repo.
+After the refactor lands, the target-state table becomes authoritative and the current-state table should be removed.
+
+#### 10.2.1 Transitional current-state exported symbol set
+
+The current repo exports this set intentionally or by accepted transition:
+
+| Symbol | Owner | Why it is exported |
+|---|---|---|
+| `_start` | `src/arch/i386/boot.asm` | bootloader handoff |
+| `kmain` | `src/kernel/kmain.rs` | ASM-to-Rust entry |
+| `kernel_start` | linker script | kernel layout boundary |
+| `kernel_end` | linker script | kernel layout boundary |
+| `text_start` | linker script | section layout boundary |
+| `text_end` | linker script | section layout boundary |
+| `rodata_start` | linker script | section layout boundary |
+| `rodata_end` | linker script | section layout boundary |
+| `data_start` | linker script | section layout boundary |
+| `data_end` | linker script | section layout boundary |
+| `bss_start` | linker script | section layout boundary |
+| `bss_end` | linker script | section layout boundary |
+| `kfs_strlen` | `src/kernel/string.rs` | low-level helper ABI |
+| `kfs_strcmp` | `src/kernel/string.rs` | low-level helper ABI |
+| `kfs_memcpy` | `src/kernel/memory.rs` | low-level helper ABI |
+| `kfs_memset` | `src/kernel/memory.rs` | low-level helper ABI |
+| `vga_init` | `src/kernel/vga.rs` | transitional low-level screen surface |
+| `vga_putc` | `src/kernel/vga.rs` | transitional low-level screen surface |
+| `vga_puts` | `src/kernel/vga.rs` | transitional low-level screen surface |
+| `kfs_vga_writer_marker` | `src/kernel/vga.rs` | proof/test marker during migration |
+
+Anything outside this current-state set is not part of the accepted migration surface and must not be exported by default.
+
+#### 10.2.2 Target exported symbol set
+
+After the `§6` tree and `§7` build model are implemented, the architecture defines this exact exported symbol set:
 
 | Symbol | Owner | Why it is exported |
 |---|---|---|
@@ -1408,10 +1464,10 @@ The architecture defines this exact exported symbol set:
 | `kfs_memcpy` | `src/kernel/klib/memory/mod.rs` | low-level helper ABI |
 | `kfs_memset` | `src/kernel/klib/memory/mod.rs` | low-level helper ABI |
 
-Anything outside this set is not part of the architecture and must not be exported by default.
+Anything outside this target set is not part of the architecture and must not be exported by default.
 
 Explicitly not exported by architecture rule:
-- VGA driver functions
+- VGA driver functions in the target tree
 - console service functions
 - private helper leaves
 - semantic type helper functions
@@ -1430,7 +1486,8 @@ Explicitly not exported by architecture rule:
 - `types` must not export linker-visible symbols.
 - `services` must not export linker-visible symbols.
 - non-entry `core` files must not export linker-visible symbols.
-- driver ABI is forbidden by default in this architecture.
+- driver ABI is forbidden by default in the target architecture.
+- Transitional exception: the current repo still exports `vga_init`, `vga_putc`, `vga_puts`, and `kfs_vga_writer_marker` from `src/kernel/vga.rs` until the console/service split and tree refactor are complete.
 
 ---
 
