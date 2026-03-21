@@ -680,7 +680,7 @@ Proof / tests (definition of done):
 - WP-M3.3-1 (linker script defines the canonical boundary symbols): `rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b" -S src/arch/i386/linker.ld`
 - WP-M3.3-2 (release artifact exports the boundary symbols): `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
 - WP-M3.3-3 (test artifact exports the boundary symbols): `KERNEL=build/kernel-i386-test.bin; nm -n "$KERNEL" | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
-- WP-M3.3-4 (Rust layout consumer declares and references the symbols): `rg -n "kernel_start|kernel_end|bss_start|bss_end|addr_of!" -S src/rust/layout_symbols.rs`
+- WP-M3.3-4 (Rust layout consumer declares and references the symbols): `rg -n "kernel_start|kernel_end|bss_start|bss_end|addr_of!" -S src/kernel/core/entry.rs`
 - WP-M3.3-5 (repo proof script covers exported symbols): `bash scripts/boot-tests/layout-symbols.sh i386`
 
 Stability / adversarial proofs (recommended in visible CI output):
@@ -852,7 +852,7 @@ Stability / adversarial proofs (recommended in visible CI output):
 - AT-M4.3-1 (release halt path remains separate from the CI PASS/FAIL exit path): `rg -n "KFS_TEST|0xf4|hlt" -S src/arch/i386/boot.asm src`
   Why it matters: the test harness may intentionally exit QEMU, but the shipped kernel still needs
   a real halt loop.
-- AT-M4.3-2 (Rust and ASM both end in explicit terminal behavior): inspect `src/kernel/kmain.rs`
+- AT-M4.3-2 (Rust and ASM both end in explicit terminal behavior): inspect `src/kernel/core/entry.rs`
   and `src/arch/i386/boot.asm` for non-returning halt loops
   Why it matters: if `kmain` ever returns accidentally, the CPU should still land in a safe halt.
 
@@ -881,34 +881,35 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 #### Current repo truth
 - Status: exists now
-  - `src/kernel/string.rs`
-  - `src/kernel/string/string_impl.rs`
+  - `src/kernel/klib/string/mod.rs`
+  - `src/kernel/klib/string/imp.rs`
   - `tests/host_string.rs`
   - `scripts/tests/unit/string-helpers.sh`
 - Status: exists now
-  - `src/kernel/types.rs`
+  - `src/kernel/types/mod.rs`
   - `src/kernel/types/*`
+  - `src/kernel/machine/port.rs`
   - `tests/host_types.rs`
   - `scripts/tests/unit/type-architecture.sh`
   - `scripts/boot-tests/type-architecture.sh`
   - `scripts/rejection-tests/type-architecture-rejections.sh`
 - Status: exists now
-  - raw `strlen` and `strcmp` loops exist in `src/kernel/string/string_impl.rs`
+  - raw `strlen` and `strcmp` loops exist in `src/kernel/klib/string/imp.rs`
 - Status: exists now
   - `kfs_strlen`
   - `kfs_strcmp`
-  - a real release-path string-helper integration in `src/kernel/kmain.rs`
+  - a real release-path string-helper integration in `src/kernel/core/init.rs`, reached from `src/kernel/core/entry.rs`
   - `scripts/boot-tests/string-runtime.sh`
   - `scripts/rejection-tests/string-rejections.sh`
 - Status: exists now
   - the full memory-helper family:
-    - `src/kernel/memory.rs`
-    - `src/kernel/memory/memory_impl.rs`
+    - `src/kernel/klib/memory/mod.rs`
+    - `src/kernel/klib/memory/imp.rs`
     - `tests/host_memory.rs`
     - `scripts/tests/unit/memory-helpers.sh`
     - `scripts/boot-tests/memory-runtime.sh`
     - `scripts/rejection-tests/memory-rejections.sh`
-  - a real release-path memory-helper integration in `src/kernel/kmain.rs`
+  - a real release-path memory-helper integration in `src/kernel/core/init.rs`, reached from `src/kernel/core/entry.rs`
 - Status: exists now
   - the current string implementation exports the real helper ABI:
     - `kfs_strlen`
@@ -1152,11 +1153,12 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 #### Current repo truth
 - Status: exists now
-  - `src/kernel/string.rs`
-  - `src/kernel/string/string_impl.rs`
-- Status: missing now
-  - `src/kernel/types.rs`
+  - `src/kernel/klib/string/mod.rs`
+  - `src/kernel/klib/string/imp.rs`
+- Status: exists now
+  - `src/kernel/types/mod.rs`
   - `src/kernel/types/*`
+  - `src/kernel/machine/port.rs`
   - `tests/host_types.rs`
   - `scripts/tests/unit/type-architecture.sh`
   - `scripts/boot-tests/type-architecture.sh`
@@ -1170,8 +1172,8 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 #### Target end-state
 - Status: build now
-  - `src/kernel/types.rs`
-  - `src/kernel/types/port.rs`
+  - `src/kernel/types/mod.rs`
+  - `src/kernel/machine/port.rs`
   - `src/kernel/types/range.rs`
   - `tests/host_types.rs`
   - `scripts/tests/unit/type-architecture.sh`
@@ -1198,7 +1200,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 #### Architecture decision
 - Decision:
-  - Use one public type facade at `src/kernel/types.rs`.
+  - Use one public type facade at `src/kernel/types/mod.rs`.
   - Why:
     - the repo needs one discoverable access point for semantic types
   - Source:
@@ -1244,8 +1246,8 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 #### Implementation contract
 - Build now:
-  - `src/kernel/types.rs`
-  - `src/kernel/types/port.rs`
+  - `src/kernel/types/mod.rs`
+  - `src/kernel/machine/port.rs`
   - `src/kernel/types/range.rs`
   - `Port(u16)`
   - `KernelRange { start, end }`
@@ -1254,10 +1256,10 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `scripts/boot-tests/type-architecture.sh`
   - `scripts/rejection-tests/type-architecture-rejections.sh`
   - one consistent helper-family naming/layout rule:
-    - family `string` -> `src/kernel/string.rs` + `src/kernel/string/string_impl.rs`
-    - family `memory` -> `src/kernel/memory.rs` + `src/kernel/memory/memory_impl.rs`
-    - any later helper family follows the same `src/kernel/<name>.rs` plus
-      `src/kernel/<name>/<name>_impl.rs` pattern
+    - family `string` -> `src/kernel/klib/string/mod.rs` + `src/kernel/klib/string/imp.rs`
+    - family `memory` -> `src/kernel/klib/memory/mod.rs` + `src/kernel/klib/memory/imp.rs`
+    - any later helper family follows the same `src/kernel/klib/<name>/mod.rs` plus
+      `src/kernel/klib/<name>/imp.rs` pattern
 - Define now, integrate later:
   - record later semantic-type ownership only:
     - VGA domain -> `ColorCode(u8)`, `VgaCell(u16)`, `CursorPos { row, col }` -> `M6`
@@ -1386,22 +1388,21 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
     - to add
 - `SM-M5.1-7`
   - Assertion:
-    - runtime serial/port and layout paths still work through the built-now semantic types
+    - the runtime serial path remains arch-owned, and the runtime layout path still works through `KernelRange`
   - Evidence:
     - `scripts/boot-tests/type-architecture.sh i386 runtime-serial-path-works-with-port`
     - `scripts/boot-tests/type-architecture.sh i386 runtime-layout-path-works-with-kernel-range`
   - Failure caught:
-    - types defined in isolation but not integrated into real kernel paths
+    - documentation or checks claiming a Rust-owned serial/Port path that the runtime does not implement
   - Status:
     - to add
 - `AT-M5.1-8`
   - Assertion:
-    - public kernel code does not bypass helper public surfaces or drift back to raw scalar use
-      where `Port` and `KernelRange` are required
+    - public kernel code does not bypass helper public surfaces, and `Port`/`KernelRange` remain in their owning layers
   - Evidence:
-    - `scripts/tests/unit/type-architecture.sh i386 helper-private-impl-not-imported-directly`
-    - `scripts/tests/unit/type-architecture.sh i386 serial-path-uses-port-type`
-    - `scripts/tests/unit/type-architecture.sh i386 layout-path-uses-kernel-range-type`
+    - `scripts/architecture-tests/type-contracts.sh i386 helper-private-impl-not-imported-directly`
+    - `scripts/architecture-tests/type-contracts.sh i386 serial-path-uses-port-type`
+    - `scripts/architecture-tests/type-contracts.sh i386 layout-path-uses-kernel-range-type`
   - Failure caught:
     - architectural collapse of public/private boundaries and semantic-type bypass drift
   - Status:
@@ -1453,7 +1454,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 #### Current repo truth
 - Status: exists now
-  - raw `strlen` and `strcmp` loops exist in `src/kernel/string/string_impl.rs`
+  - raw `strlen` and `strcmp` loops exist in `src/kernel/klib/string/imp.rs`
   - expanded host tests exist in `tests/host_string.rs`
   - full unit/source script exists in `scripts/tests/unit/string-helpers.sh`
 - Status: exists now
@@ -1463,7 +1464,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `scripts/boot-tests/string-runtime.sh`
   - `scripts/rejection-tests/string-rejections.sh`
 - Status: exists now
-  - `src/kernel/string.rs` exports the real helper ABI, not only a marker symbol
+  - `src/kernel/klib/string/mod.rs` exports the real helper ABI, not only a marker symbol
 - Status: exists now
   - current host tests cover embedded-NUL stop behavior and high-byte ordering
 - Status: exists now
@@ -1506,18 +1507,18 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Future consumer:
     - memory and later helper families
 - Decision:
-  - keep the public Rust family API and exported wrappers in `src/kernel/string.rs`
+  - keep the public Rust family API and exported wrappers in `src/kernel/klib/string/mod.rs`
   - Why:
     - one file should define the string family’s public/internal kernel surface and exported helper
       ABI
   - Source:
     - repo-derived from M5.1 architecture plus OSDev Sysroot / C Library
   - Immediate consumer:
-    - `kmain` sanity path
+    - `core/init.rs` sanity path, reached from `kmain`
   - Future consumer:
     - `M6` screen/text path
 - Decision:
-  - keep the leaf algorithms in `src/kernel/string/string_impl.rs`
+  - keep the leaf algorithms in `src/kernel/klib/string/imp.rs`
   - Why:
     - pure helper semantics need an isolated leaf file for unit testing and review
   - Source:
@@ -1551,14 +1552,14 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 #### Implementation contract
 - Build now:
   - reuse the `M5.1` family pattern unchanged:
-    - public family file: `src/kernel/string.rs`
-    - private leaf file: `src/kernel/string/string_impl.rs`
+    - public family file: `src/kernel/klib/string/mod.rs`
+    - private leaf file: `src/kernel/klib/string/imp.rs`
     - exported low-level wrappers follow the `M5.1` ABI rules
-    - other kernel code must not import `src/kernel/string/string_impl.rs` directly
-  - `src/kernel/string/string_impl.rs`
+    - other kernel code must not import `src/kernel/klib/string/imp.rs` directly
+  - `src/kernel/klib/string/imp.rs`
     - `strlen(ptr: *const u8) -> usize`
     - `strcmp(lhs: *const u8, rhs: *const u8) -> i32`
-  - `src/kernel/string.rs`
+  - `src/kernel/klib/string/mod.rs`
     - public Rust family API
     - `kfs_strlen(ptr: *const u8) -> usize`
     - `kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32`
@@ -1567,7 +1568,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `scripts/tests/unit/string-helpers.sh`
   - `scripts/boot-tests/string-runtime.sh`
   - `scripts/rejection-tests/string-rejections.sh`
-  - one release-path string-helper sanity path owned by `kmain`
+  - one release-path string-helper sanity path owned by `src/kernel/core/init.rs` and reached from `kmain`
 - Define now, integrate later:
   - `M6` screen/text layer as the first natural subsystem consumer
 - Future only:
@@ -1602,7 +1603,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 ##### Current repo truth
 - Status: exists now
-  - raw `strlen(ptr: *const u8) -> usize` exists in `src/kernel/string/string_impl.rs`
+  - raw `strlen(ptr: *const u8) -> usize` exists in `src/kernel/klib/string/imp.rs`
   - host tests cover empty, ordinary, embedded-NUL, unaligned-start, and word-boundary cases in
     `tests/host_string.rs`
 - Status: exists now
@@ -1617,7 +1618,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 ##### Target end-state
 - Status: build now
   - a kernel-owned `kfs_strlen(ptr: *const u8) -> usize`
-  - a raw leaf `strlen(ptr: *const u8) -> usize` in `src/kernel/string/string_impl.rs`
+  - a raw leaf `strlen(ptr: *const u8) -> usize` in `src/kernel/klib/string/imp.rs`
   - host tests for empty, ordinary, embedded-NUL, unaligned-start, and longer-prefix cases
   - source/build checks proving the release kernel exports `kfs_strlen`
   - runtime proof that the release path reaches `kfs_strlen` before later normal flow
@@ -1643,7 +1644,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
     - `M5.1` architecture in this repo
     - OSDev C Library
   - Immediate consumer:
-    - `kmain` string sanity path
+    - `src/kernel/core/init.rs` string sanity path
   - Future consumer:
     - `M6` text/screen code and later parser/debug code
 - Decision:
@@ -1671,8 +1672,8 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 ##### Implementation contract
 - Build now:
   - reuse the `M5.1` helper boundary:
-    - public family entry stays in `src/kernel/string.rs`
-    - leaf algorithm stays in `src/kernel/string/string_impl.rs`
+    - public family entry stays in `src/kernel/klib/string/mod.rs`
+    - leaf algorithm stays in `src/kernel/klib/string/imp.rs`
     - exported low-level wrapper follows the `M5.1` ABI rules for primitive-only signatures
   - raw leaf: `strlen(ptr: *const u8) -> usize`
   - wrapper/export: `kfs_strlen(ptr: *const u8) -> usize`
@@ -1706,7 +1707,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - any optimization must preserve identical observable results for the valid-input contract
 
 ##### Runtime / integration path
-- `kmain` is the first runtime owner of the `strlen` sanity path.
+- `src/kernel/core/init.rs` is the first runtime owner of the `strlen` sanity path, entered from `kmain`.
 - The release runtime path must call `kfs_strlen` before `kfs_strcmp`.
 - The runtime proof must expose `STRLEN_OK` before the later string-family success marker.
 
@@ -1806,7 +1807,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 ##### Current repo truth
 - Status: exists now
-  - raw `strcmp(lhs: *const u8, rhs: *const u8) -> i32` exists in `src/kernel/string/string_impl.rs`
+  - raw `strcmp(lhs: *const u8, rhs: *const u8) -> i32` exists in `src/kernel/klib/string/imp.rs`
   - host tests cover equality, ordinary ordering, prefix, empty/non-empty, same-pointer, and
     high-byte ordering in `tests/host_string.rs`
 - Status: exists now
@@ -1875,8 +1876,8 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 ##### Implementation contract
 - Build now:
   - reuse the `M5.1` helper boundary:
-    - public family entry stays in `src/kernel/string.rs`
-    - leaf algorithm stays in `src/kernel/string/string_impl.rs`
+    - public family entry stays in `src/kernel/klib/string/mod.rs`
+    - leaf algorithm stays in `src/kernel/klib/string/imp.rs`
     - exported low-level wrapper follows the `M5.1` ABI rules for primitive-only signatures
   - raw leaf: `strcmp(lhs: *const u8, rhs: *const u8) -> i32`
   - wrapper/export: `kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32`
@@ -1914,7 +1915,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - any optimization must preserve identical sign results for valid inputs
 
 ##### Runtime / integration path
-- `kmain` is the first runtime owner of the `strcmp` sanity path.
+- `src/kernel/core/init.rs` is the first runtime owner of the `strcmp` sanity path, entered from `kmain`.
 - The release runtime path must call `kfs_strcmp` after `kfs_strlen`.
 - The runtime proof must expose `STRCMP_OK` before the later string-family success marker.
 
@@ -2161,25 +2162,25 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 #### Current repo truth
 - Status: exists now
-  - `src/kernel/memory.rs`
-  - `src/kernel/memory/memory_impl.rs`
+  - `src/kernel/klib/memory/mod.rs`
+  - `src/kernel/klib/memory/imp.rs`
   - `tests/host_memory.rs`
   - `scripts/tests/unit/memory-helpers.sh`
   - `scripts/boot-tests/memory-runtime.sh`
   - `scripts/rejection-tests/memory-rejections.sh`
-  - one `kmain`-owned runtime sanity path that reaches `kfs_memcpy` before `kfs_memset`
+  - one `src/kernel/core/init.rs` runtime sanity path, reached from `kmain`, that reaches `kfs_memcpy` before `kfs_memset`
 
 #### Target end-state
 - Status: build now
-  - `src/kernel/memory.rs`
-  - `src/kernel/memory/memory_impl.rs`
+  - `src/kernel/klib/memory/mod.rs`
+  - `src/kernel/klib/memory/imp.rs`
   - `tests/host_memory.rs`
   - `scripts/tests/unit/memory-helpers.sh`
   - `scripts/boot-tests/memory-runtime.sh`
   - `scripts/rejection-tests/memory-rejections.sh`
   - `kfs_memcpy`
   - `kfs_memset`
-  - one `kmain`-owned runtime sanity path until a more natural buffer consumer exists
+  - one `src/kernel/core/init.rs` runtime sanity path until a more natural buffer consumer exists
 - Status: define now, integrate later
   - `M6` or the first real buffer consumer as the natural subsystem user
 - Status: future only
@@ -2215,7 +2216,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Source:
     - repo-derived from `M5.1` plus OSDev Sysroot / C Library
   - Immediate consumer:
-    - `kmain`-owned runtime sanity path
+    - `src/kernel/core/init.rs` runtime sanity path, reached from `kmain`
   - Future consumer:
     - screen/buffer code
 - Decision:
@@ -2243,14 +2244,14 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 #### Implementation contract
 - Build now:
   - reuse the `M5.1` family pattern unchanged:
-    - public family file: `src/kernel/memory.rs`
-    - private leaf file: `src/kernel/memory/memory_impl.rs`
+    - public family file: `src/kernel/klib/memory/mod.rs`
+    - private leaf file: `src/kernel/klib/memory/imp.rs`
     - exported low-level wrappers follow the `M5.1` ABI rules
-    - other kernel code must not import `src/kernel/memory/memory_impl.rs` directly
-  - `src/kernel/memory/memory_impl.rs`
+    - other kernel code must not import `src/kernel/klib/memory/imp.rs` directly
+  - `src/kernel/klib/memory/imp.rs`
     - `memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
     - `memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
-  - `src/kernel/memory.rs`
+  - `src/kernel/klib/memory/mod.rs`
     - public Rust family API
     - `kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
     - `kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
@@ -2258,7 +2259,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `scripts/tests/unit/memory-helpers.sh`
   - `scripts/boot-tests/memory-runtime.sh`
   - `scripts/rejection-tests/memory-rejections.sh`
-  - one `kmain`-owned runtime sanity path until a more natural buffer consumer exists
+  - one `src/kernel/core/init.rs`-owned runtime sanity path until a more natural buffer consumer exists
 - Define now, integrate later:
   - `M6` and later buffer consumers as the first natural subsystem users
 - Future only:
@@ -2298,7 +2299,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `scripts/tests/unit/memory-helpers.sh`
   - `scripts/boot-tests/memory-runtime.sh`
   - `scripts/rejection-tests/memory-rejections.sh`
-  - the `kmain` runtime path reaches `kfs_memcpy` before `kfs_memset`
+  - the `src/kernel/core/init.rs` runtime path reaches `kfs_memcpy` before `kfs_memset`
 
 ##### Target end-state
 - Status: build now
@@ -2330,7 +2331,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
     - `M5.1` architecture in this repo
     - OSDev C Library
   - Immediate consumer:
-    - `kmain` memory sanity path
+    - `src/kernel/core/init.rs` memory sanity path
   - Future consumer:
     - `M6` buffer/screen code
 - Decision:
@@ -2358,8 +2359,8 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 ##### Implementation contract
 - Build now:
   - reuse the `M5.1` helper boundary:
-    - public family entry stays in `src/kernel/memory.rs`
-    - leaf algorithm stays in `src/kernel/memory/memory_impl.rs`
+    - public family entry stays in `src/kernel/klib/memory/mod.rs`
+    - leaf algorithm stays in `src/kernel/klib/memory/imp.rs`
     - exported low-level wrapper follows the `M5.1` ABI rules for primitive-only signatures
   - raw leaf: `memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
   - wrapper/export: `kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8`
@@ -2394,7 +2395,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - overlap is out of contract and must not be smuggled in as hidden `memmove`
 
 ##### Runtime / integration path
-- `kmain` is the first runtime owner of the `memcpy` sanity path.
+- `src/kernel/core/init.rs` is the first runtime owner of the `memcpy` sanity path, entered from `kmain`.
 - The release runtime path must call `kfs_memcpy` before `kfs_memset`.
 - The runtime proof must expose `MEMCPY_OK` before the later memory-family success marker.
 
@@ -2501,7 +2502,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `scripts/tests/unit/memory-helpers.sh`
   - `scripts/boot-tests/memory-runtime.sh`
   - `scripts/rejection-tests/memory-rejections.sh`
-  - the `kmain` runtime path reaches `kfs_memset` after `kfs_memcpy`
+  - the `src/kernel/core/init.rs` runtime path reaches `kfs_memset` after `kfs_memcpy`
 
 ##### Target end-state
 - Status: build now
@@ -2532,7 +2533,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
     - `M5.1` architecture in this repo
     - OSDev C Library
   - Immediate consumer:
-    - `kmain` memory sanity path
+    - `src/kernel/core/init.rs` memory sanity path
   - Future consumer:
     - `M6` buffer/screen initialization paths
 - Decision:
@@ -2560,8 +2561,8 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 ##### Implementation contract
 - Build now:
   - reuse the `M5.1` helper boundary:
-    - public family entry stays in `src/kernel/memory.rs`
-    - leaf algorithm stays in `src/kernel/memory/memory_impl.rs`
+    - public family entry stays in `src/kernel/klib/memory/mod.rs`
+    - leaf algorithm stays in `src/kernel/klib/memory/imp.rs`
     - exported low-level wrapper follows the `M5.1` ABI rules for primitive-only signatures
   - raw leaf: `memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
   - wrapper/export: `kfs_memset(dst: *mut u8, value: u8, len: usize) -> *mut u8`
@@ -2597,7 +2598,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - fill behavior is byte-oriented, not typed-object initialization
 
 ##### Runtime / integration path
-- `kmain` is the first runtime owner of the `memset` sanity path.
+- `src/kernel/core/init.rs` is the first runtime owner of the `memset` sanity path, entered from `kmain`.
 - The release runtime path must call `kfs_memset` after `kfs_memcpy`.
 - The runtime proof must expose `MEMSET_OK` before the later memory-family success marker.
 
