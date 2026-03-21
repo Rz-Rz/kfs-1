@@ -1,0 +1,16 @@
+_start
+bss_end
+bss_start
+data_end
+data_start
+kernel_end
+kernel_start
+kfs_memcpy
+kfs_memset
+kfs_strcmp
+kfs_strlen
+kmain
+rodata_end
+rodata_start
+text_end
+text_start

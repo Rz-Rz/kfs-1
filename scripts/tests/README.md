@@ -16,6 +16,7 @@ This document exists mainly to make rebases easier for branches that still use t
 The host runner currently executes these sections:
 
 - `scripts/tests/`
+- `scripts/architecture-tests/`
 - `scripts/stability-tests/`
 - `scripts/rejection-tests/`
 - `scripts/boot-tests/`
@@ -43,6 +44,15 @@ The host runner does this:
 2. Calls each script with `--list`.
 3. Calls each script with `--description <case>`.
 4. Runs each discovered case independently.
+
+Hardcoded runner sections and their order are:
+
+- `SETUP`
+- `TESTS`
+- `ARCHITECTURE TESTS`
+- `STABILITY TESTS`
+- `REJECTION TESTS`
+- `BOOT TESTS`
 
 That means the real unit of discovery is the listed case, not the script file.
 

@@ -203,36 +203,46 @@ Screen {{
     background: {BLACK};
 }}
 
-#panic_overlay {{
-    layer: overlay;
-    width: 100%;
-    height: 100%;
-    align: center middle;
-    background: {RED_DIM};
-    display: none;
+#rerun_button {{
+    width: 24;
+    text-align: center;
+    border: solid {AMBER_DIM};
+    color: {AMBER_DIM};
+}}
+
+#rerun_button.enabled {{
+    border: solid {RED_BRIGHT};
+    color: {RED_BRIGHT};
+}}
+
+#rerun_button.running {{
+    border: double {ORANGE_ACTIVE};
+    color: {ORANGE_ACTIVE};
 }}
 """
 
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 EVENT_PREFIX = "KFS_EVENT|"
-KNOWN_SECTIONS = {"SETUP", "TESTS", "STABILITY TESTS", "REJECTION TESTS", "BOOT TESTS"}
+KNOWN_SECTIONS = {"SETUP", "TESTS", "ARCHITECTURE TESTS", "STABILITY TESTS", "REJECTION TESTS", "BOOT TESTS"}
 SECTION_TO_PANEL = {
     "SETUP": 0,
     "TESTS": 1,
+    "ARCHITECTURE TESTS": 2,
     "STABILITY TESTS": 2,
     "REJECTION TESTS": 2,
     "BOOT TESTS": 3,
 }
-PANEL_TITLES = ["SETUP", "TESTS", "STABILITY / REJECTION", "BOOT TESTS"]
+PANEL_TITLES = ["SETUP", "TESTS", "ARCHITECTURE / STABILITY / REJECTION", "BOOT TESTS"]
 PANEL_SECTIONS = {
     0: ["SETUP"],
     1: ["TESTS"],
-    2: ["STABILITY TESTS", "REJECTION TESTS"],
+    2: ["ARCHITECTURE TESTS", "STABILITY TESTS", "REJECTION TESTS"],
     3: ["BOOT TESTS"],
 }
 SECTION_LABELS = {
     "SETUP": "SETUP",
     "TESTS": "TESTS",
+    "ARCHITECTURE TESTS": "ARCH",
     "STABILITY TESTS": "STABILITY",
     "REJECTION TESTS": "REJECTION",
     "BOOT TESTS": "BOOT",
@@ -259,39 +269,34 @@ BOOT_FRAMES = [
   mode: AUTOMATED TEST RUN
 """,
 ]
-PANIC_ART = """\
- ██╗  ██╗███████╗██████╗ ███╗   ██╗███████╗██╗
- ██║ ██╔╝██╔════╝██╔══██╗████╗  ██║██╔════╝██║
- █████╔╝ █████╗  ██████╔╝██╔██╗ ██║█████╗  ██║
- ██╔═██╗ ██╔══╝  ██╔══██╗██║╚██╗██║██╔══╝  ██║
- ██║  ██╗███████╗██║  ██║██║ ╚████║███████╗███████╗
- ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝
-
-        !! TEST SUITE FAILURE DETECTED !!
-"""
-
 DEMO_LINES = """KFS_EVENT|suite|i386
-KFS_EVENT|suite_total|4
+KFS_EVENT|suite_total|5
 KFS_EVENT|section_total|SETUP|2
+KFS_EVENT|section_total|ARCHITECTURE TESTS|1
 KFS_EVENT|section_total|BOOT TESTS|2
-KFS_EVENT|declare|SETUP|Rebuild the container toolchain image
-KFS_EVENT|declare|SETUP|Verify tools exist
-KFS_EVENT|declare|BOOT TESTS|runtime reaches Rust kmain
-KFS_EVENT|declare|BOOT TESTS|runtime markers appear in the expected order
+KFS_EVENT|declare|SETUP|-|Rebuild the container toolchain image|-|-
+KFS_EVENT|declare|SETUP|-|Verify tools exist|-|-
+KFS_EVENT|declare|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
+KFS_EVENT|declare|BOOT TESTS|-|runtime reaches Rust kmain|scripts/boot-tests/release-kmain-symbol.sh|runtime-reaches-kmain
+KFS_EVENT|declare|BOOT TESTS|-|runtime markers appear in the expected order|scripts/boot-tests/runtime-markers.sh|runtime-markers-ordered
 KFS_EVENT|section|SETUP
-KFS_EVENT|start|SETUP|Rebuild the container toolchain image
+KFS_EVENT|start|SETUP|-|Rebuild the container toolchain image|-|-
 Rebuild the container toolchain image PASS
-KFS_EVENT|result|SETUP|Rebuild the container toolchain image|pass
-KFS_EVENT|start|SETUP|Verify tools exist
+KFS_EVENT|result|SETUP|-|Rebuild the container toolchain image|pass|-|-
+KFS_EVENT|start|SETUP|-|Verify tools exist|-|-
 Verify tools exist PASS
-KFS_EVENT|result|SETUP|Verify tools exist|pass
+KFS_EVENT|result|SETUP|-|Verify tools exist|pass|-|-
+KFS_EVENT|section|ARCHITECTURE TESTS
+KFS_EVENT|start|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
+kernel architecture files stay in allowed directories PASS
+KFS_EVENT|result|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|pass|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
 KFS_EVENT|section|BOOT TESTS
-KFS_EVENT|start|BOOT TESTS|runtime reaches Rust kmain
+KFS_EVENT|start|BOOT TESTS|-|runtime reaches Rust kmain|scripts/boot-tests/release-kmain-symbol.sh|runtime-reaches-kmain
 runtime reaches Rust kmain PASS
-KFS_EVENT|result|BOOT TESTS|runtime reaches Rust kmain|pass
-KFS_EVENT|start|BOOT TESTS|runtime markers appear in the expected order
+KFS_EVENT|result|BOOT TESTS|-|runtime reaches Rust kmain|pass|scripts/boot-tests/release-kmain-symbol.sh|runtime-reaches-kmain
+KFS_EVENT|start|BOOT TESTS|-|runtime markers appear in the expected order|scripts/boot-tests/runtime-markers.sh|runtime-markers-ordered
 runtime markers appear in the expected order PASS
-KFS_EVENT|result|BOOT TESTS|runtime markers appear in the expected order|pass
+KFS_EVENT|result|BOOT TESTS|-|runtime markers appear in the expected order|pass|scripts/boot-tests/runtime-markers.sh|runtime-markers-ordered
 KFS_EVENT|summary|pass""".splitlines()
 
 
@@ -312,6 +317,8 @@ class TestItem:
     name: str
     status: str = "wait"
     error_log: list[str] = field(default_factory=list)
+    script_path: Optional[str] = None
+    test_case: Optional[str] = None
 
 
 class BootOverlay(Static):
@@ -322,9 +329,20 @@ class BootOverlay(Static):
         self.query_one("#boot_text", Static).update(f"[{AMBER}]{text}[/]")
 
 
-class PanicOverlay(Static):
-    def compose(self) -> ComposeResult:
-        yield Static(f"[{RED_BRIGHT}]{PANIC_ART}[/]")
+class RerunButton(Static):
+    can_focus = True
+
+    def set_state(self, enabled: bool, running: bool, label: str) -> None:
+        self.remove_class("enabled")
+        self.remove_class("running")
+        if running:
+            self.add_class("running")
+        elif enabled:
+            self.add_class("enabled")
+        self.update(label)
+
+    def on_click(self) -> None:
+        self.app.action_rerun_failed()
 
 
 class MetricCardWidget(Widget):
@@ -444,21 +462,56 @@ class TestPanel(Vertical):
         with VerticalScroll(id=f"panel_scroll_{self.panel_id}", classes="panel-scroll"):
             yield Static("", id=f"panel_content_{self.panel_id}")
 
-    def declare_item(self, section: str, subgroup: str, name: str) -> bool:
+    def declare_item(
+        self,
+        section: str,
+        subgroup: str,
+        name: str,
+        script_path: Optional[str] = None,
+        test_case: Optional[str] = None,
+    ) -> bool:
         if self._find_item(section, subgroup, name) is None:
-            self.items.append(TestItem(section=section, subgroup=subgroup, name=name))
+            self.items.append(
+                TestItem(
+                    section=section,
+                    subgroup=subgroup,
+                    name=name,
+                    script_path=script_path,
+                    test_case=test_case,
+                )
+            )
             self._refresh()
             return True
+        item = self._find_item(section, subgroup, name)
+        if item is not None:
+            item.script_path = script_path or item.script_path
+            item.test_case = test_case or item.test_case
         return False
 
-    def mark_running(self, section: str, subgroup: str, name: str) -> None:
-        item = self._get_or_create(section, subgroup, name)
+    def mark_running(
+        self,
+        section: str,
+        subgroup: str,
+        name: str,
+        script_path: Optional[str] = None,
+        test_case: Optional[str] = None,
+    ) -> None:
+        item = self._get_or_create(section, subgroup, name, script_path, test_case)
         item.status = "run"
         self._refresh()
         self._scroll_to_item(section, subgroup, name)
 
-    def complete_item(self, section: str, subgroup: str, name: str, passed: bool, error_log: list[str]) -> None:
-        item = self._get_or_create(section, subgroup, name)
+    def complete_item(
+        self,
+        section: str,
+        subgroup: str,
+        name: str,
+        passed: bool,
+        error_log: list[str],
+        script_path: Optional[str] = None,
+        test_case: Optional[str] = None,
+    ) -> None:
+        item = self._get_or_create(section, subgroup, name, script_path, test_case)
         item.status = "pass" if passed else "fail"
         item.error_log = error_log
         self._refresh()
@@ -476,11 +529,27 @@ class TestPanel(Vertical):
                 return item
         return None
 
-    def _get_or_create(self, section: str, subgroup: str, name: str) -> TestItem:
+    def _get_or_create(
+        self,
+        section: str,
+        subgroup: str,
+        name: str,
+        script_path: Optional[str] = None,
+        test_case: Optional[str] = None,
+    ) -> TestItem:
         item = self._find_item(section, subgroup, name)
         if item is None:
-            item = TestItem(section=section, subgroup=subgroup, name=name)
+            item = TestItem(
+                section=section,
+                subgroup=subgroup,
+                name=name,
+                script_path=script_path,
+                test_case=test_case,
+            )
             self.items.append(item)
+        else:
+            item.script_path = script_path or item.script_path
+            item.test_case = test_case or item.test_case
         return item
 
     def _scroll_to_item(self, section: str, subgroup: str, name: str) -> None:
@@ -712,7 +781,11 @@ class MetricsBar(Vertical):
 
 class KFSApp(App):
     CSS = CSS
-    BINDINGS = [Binding("q", "quit", "Quit"), Binding("escape", "quit", "Quit")]
+    BINDINGS = [
+        Binding("r", "rerun_failed", "Rerun failed"),
+        Binding("q", "quit", "Quit"),
+        Binding("escape", "quit", "Quit"),
+    ]
 
     def __init__(self, mode: str, arch: str, make_target: str, **kwargs):
         super().__init__(**kwargs)
@@ -731,6 +804,9 @@ class KFSApp(App):
         self.boot_done = False
         self.last_failed_item: Optional[tuple[int, str, str, str]] = None
         self.pending_error_log: list[str] = []
+        self.pending_failure_meta: tuple[Optional[str], Optional[str]] = (None, None)
+        self.last_failed_rerun: Optional[tuple[int, str, str, str, str, str]] = None
+        self.rerun_in_progress = False
         self.seen_protocol_event = False
         self.section_totals: dict[str, int] = {}
         self.section_done: dict[str, int] = {}
@@ -754,6 +830,7 @@ class KFSApp(App):
             yield Static("◈ KFS TEST RUNNER", id="title")
             yield Static("", id="progress_bar")
             yield Static("", id="counter")
+            yield RerunButton(f"[{AMBER_DIM}]RERUN LAST FAIL (R)[/]", id="rerun_button")
         with Grid(id="grid"):
             for index, title in enumerate(PANEL_TITLES):
                 yield TestPanel(index, title, id=f"panel_{index}", classes="panel")
@@ -761,7 +838,6 @@ class KFSApp(App):
             yield Static("", id=f"active_cell_{index}", classes="active-runner-cell")
         yield MetricsBar(id="metrics_bar")
         yield BootOverlay(id="boot_overlay")
-        yield PanicOverlay(id="panic_overlay")
 
     def on_mount(self) -> None:
         self.active_cells = [self.query_one(f"#active_cell_{index}", Static) for index in range(MAX_ACTIVE_CELLS)]
@@ -775,6 +851,7 @@ class KFSApp(App):
         ).stdout.strip() or "HEAD"
         self.run_started_at = time.monotonic()
         self._update_top_status()
+        self._update_rerun_button()
         self._refresh_metrics_display(reload_snapshot=True)
         self.set_interval(RUNNER_TICK_SECS, self._tick)
         self._boot_and_run()
@@ -877,6 +954,7 @@ class KFSApp(App):
             else:
                 self.last_failed_item = (panel_index, section, subgroup, name)
                 self.pending_error_log = []
+                self.pending_failure_meta = (None, None)
             return
 
         if stripped in KNOWN_SECTIONS:
@@ -908,22 +986,44 @@ class KFSApp(App):
                 section, subgroup, name = parts[2], parts[3], parts[4]
             else:
                 section, subgroup, name = parts[2], "-", parts[3]
+            script_path = parts[5] if len(parts) >= 6 and parts[5] != "-" else None
+            test_case = parts[6] if len(parts) >= 7 and parts[6] != "-" else None
             self.current_section = section
-            self.call_from_thread(self._declare_item, SECTION_TO_PANEL.get(section, 0), section, subgroup, name)
+            self.call_from_thread(
+                self._declare_item,
+                SECTION_TO_PANEL.get(section, 0),
+                section,
+                subgroup,
+                name,
+                script_path,
+                test_case,
+            )
             return
         if kind == "start" and len(parts) >= 4:
             if len(parts) >= 5:
                 section, subgroup, name = parts[2], parts[3], parts[4]
             else:
                 section, subgroup, name = parts[2], "-", parts[3]
+            script_path = parts[5] if len(parts) >= 6 and parts[5] != "-" else None
+            test_case = parts[6] if len(parts) >= 7 and parts[6] != "-" else None
             self.current_section = section
-            self.call_from_thread(self._mark_running, SECTION_TO_PANEL.get(section, 0), section, subgroup, name)
+            self.call_from_thread(
+                self._mark_running,
+                SECTION_TO_PANEL.get(section, 0),
+                section,
+                subgroup,
+                name,
+                script_path,
+                test_case,
+            )
             return
         if kind == "result" and len(parts) >= 5:
             if len(parts) >= 6:
                 section, subgroup, name, status = parts[2], parts[3], parts[4], parts[5]
             else:
                 section, subgroup, name, status = parts[2], "-", parts[3], parts[4]
+            script_path = parts[6] if len(parts) >= 7 and parts[6] != "-" else None
+            test_case = parts[7] if len(parts) >= 8 and parts[7] != "-" else None
             self.current_section = section
             if status == "pass":
                 self._flush_pending_item()
@@ -935,11 +1035,14 @@ class KFSApp(App):
                     name,
                     True,
                     [],
+                    script_path,
+                    test_case,
                 )
             elif status == "fail":
                 self._flush_pending_item()
                 self.last_failed_item = (SECTION_TO_PANEL.get(section, 0), section, subgroup, name)
                 self.pending_error_log = []
+                self.pending_failure_meta = (script_path, test_case)
             return
         if kind == "summary" and len(parts) >= 3:
             self.call_from_thread(self._finish, parts[2] == "pass")
@@ -949,9 +1052,21 @@ class KFSApp(App):
             return
         panel_index, section, subgroup, name = self.last_failed_item
         log = list(self.pending_error_log)
+        script_path, test_case = self.pending_failure_meta
         self.last_failed_item = None
         self.pending_error_log = []
-        self.call_from_thread(self._complete_item, panel_index, section, subgroup, name, False, log)
+        self.pending_failure_meta = (None, None)
+        self.call_from_thread(
+            self._complete_item,
+            panel_index,
+            section,
+            subgroup,
+            name,
+            False,
+            log,
+            script_path,
+            test_case,
+        )
 
     def _set_suite_total(self, total: int) -> None:
         self.suite_total = total
@@ -963,8 +1078,22 @@ class KFSApp(App):
         self._update_bar()
         self._update_panel_summaries()
 
-    def _declare_item(self, panel_index: int, section: str, subgroup: str, name: str) -> None:
-        created = self.query_one(f"#panel_{panel_index}", TestPanel).declare_item(section, subgroup, name)
+    def _declare_item(
+        self,
+        panel_index: int,
+        section: str,
+        subgroup: str,
+        name: str,
+        script_path: Optional[str] = None,
+        test_case: Optional[str] = None,
+    ) -> None:
+        created = self.query_one(f"#panel_{panel_index}", TestPanel).declare_item(
+            section,
+            subgroup,
+            name,
+            script_path,
+            test_case,
+        )
         if created:
             self.discovered_total += 1
             if section not in self.section_totals:
@@ -1044,11 +1173,25 @@ class KFSApp(App):
             cell.update(f"[bold {color}]{glyph}[/]")
             cell.display = True
 
-    def _mark_running(self, panel_index: int, section: str, subgroup: str, name: str) -> None:
+    def _mark_running(
+        self,
+        panel_index: int,
+        section: str,
+        subgroup: str,
+        name: str,
+        script_path: Optional[str] = None,
+        test_case: Optional[str] = None,
+    ) -> None:
         if self.active_panel != panel_index or self.active_runner_started_at is None:
             self.active_runner_started_at = time.monotonic()
         self.active_panel = panel_index
-        self.query_one(f"#panel_{panel_index}", TestPanel).mark_running(section, subgroup, name)
+        self.query_one(f"#panel_{panel_index}", TestPanel).mark_running(
+            section,
+            subgroup,
+            name,
+            script_path,
+            test_case,
+        )
         self._update_panel_summaries()
         self._sync_active_runner()
 
@@ -1060,11 +1203,13 @@ class KFSApp(App):
         name: str,
         passed: bool,
         error_log: list[str],
+        script_path: Optional[str] = None,
+        test_case: Optional[str] = None,
     ) -> None:
         panel = self.query_one(f"#panel_{panel_index}", TestPanel)
         item = panel._find_item(section, subgroup, name)
         previous_status = item.status if item is not None else None
-        panel.complete_item(section, subgroup, name, passed, error_log)
+        panel.complete_item(section, subgroup, name, passed, error_log, script_path, test_case)
         if previous_status not in {"pass", "fail"}:
             if passed:
                 self.passed += 1
@@ -1075,6 +1220,9 @@ class KFSApp(App):
             self.section_done[section] = self.section_done.get(section, 0) + 1
             self._update_bar()
             self._update_panel_summaries()
+        if not passed and script_path and test_case:
+            self.last_failed_rerun = (panel_index, section, subgroup, name, script_path, test_case)
+        self._update_rerun_button()
 
     def _update_bar(self) -> None:
         total = max(self.suite_total or self.discovered_total, self.passed + self.failed, 1)
@@ -1091,7 +1239,7 @@ class KFSApp(App):
     def _update_top_status(self) -> None:
         total = max(self.suite_total or self.discovered_total, self.passed + self.failed, 1)
         done = self.passed + self.failed
-        active_label = "DONE" if self.done else (self.current_section or "WAITING")
+        active_label = "FAILED" if self.done and self.failed else "DONE" if self.done else (self.current_section or "WAITING")
         elapsed = self._elapsed_seconds()
         branch_label = self.current_branch
         if len(branch_label) > 28:
@@ -1100,11 +1248,22 @@ class KFSApp(App):
             f"[{AMBER}]branch[/]={branch_label}  "
             f"[{AMBER}]arch[/]={self.arch}  "
             f"[{AMBER}]elapsed[/]={elapsed:4.1f}s  "
-            f"[{AMBER}]active[/]={active_label}  "
+            f"[{RED_BRIGHT if active_label == 'FAILED' else AMBER}]active[/]={active_label}  "
             f"[{AMBER}]done[/]={done}/{total}  "
             f"[{GREEN_OK}]pass[/]={self.passed}  "
             f"[{RED_BRIGHT}]fail[/]={self.failed}"
         )
+
+    def _update_rerun_button(self) -> None:
+        enabled = self.last_failed_rerun is not None and not self.rerun_in_progress
+        if self.rerun_in_progress:
+            label = f"[bold {ORANGE_ACTIVE}]RERUNNING[/]"
+        elif enabled:
+            _, _, _, name, _, _ = self.last_failed_rerun
+            label = f"[bold {RED_BRIGHT}]RERUN LAST FAIL (R)[/]\n[{RED_BRIGHT}]{name[:22]}[/]"
+        else:
+            label = f"[{AMBER_DIM}]RERUN LAST FAIL (R)[/]"
+        self.query_one("#rerun_button", RerunButton).set_state(enabled, self.rerun_in_progress, label)
 
     def _elapsed_seconds(self) -> float:
         if self.run_started_at is None:
@@ -1159,8 +1318,8 @@ class KFSApp(App):
         self._update_panel_summaries()
         self._refresh_metrics_display(reload_snapshot=True)
         self._sync_active_runner()
-        if not passed:
-            self.query_one("#panic_overlay").display = True
+        self._update_top_status()
+        self._update_rerun_button()
 
     def _tick(self) -> None:
         if self.boot_done and not self.done:
@@ -1195,6 +1354,51 @@ class KFSApp(App):
 
     def action_quit(self) -> None:
         self.exit()
+
+    def action_rerun_failed(self) -> None:
+        if self.last_failed_rerun is None or self.rerun_in_progress:
+            return
+        self._rerun_failed_test()
+
+    @work(thread=True)
+    def _rerun_failed_test(self) -> None:
+        assert self.last_failed_rerun is not None
+        panel_index, section, subgroup, name, script_path, test_case = self.last_failed_rerun
+        self.rerun_in_progress = True
+        self.call_from_thread(self._update_rerun_button)
+        self.call_from_thread(
+            self._mark_running,
+            panel_index,
+            section,
+            subgroup,
+            name,
+            script_path,
+            test_case,
+        )
+
+        process = subprocess.run(
+            ["bash", script_path, self.arch, test_case],
+            cwd=self.repo_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+
+        log = [line.rstrip() for line in process.stdout.splitlines() if line.strip()]
+        self.call_from_thread(
+            self._complete_item,
+            panel_index,
+            section,
+            subgroup,
+            name,
+            process.returncode == 0,
+            log,
+            script_path,
+            test_case,
+        )
+        self.rerun_in_progress = False
+        self.call_from_thread(self._update_rerun_button)
 
 
 def parse_args() -> argparse.Namespace:
