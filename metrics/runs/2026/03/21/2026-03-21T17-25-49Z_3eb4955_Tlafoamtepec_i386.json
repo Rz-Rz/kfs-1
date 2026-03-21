@@ -1,0 +1,460 @@
+{
+  "arch": "i386",
+  "cases": [
+    {
+      "name": "Rebuild the container toolchain image",
+      "section": "SETUP",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "Verify tools exist",
+      "section": "SETUP",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release ISO is bootable",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release IMG is bootable",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "linker script defines .rodata",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "linker script defines .data",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "linker script defines .bss",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel contains .text",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel contains .rodata",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel contains .data",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release kernel contains .bss",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release rodata marker lands in .rodata",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release data marker lands in .data",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release bss marker lands in .bss",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "release .bss is emitted as NOBITS",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "-"
+    },
+    {
+      "name": "host layout-order unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host VGA text cell unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Rust defines the pure layout-order helper",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Rust defines the VGA text cell helper",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kmain uses the shared layout-order helper",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kmain uses the VGA writer interface",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memcpy baseline unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memcpy zero-length behavior is correct",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memcpy returns the original destination pointer",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memcpy preserves data when source and destination pointers are identical",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memcpy handles unaligned ordinary-memory pointers",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memcpy preserves bytes outside the requested range",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memset baseline unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memset fills ordinary memory with the zero byte value",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memset zero-length behavior is correct",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memset returns the original destination pointer",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host memset preserves bytes outside the requested range",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Rust defines memcpy in the kernel helper module",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Rust defines memset in the kernel helper module",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel memory family exports kfs_memcpy",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel memory family exports kfs_memset",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel memory family does not fall back to extern memcpy",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel memory family does not fall back to extern memset",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "release kernel exports kfs_memcpy",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "release kernel exports kfs_memset",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "memory helpers avoid volatile ordinary-memory access",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host strlen baseline unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host strlen stops at the first embedded NUL",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host strlen handles an unaligned starting pointer",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host strlen handles strings that cross a natural word boundary",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host strcmp baseline unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host strcmp handles prefix and empty/non-empty cases",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host strcmp returns equality for the same pointer",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host strcmp uses unsigned-byte ordering for high-byte cases",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Rust defines strlen in the kernel helper module",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Rust defines strcmp in the kernel helper module",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel string family exports kfs_strlen",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel string family exports kfs_strcmp",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel string family does not fall back to extern strlen",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel string family does not fall back to extern strcmp",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "release kernel exports kfs_strlen",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "release kernel exports kfs_strcmp",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "string helpers avoid volatile ordinary-memory reads",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host Port unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "host KernelRange unit tests pass",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "helper boundary and type facade files exist",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "helper ABI uses primitive/core-compatible types only",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "helper and type code avoids std",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "type layer avoids alias-only primitive wrappers",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "Port uses repr(transparent)",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "KernelRange uses repr(C)",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "helper wrappers keep extern C and no_mangle",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "private helper impl files are not imported directly outside boundary files",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "serial path uses Port instead of raw u16 ports",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "layout path uses KernelRange instead of naked pairs",
+      "section": "TESTS",
+      "status": "pass",
+      "subgroup": "unit"
+    },
+    {
+      "name": "kernel Rust tree is rooted at src/kernel.rs",
+      "section": "ARCHITECTURE TESTS",
+      "status": "fail",
+      "subgroup": "-"
+    }
+  ],
+  "duration_ms": 18805,
+  "exit_code": 1,
+  "failed": 1,
+  "finished_at": "2026-03-21T17:25:49.781473+00:00",
+  "git": {
+    "branch": "feat/vga-writer",
+    "dirty_worktree": true,
+    "first_unique_commit_at": "2026-03-09T16:31:20+01:00",
+    "first_unique_commit_sha": "3d9961d2f7750d2588cd2b229d2301739fb3fdc5",
+    "head_commit_at": "2026-03-21T17:45:54+01:00",
+    "head_sha": "3eb495583be81feac5aa4cc50b65a3f1f72e2492",
+    "merge_base_sha": "87734fdf9b96bd34d1e331a7db85f6294336b573",
+    "protected_branch": "main",
+    "protected_sha": "87734fdf9b96bd34d1e331a7db85f6294336b573"
+  },
+  "make_target": "test-plain",
+  "passed": 70,
+  "run_id": "2026-03-21T17-25-49Z_3eb4955_Tlafoamtepec_i386",
+  "schema_version": 1,
+  "section_failed": {
+    "ARCHITECTURE TESTS": 1
+  },
+  "section_passed": {
+    "SETUP": 2,
+    "TESTS": 68
+  },
+  "section_totals": {},
+  "started_at": "2026-03-21T17:25:30.976427+00:00",
+  "suite_total": 71
+}
