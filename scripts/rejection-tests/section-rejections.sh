@@ -218,7 +218,7 @@ run_direct_case() {
 }
 
 run_host_case() {
-  bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+  bash scripts/container.sh run -- \
     bash -lc "KFS_HOST_TEST_DIRECT=1 bash scripts/rejection-tests/section-rejections.sh '${ARCH}' '${CASE}'"
 }
 
