@@ -13,9 +13,9 @@ die() {
   exit 1
 }
 
-detect_engine() {
+detect_engine_optional() {
   if [[ -n "${ENGINE}" ]]; then
-    command -v "${ENGINE}" >/dev/null 2>&1 || die "KFS_CONTAINER_ENGINE=${ENGINE} not found in PATH"
+    command -v "${ENGINE}" >/dev/null 2>&1 || return 1
     echo "${ENGINE}"
     return 0
   fi
@@ -28,7 +28,156 @@ detect_engine() {
     echo "docker"
     return 0
   fi
-  die "no container engine found (install podman or docker)"
+  return 1
+}
+
+current_env_is_usable() {
+  local root
+  root="$(repo_root)"
+  (
+    cd "${root}" &&
+      bash scripts/dev-env.sh check >/dev/null 2>&1
+  )
+}
+
+run_directly_in_current_env() {
+  local root
+  root="$(repo_root)"
+  (
+    cd "${root}" &&
+      "$@"
+  )
+}
+
+run_shell_directly_in_current_env() {
+  local root
+  root="$(repo_root)"
+  (
+    cd "${root}" &&
+      exec bash
+  )
+}
+
+fallback_to_current_env() {
+  current_env_is_usable || die "no container engine found and current environment is missing required tools"
+  echo "container: no engine detected; using current environment directly"
+}
+
+cmd_shell_without_engine() {
+  fallback_to_current_env
+  run_shell_directly_in_current_env
+}
+
+cmd_run_without_engine() {
+  fallback_to_current_env
+  if [[ "${1:-}" != "--" ]]; then
+    die "run requires -- separator (example: scripts/container.sh run -- make container-env-check)"
+  fi
+  shift
+  if [[ "$#" -eq 0 ]]; then
+    die "run requires a command after --"
+  fi
+
+  run_directly_in_current_env "$@"
+}
+
+cmd_env_check_without_engine() {
+  fallback_to_current_env
+  run_directly_in_current_env bash -lc 'bash scripts/dev-env.sh check'
+}
+
+cmd_build_image_without_engine() {
+  fallback_to_current_env
+  echo "container: skipping image build because the current environment already satisfies the toolchain requirements"
+  return 0
+}
+
+detect_engine() {
+  local engine
+  engine="$(detect_engine_optional)" || die "no container engine found (install podman or docker)"
+  printf '%s\n' "${engine}"
+}
+
+cmd_build_image() {
+  local engine
+  engine="$(detect_engine_optional)" || {
+    cmd_build_image_without_engine
+    return 0
+  }
+  local root
+  root="$(repo_root)"
+
+  if [[ "${FORCE_BUILD}" != "1" ]] && image_exists "${engine}"; then
+    echo "container: image exists (${IMAGE}); skipping build (set KFS_FORCE_IMAGE_BUILD=1 to rebuild)"
+    return 0
+  fi
+
+  echo "container: building image ${IMAGE} (engine=${engine})"
+  (cd "${root}" && "${engine}" build -t "${IMAGE}" -f "${CONTAINERFILE}" .)
+}
+
+cmd_shell() {
+  local engine
+  engine="$(detect_engine_optional)" || {
+    cmd_shell_without_engine
+    return 0
+  }
+  local root
+  root="$(repo_root)"
+
+  "${engine}" run --rm -it \
+    -v "$(mount_arg "${root}" "${engine}")" \
+    -w /work \
+    $(user_args "${engine}") \
+    $(kvm_args "${engine}") \
+    "${IMAGE}" bash
+}
+
+cmd_run() {
+  local engine
+  engine="$(detect_engine_optional)" || {
+    cmd_run_without_engine "$@"
+    return 0
+  }
+  local root
+  root="$(repo_root)"
+  local tty_args=()
+
+  case "${TTY_MODE}" in
+    1|true|yes) tty_args=(-t) ;;
+    0|false|no) tty_args=() ;;
+    auto|"")
+      if [[ -t 1 ]]; then
+        tty_args=(-t)
+      fi
+      ;;
+    *) die "KFS_CONTAINER_TTY must be auto, 1, or 0" ;;
+  esac
+
+  if [[ "${1:-}" != "--" ]]; then
+    die "run requires -- separator (example: scripts/container.sh run -- make container-env-check)"
+  fi
+  shift
+  if [[ "$#" -eq 0 ]]; then
+    die "run requires a command after --"
+  fi
+
+  "${engine}" run --rm \
+    "${tty_args[@]}" \
+    -v "$(mount_arg "${root}" "${engine}")" \
+    -w /work \
+    $(user_args "${engine}") \
+    $(kvm_args "${engine}") \
+    "${IMAGE}" "$@"
+}
+
+cmd_env_check() {
+  local engine
+  engine="$(detect_engine_optional)" || {
+    cmd_env_check_without_engine
+    return 0
+  }
+  cmd_run -- bash -lc 'bash scripts/dev-env.sh check'
 }
 
 repo_root() {
@@ -58,8 +207,13 @@ user_args() {
     return 0
   fi
 
-  # Rootless Podman typically maps the host user to container root (uid 0).
-  # For bind mounts, forcing --user to the host uid can make the repo read-only.
+  # Keep bind-mounted artifacts owned by the host user so clean builds work
+  # consistently across direct and containerized test runs.
+  if [[ "${engine}" == "podman" ]]; then
+    echo "--userns=keep-id"
+    return 0
+  fi
+
   return 0
 }
 
@@ -104,73 +258,6 @@ image_exists() {
   "${engine}" image inspect "${IMAGE}" >/dev/null 2>&1
 }
 
-cmd_build_image() {
-  local engine
-  engine="$(detect_engine)"
-  local root
-  root="$(repo_root)"
-
-  if [[ "${FORCE_BUILD}" != "1" ]] && image_exists "${engine}"; then
-    echo "container: image exists (${IMAGE}); skipping build (set KFS_FORCE_IMAGE_BUILD=1 to rebuild)"
-    return 0
-  fi
-
-  echo "container: building image ${IMAGE} (engine=${engine})"
-  (cd "${root}" && "${engine}" build -t "${IMAGE}" -f "${CONTAINERFILE}" .)
-}
-
-cmd_shell() {
-  local engine
-  engine="$(detect_engine)"
-  local root
-  root="$(repo_root)"
-
-  "${engine}" run --rm -it \
-    -v "$(mount_arg "${root}" "${engine}")" \
-    -w /work \
-    $(user_args "${engine}") \
-    $(kvm_args "${engine}") \
-    "${IMAGE}" bash
-}
-
-cmd_run() {
-  local engine
-  engine="$(detect_engine)"
-  local root
-  root="$(repo_root)"
-  local tty_args=()
-
-  case "${TTY_MODE}" in
-    1|true|yes) tty_args=(-t) ;;
-    0|false|no) tty_args=() ;;
-    auto|"")
-      if [[ -t 1 ]]; then
-        tty_args=(-t)
-      fi
-      ;;
-    *) die "KFS_CONTAINER_TTY must be auto, 1, or 0" ;;
-  esac
-
-  if [[ "${1:-}" != "--" ]]; then
-    die "run requires -- separator (example: scripts/container.sh run -- make container-env-check)"
-  fi
-  shift
-  if [[ "$#" -eq 0 ]]; then
-    die "run requires a command after --"
-  fi
-
-  "${engine}" run --rm \
-    "${tty_args[@]}" \
-    -v "$(mount_arg "${root}" "${engine}")" \
-    -w /work \
-    $(user_args "${engine}") \
-    $(kvm_args "${engine}") \
-    "${IMAGE}" "$@"
-}
-
-cmd_env_check() {
-  cmd_run -- bash -lc 'bash scripts/dev-env.sh check'
-}
 
 main() {
   local cmd="${1:-}"
