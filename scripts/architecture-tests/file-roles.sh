@@ -122,6 +122,8 @@ assert_subsystem_facade_shapes_are_valid() {
   [[ -f "${REPO_ROOT}/src/kernel/klib/memory/mod.rs" ]] || offenders+=("src/kernel/klib/memory/mod.rs")
   [[ -f "${REPO_ROOT}/src/kernel/klib/memory/imp.rs" ]] || offenders+=("src/kernel/klib/memory/imp.rs")
   [[ -f "${REPO_ROOT}/src/kernel/drivers/serial/mod.rs" ]] || offenders+=("src/kernel/drivers/serial/mod.rs")
+  [[ -f "${REPO_ROOT}/src/kernel/drivers/keyboard/mod.rs" ]] || offenders+=("src/kernel/drivers/keyboard/mod.rs")
+  [[ -f "${REPO_ROOT}/src/kernel/drivers/keyboard/imp.rs" ]] || offenders+=("src/kernel/drivers/keyboard/imp.rs")
   [[ -f "${REPO_ROOT}/src/kernel/drivers/vga_text/mod.rs" ]] || offenders+=("src/kernel/drivers/vga_text/mod.rs")
   [[ -f "${REPO_ROOT}/src/kernel/drivers/vga_text/writer.rs" ]] || offenders+=("src/kernel/drivers/vga_text/writer.rs")
 
@@ -138,6 +140,7 @@ assert_private_leaves_are_owned_and_located() {
   local allowed=(
     "src/kernel/klib/string/imp.rs"
     "src/kernel/klib/memory/imp.rs"
+    "src/kernel/drivers/keyboard/imp.rs"
     "src/kernel/drivers/vga_text/writer.rs"
   )
   local allowed_set
@@ -173,8 +176,8 @@ assert_private_leaf_imports_are_local() {
 
   offenders="$(
     find "${REPO_ROOT}/src/kernel" -type f -name '*.rs' -print0 |
-      xargs -0 rg -n '\#\[path[[:space:]]*=[[:space:]]*"[^\"]*(string|memory|vga_text)/(imp|writer)\.rs"|^\s*mod\s+(imp|writer)\s*;|\buse\s+crate::kernel::(?:klib|drivers)::(?:string|memory|vga_text)::(?:imp|writer)\b|\bcrate::kernel::(?:klib|drivers)::(?:string|memory|vga_text)::(?:imp|writer)\b' -P -S 2>/dev/null |
-      grep -vE '^.*/src/kernel/(klib/string/mod\.rs|klib/memory/mod\.rs|drivers/vga_text/mod\.rs):' || true
+      xargs -0 rg -n '\#\[path[[:space:]]*=[[:space:]]*"[^\"]*(string|memory|keyboard|vga_text)/(imp|writer)\.rs"|^\s*mod\s+(imp|writer)\s*;|\buse\s+crate::kernel::(?:klib|drivers)::(?:string|memory|keyboard|vga_text)::(?:imp|writer)\b|\bcrate::kernel::(?:klib|drivers)::(?:string|memory|keyboard|vga_text)::(?:imp|writer)\b' -P -S 2>/dev/null |
+      grep -vE '^.*/src/kernel/(klib/string/mod\.rs|klib/memory/mod\.rs|drivers/keyboard/mod\.rs|drivers/vga_text/mod\.rs):' || true
   )"
 
   if [[ -n "${offenders}" ]]; then
@@ -201,6 +204,8 @@ assert_kernel_files_have_recognized_roles() {
       src/kernel/core/init.rs) ;;
       src/kernel/drivers/mod.rs) ;;
       src/kernel/drivers/serial/mod.rs) ;;
+      src/kernel/drivers/keyboard/mod.rs) ;;
+      src/kernel/drivers/keyboard/imp.rs) ;;
       src/kernel/drivers/vga_text/mod.rs) ;;
       src/kernel/drivers/vga_text/writer.rs) ;;
       src/kernel/klib/mod.rs) ;;

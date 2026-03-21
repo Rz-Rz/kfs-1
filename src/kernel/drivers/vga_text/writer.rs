@@ -1,6 +1,9 @@
-use super::{vga_text_write_screen, VGA_TEXT_DEFAULT_COLOR};
+use super::{
+    vga_text_blit_viewport, vga_text_cell, VgaTerminalBank, VGA_TEXT_BLANK_BYTE,
+    VGA_TEXT_DEFAULT_COLOR,
+};
 use crate::kernel::machine::port::Port;
-use crate::kernel::types::screen::{ColorCode, CursorPos, VGA_TEXT_DIMENSIONS};
+use crate::kernel::types::screen::{ColorCode, VGA_TEXT_DIMENSIONS};
 
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
 const VGA_TEXT_CELL_COUNT: usize = VGA_TEXT_DIMENSIONS.cell_count();
@@ -13,12 +16,12 @@ const VGA_CURSOR_LOW_REGISTER: u8 = 0x0F;
 const VGA_CURSOR_START_SCANLINE: u8 = 0x00;
 const VGA_CURSOR_END_SCANLINE: u8 = 0x0F;
 
-static mut VGA_CURSOR: CursorPos = CursorPos::new(0, 0);
+static mut VGA_TERMINALS: VgaTerminalBank = VgaTerminalBank::new();
 static mut VGA_HARDWARE_CURSOR_ENABLED: bool = false;
-static mut VGA_TEXT_COLOR: ColorCode = VGA_TEXT_DEFAULT_COLOR;
+static mut VGA_STATE_INITIALIZED: bool = false;
 
-fn vga_cursor_position(cursor: CursorPos) -> u16 {
-    ((cursor.row * VGA_TEXT_DIMENSIONS.width()) + cursor.col) as u16
+fn vga_cursor_position(row: usize, col: usize) -> u16 {
+    ((row * VGA_TEXT_DIMENSIONS.width()) + col) as u16
 }
 
 unsafe fn vga_write_cursor_register(register: u8, value: u8) {
@@ -44,45 +47,139 @@ unsafe fn ensure_hardware_cursor_enabled() {
     }
 }
 
-unsafe fn vga_set_hardware_cursor(cursor: CursorPos) {
-    let value = vga_cursor_position(cursor);
+unsafe fn vga_set_hardware_cursor(row: usize, col: usize) {
+    let value = vga_cursor_position(row, col);
     unsafe {
         vga_write_cursor_register(VGA_CURSOR_HIGH_REGISTER, ((value >> 8) & 0x00ff) as u8);
         vga_write_cursor_register(VGA_CURSOR_LOW_REGISTER, (value & 0x00ff) as u8);
     }
 }
 
-pub(super) fn write_bytes(bytes: &[u8]) {
-    unsafe {
-        ensure_hardware_cursor_enabled();
+unsafe fn redraw_active_terminal() {
+    let terminal = unsafe { (&*core::ptr::addr_of!(VGA_TERMINALS)).active() };
+    let blank = vga_text_cell(terminal.color, VGA_TEXT_BLANK_BYTE);
+    let mut shadow = [0u16; VGA_TEXT_CELL_COUNT];
 
-        let mut shadow = [0u16; VGA_TEXT_CELL_COUNT];
-        for (index, cell) in shadow.iter_mut().enumerate() {
-            *cell = core::ptr::read_volatile(VGA_TEXT_BUFFER.add(index));
-        }
+    vga_text_blit_viewport(
+        &terminal.history,
+        VGA_TEXT_DIMENSIONS.width(),
+        VGA_TEXT_DIMENSIONS.height(),
+        terminal.viewport_top,
+        &mut shadow,
+        blank,
+    );
 
-        VGA_CURSOR = vga_text_write_screen(
-            &mut shadow,
-            VGA_TEXT_DIMENSIONS,
-            VGA_CURSOR,
-            VGA_TEXT_COLOR,
-            bytes,
-        );
-
-        for (index, cell) in shadow.iter().enumerate() {
+    for (index, cell) in shadow.iter().enumerate() {
+        unsafe {
             core::ptr::write_volatile(VGA_TEXT_BUFFER.add(index), *cell);
         }
+    }
 
-        vga_set_hardware_cursor(VGA_CURSOR);
+    let cursor_row = terminal
+        .cursor
+        .row
+        .saturating_sub(terminal.viewport_top)
+        .min(VGA_TEXT_DIMENSIONS.height() - 1);
+    unsafe {
+        vga_set_hardware_cursor(cursor_row, terminal.cursor.col);
+    }
+}
+
+unsafe fn initialize_state() {
+    unsafe {
+        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS)).reset();
+        ensure_hardware_cursor_enabled();
+        redraw_active_terminal();
+        VGA_STATE_INITIALIZED = true;
+    }
+}
+
+unsafe fn ensure_state_initialized() {
+    unsafe {
+        if !VGA_STATE_INITIALIZED {
+            initialize_state();
+            return;
+        }
+
+        ensure_hardware_cursor_enabled();
+    }
+}
+
+pub(super) fn write_bytes(bytes: &[u8]) {
+    unsafe {
+        ensure_state_initialized();
+        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS))
+            .active_mut()
+            .put_bytes(bytes);
+        redraw_active_terminal();
+    }
+}
+
+pub(super) fn backspace() {
+    unsafe {
+        ensure_state_initialized();
+        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS))
+            .active_mut()
+            .backspace();
+        redraw_active_terminal();
+    }
+}
+
+pub(super) fn viewport_up() {
+    unsafe {
+        ensure_state_initialized();
+        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS))
+            .active_mut()
+            .viewport_up();
+        redraw_active_terminal();
+    }
+}
+
+pub(super) fn viewport_down() {
+    unsafe {
+        ensure_state_initialized();
+        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS))
+            .active_mut()
+            .viewport_down();
+        redraw_active_terminal();
+    }
+}
+
+pub(super) fn set_cursor(row: usize, col: usize) {
+    unsafe {
+        ensure_state_initialized();
+        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS))
+            .active_mut()
+            .move_cursor(row, col);
+        redraw_active_terminal();
+    }
+}
+
+pub(super) fn set_active_terminal(index: usize) -> bool {
+    unsafe {
+        ensure_state_initialized();
+        let changed = (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS)).set_active(index);
+        if changed {
+            redraw_active_terminal();
+        }
+        changed
     }
 }
 
 pub(super) fn set_color(color: ColorCode) {
     unsafe {
-        VGA_TEXT_COLOR = color;
+        ensure_state_initialized();
+        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS))
+            .active_mut()
+            .color = color;
     }
 }
 
 pub(super) fn color() -> ColorCode {
-    unsafe { VGA_TEXT_COLOR }
+    unsafe {
+        if !VGA_STATE_INITIALIZED {
+            return VGA_TEXT_DEFAULT_COLOR;
+        }
+        (&*core::ptr::addr_of!(VGA_TERMINALS)).active().color
+    }
 }

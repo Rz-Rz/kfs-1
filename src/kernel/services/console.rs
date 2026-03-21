@@ -1,11 +1,28 @@
+use crate::kernel::drivers::keyboard::{self, KeyboardRoute, KeyboardShortcut};
 use crate::kernel::drivers::vga_text;
 
 pub(crate) fn write_bytes(bytes: &[u8]) {
     vga_text::write_bytes(bytes);
 }
 
-fn write_byte(byte: u8) {
+pub fn write_byte(byte: u8) {
     vga_text::write_bytes(core::slice::from_ref(&byte));
+}
+
+pub fn backspace() {
+    vga_text::vga_text_backspace();
+}
+
+pub fn viewport_up() {
+    vga_text::vga_text_viewport_up();
+}
+
+pub fn viewport_down() {
+    vga_text::vga_text_viewport_down();
+}
+
+pub fn set_cursor(row: usize, col: usize) {
+    vga_text::vga_text_set_cursor(row, col);
 }
 
 pub const MAX_USIZE_DECIMAL_DIGITS: usize = 20;
@@ -250,4 +267,37 @@ pub fn printk(format: *const u8, value: usize) {
 
 pub fn printk_args(format: *const u8, args: *const usize, arg_count: usize) {
     printf_args(format, args, arg_count);
+}
+
+fn handle_shortcut(shortcut: KeyboardShortcut) {
+    match shortcut {
+        KeyboardShortcut::AltFunction(index) => {
+            let args = [index as usize];
+            printk_args(
+                b"\n[shortcut] alt-f%u reserved for terminal switching\n\0".as_ptr(),
+                args.as_ptr(),
+                args.len(),
+            );
+        }
+    }
+}
+
+pub fn poll_keyboard_and_echo() {
+    match keyboard::keyboard_poll_route() {
+        Some(KeyboardRoute::PutByte(byte)) => write_byte(byte),
+        Some(KeyboardRoute::Backspace) => backspace(),
+        Some(KeyboardRoute::ViewportUp) => viewport_up(),
+        Some(KeyboardRoute::ViewportDown) => viewport_down(),
+        Some(KeyboardRoute::Shortcut(shortcut)) => handle_shortcut(shortcut),
+        Some(KeyboardRoute::None) | None => {}
+    }
+}
+
+pub fn start_keyboard_echo_loop() -> ! {
+    keyboard::keyboard_init();
+
+    loop {
+        poll_keyboard_and_echo();
+        core::hint::spin_loop();
+    }
 }

@@ -1,5 +1,5 @@
 use crate::kernel::core::init::{self, EarlyInitFailure};
-use crate::kernel::services::diagnostics;
+use crate::kernel::services::{console, diagnostics};
 use crate::kernel::types::KernelRange;
 
 unsafe extern "C" {
@@ -34,7 +34,7 @@ pub extern "C" fn kmain() -> ! {
                 diagnostics::write_line("KMAIN_FLOW_OK");
                 qemu_exit(QEMU_EXIT_PASS);
             }
-            halt_forever()
+            console::start_keyboard_echo_loop()
         }
         Err(EarlyInitFailure::BssCanary) => runtime_fail("BSS_FAIL"),
         Err(EarlyInitFailure::Layout) => runtime_fail("LAYOUT_FAIL"),

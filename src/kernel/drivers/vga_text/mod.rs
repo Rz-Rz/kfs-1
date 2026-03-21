@@ -1,10 +1,214 @@
 mod writer;
 
-use crate::kernel::types::screen::{ColorCode, CursorPos, ScreenDimensions, VgaColor};
+use crate::kernel::types::screen::{ColorCode, CursorPos, ScreenDimensions, VgaColor, VGA_TEXT_DIMENSIONS};
 
 pub const VGA_TEXT_DEFAULT_COLOR: ColorCode =
     ColorCode::vga(VgaColor::Green.code(), VgaColor::Black.code());
-const VGA_TEXT_BLANK_BYTE: u8 = b' ';
+pub const VGA_TEXT_BLANK_BYTE: u8 = b' ';
+pub const VGA_TEXT_HISTORY_ROWS: usize = 256;
+pub const VGA_TEXT_HISTORY_CELL_COUNT: usize = VGA_TEXT_HISTORY_ROWS * VGA_TEXT_DIMENSIONS.width();
+pub const VGA_TEXT_TERMINAL_COUNT: usize = 12;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct VgaPutResult {
+    pub cell_index: Option<usize>,
+    pub scrolled: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct VgaHistoryCursor {
+    pub row: usize,
+    pub col: usize,
+}
+
+impl VgaHistoryCursor {
+    pub const fn new() -> Self {
+        Self { row: 0, col: 0 }
+    }
+
+    pub fn move_to(&mut self, row: usize, col: usize) {
+        self.row = row.min(VGA_TEXT_HISTORY_ROWS - 1);
+        self.col = col.min(VGA_TEXT_DIMENSIONS.width() - 1);
+    }
+
+    pub fn put_byte(&mut self, byte: u8) -> VgaPutResult {
+        if byte == b'\n' {
+            return VgaPutResult {
+                cell_index: None,
+                scrolled: self.advance_row(),
+            };
+        }
+
+        let cell_index = Some(self.cell_index());
+        self.col += 1;
+
+        let scrolled = if self.col >= VGA_TEXT_DIMENSIONS.width() {
+            self.advance_row()
+        } else {
+            false
+        };
+
+        VgaPutResult { cell_index, scrolled }
+    }
+
+    pub fn backspace_cell(&mut self) -> Option<usize> {
+        if self.col == 0 {
+            return None;
+        }
+
+        self.col -= 1;
+        Some(self.cell_index())
+    }
+
+    fn cell_index(&self) -> usize {
+        (self.row * VGA_TEXT_DIMENSIONS.width()) + self.col
+    }
+
+    fn advance_row(&mut self) -> bool {
+        self.col = 0;
+        if self.row + 1 >= VGA_TEXT_HISTORY_ROWS {
+            self.row = VGA_TEXT_HISTORY_ROWS - 1;
+            return true;
+        }
+        self.row += 1;
+        false
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct VgaTerminal {
+    pub cursor: VgaHistoryCursor,
+    pub viewport_top: usize,
+    pub color: ColorCode,
+    pub history: [u16; VGA_TEXT_HISTORY_CELL_COUNT],
+}
+
+impl VgaTerminal {
+    pub const fn new() -> Self {
+        Self {
+            cursor: VgaHistoryCursor::new(),
+            viewport_top: 0,
+            color: VGA_TEXT_DEFAULT_COLOR,
+            history: [0; VGA_TEXT_HISTORY_CELL_COUNT],
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.cursor = VgaHistoryCursor::new();
+        self.viewport_top = 0;
+        self.color = VGA_TEXT_DEFAULT_COLOR;
+        self.fill_history(vga_text_cell(self.color, VGA_TEXT_BLANK_BYTE));
+    }
+
+    pub fn move_cursor(&mut self, row: usize, col: usize) {
+        self.cursor.move_to(row, col);
+        self.viewport_top = vga_text_tail_viewport_top(self.cursor.row);
+    }
+
+    pub fn viewport_up(&mut self) {
+        if self.viewport_top > 0 {
+            self.viewport_top -= 1;
+        }
+    }
+
+    pub fn viewport_down(&mut self) {
+        let tail_top = vga_text_tail_viewport_top(self.cursor.row);
+        if self.viewport_top < tail_top {
+            self.viewport_top += 1;
+        }
+    }
+
+    pub fn put_byte(&mut self, byte: u8) {
+        let result = self.cursor.put_byte(byte);
+        if let Some(cell_index) = result.cell_index {
+            self.history[cell_index] = vga_text_cell(self.color, byte);
+        }
+        if result.scrolled {
+            vga_text_scroll_rows_up(
+                &mut self.history,
+                VGA_TEXT_DIMENSIONS.width(),
+                VGA_TEXT_HISTORY_ROWS,
+                vga_text_cell(self.color, VGA_TEXT_BLANK_BYTE),
+            );
+        }
+        self.viewport_top = vga_text_tail_viewport_top(self.cursor.row);
+    }
+
+    pub fn put_bytes(&mut self, bytes: &[u8]) {
+        for &byte in bytes {
+            self.put_byte(byte);
+        }
+    }
+
+    pub fn backspace(&mut self) {
+        if let Some(cell_index) = self.cursor.backspace_cell() {
+            self.history[cell_index] = vga_text_cell(self.color, VGA_TEXT_BLANK_BYTE);
+        }
+        self.viewport_top = vga_text_tail_viewport_top(self.cursor.row);
+    }
+
+    fn fill_history(&mut self, value: u16) {
+        let mut idx = 0;
+        while idx < self.history.len() {
+            self.history[idx] = value;
+            idx += 1;
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct VgaTerminalBank {
+    pub active_index: usize,
+    pub terminals: [VgaTerminal; VGA_TEXT_TERMINAL_COUNT],
+}
+
+impl VgaTerminalBank {
+    pub const fn new() -> Self {
+        const EMPTY_TERMINAL: VgaTerminal = VgaTerminal::new();
+        Self {
+            active_index: 0,
+            terminals: [EMPTY_TERMINAL; VGA_TEXT_TERMINAL_COUNT],
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.active_index = 0;
+        let mut idx = 0;
+        while idx < VGA_TEXT_TERMINAL_COUNT {
+            self.terminals[idx].reset();
+            idx += 1;
+        }
+    }
+
+    pub fn active(&self) -> &VgaTerminal {
+        &self.terminals[self.active_index]
+    }
+
+    pub fn active_mut(&mut self) -> &mut VgaTerminal {
+        &mut self.terminals[self.active_index]
+    }
+
+    pub fn terminal(&self, index: usize) -> Option<&VgaTerminal> {
+        self.terminals.get(index)
+    }
+
+    pub fn terminal_mut(&mut self, index: usize) -> Option<&mut VgaTerminal> {
+        self.terminals.get_mut(index)
+    }
+
+    pub fn set_active(&mut self, index: usize) -> bool {
+        if index >= VGA_TEXT_TERMINAL_COUNT {
+            return false;
+        }
+
+        self.active_index = index;
+        true
+    }
+}
+
+pub const fn vga_text_tail_viewport_top(cursor_row: usize) -> usize {
+    cursor_row.saturating_sub(VGA_TEXT_DIMENSIONS.height() - 1)
+}
 
 pub fn vga_text_cell(color: ColorCode, byte: u8) -> u16 {
     ((color.as_u8() as u16) << 8) | (byte as u16)
@@ -101,6 +305,67 @@ pub fn vga_text_write_screen(
     cursor
 }
 
+pub fn vga_text_scroll_rows_up<T: Copy>(
+    buffer: &mut [T],
+    row_width: usize,
+    row_count: usize,
+    blank: T,
+) {
+    let total_cells = row_width.saturating_mul(row_count);
+    if row_width == 0 || buffer.len() < total_cells {
+        return;
+    }
+
+    let mut idx = 0;
+    while idx + row_width < total_cells {
+        buffer[idx] = buffer[idx + row_width];
+        idx += 1;
+    }
+
+    while idx < total_cells {
+        buffer[idx] = blank;
+        idx += 1;
+    }
+}
+
+pub fn vga_text_blit_viewport<T: Copy>(
+    history: &[T],
+    row_width: usize,
+    viewport_height: usize,
+    viewport_top: usize,
+    screen: &mut [T],
+    blank: T,
+) {
+    let screen_cells = row_width.saturating_mul(viewport_height);
+    if row_width == 0 || screen.len() < screen_cells {
+        return;
+    }
+
+    let history_rows = history.len() / row_width;
+    let mut screen_row = 0;
+
+    while screen_row < viewport_height {
+        let history_row = viewport_top + screen_row;
+        let screen_start = screen_row * row_width;
+        let mut col = 0;
+
+        if history_row < history_rows {
+            let history_start = history_row * row_width;
+            while col < row_width {
+                screen[screen_start + col] = history[history_start + col];
+                col += 1;
+            }
+        } else {
+            while col < row_width {
+                screen[screen_start + col] = blank;
+                col += 1;
+            }
+        }
+
+        screen_row += 1;
+    }
+}
+
 fn vga_text_cursor_index(dimensions: ScreenDimensions, cursor: CursorPos) -> usize {
     (cursor.row * dimensions.width()) + cursor.col
 }
@@ -147,10 +412,30 @@ pub(crate) fn write_bytes(bytes: &[u8]) {
     writer::write_bytes(bytes);
 }
 
+pub fn vga_text_backspace() {
+    writer::backspace();
+}
+
+pub fn vga_text_viewport_up() {
+    writer::viewport_up();
+}
+
+pub fn vga_text_viewport_down() {
+    writer::viewport_down();
+}
+
+pub fn vga_text_set_cursor(row: usize, col: usize) {
+    writer::set_cursor(row, col);
+}
+
 pub fn vga_text_set_color(foreground: u8, background: u8) {
     writer::set_color(ColorCode::vga(foreground, background));
 }
 
 pub fn vga_text_get_color() -> ColorCode {
     writer::color()
+}
+
+pub fn vga_text_set_active_terminal(index: usize) -> bool {
+    writer::set_active_terminal(index)
 }

@@ -93,6 +93,8 @@ src/kernel/klib/string/imp.rs
 src/kernel/klib/memory/mod.rs
 src/kernel/klib/memory/imp.rs
 src/kernel/drivers/serial/mod.rs
+src/kernel/drivers/keyboard/mod.rs
+src/kernel/drivers/keyboard/imp.rs
 src/kernel/drivers/vga_text/mod.rs
 src/kernel/drivers/vga_text/writer.rs
 src/kernel/services/diagnostics.rs
@@ -212,13 +214,13 @@ assert_forbidden_leaf_imports_are_absent() {
     offenders="$(
       find "${REPO_ROOT}/src/kernel" -type f -name '*.rs' -print0 |
         xargs -0 rg -n '#\[path = ".*(imp|writer|logic_impl|string_impl|memory_impl)\.rs"\]' -S 2>/dev/null |
-        grep -vE '^.*/(mod|entry|string|memory|vga|kmain)\.rs:' || true
+        grep -vE '^.*/(mod|entry|string|memory|vga|kmain)\.rs:|^.*/drivers/keyboard/mod\.rs:' || true
     )"
   else
     offenders="$(
       find "${REPO_ROOT}/src/kernel" -type f -name '*.rs' -print0 |
         xargs -0 grep -En '#\[path = ".*(imp|writer|logic_impl|string_impl|memory_impl)\.rs"\]' 2>/dev/null |
-        grep -vE '^.*/(mod|entry|string|memory|vga|kmain)\.rs:' || true
+        grep -vE '^.*/(mod|entry|string|memory|vga|kmain)\.rs:|^.*/drivers/keyboard/mod\.rs:' || true
     )"
   fi
 
@@ -300,7 +302,7 @@ assert_abi_exports_live_only_in_target_facades() {
   offenders="$(
     find "${REPO_ROOT}/src/kernel" -type f -name '*.rs' -print0 |
       xargs -0 rg -n '#\[no_mangle\]|extern[[:space:]]+"C"' -S 2>/dev/null |
-      grep -vE '^.*/src/kernel/(core/entry\.rs|klib/string/mod\.rs|klib/memory/mod\.rs):' || true
+      grep -vE '^.*/src/kernel/(core/entry\.rs|drivers/keyboard/mod\.rs|klib/string/mod\.rs|klib/memory/mod\.rs):' || true
   )"
 
   if [[ -n "${offenders}" ]]; then
