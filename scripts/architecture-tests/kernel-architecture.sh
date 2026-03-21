@@ -13,10 +13,12 @@ target-tree-has-kernel-root
 required-architecture-artifacts-exist
 kernel-first-level-dirs-match-allowlist
 no-top-level-kernel-peer-files
+legacy-type-placement-is-absent
 private-leaves-stay-under-owning-subsystem
 forbidden-leaf-imports-are-absent
 types-has-no-abi-exports
 core-services-types-have-no-raw-hardware-access
+core-entry-does-not-call-driver-abi-directly
 abi-exports-live-only-in-target-facades
 exports-match-allowlist
 makefile-does-not-compile-src-kernel-peers-individually
@@ -30,10 +32,12 @@ describe_case() {
     required-architecture-artifacts-exist) printf '%s\n' "all required future-architecture artifacts exist" ;;
     kernel-first-level-dirs-match-allowlist) printf '%s\n' "kernel first-level directories match the architecture allowlist" ;;
     no-top-level-kernel-peer-files) printf '%s\n' "no legacy peer files remain under src/kernel" ;;
+    legacy-type-placement-is-absent) printf '%s\n' "legacy type placements are removed from the old layer" ;;
     private-leaves-stay-under-owning-subsystem) printf '%s\n' "private leaves stay under their owning subsystem directories" ;;
     forbidden-leaf-imports-are-absent) printf '%s\n' "private leaves are not imported outside their owning facade" ;;
     types-has-no-abi-exports) printf '%s\n' "types layer does not export ABI symbols" ;;
     core-services-types-have-no-raw-hardware-access) printf '%s\n' "core, services, and types avoid raw hardware access" ;;
+    core-entry-does-not-call-driver-abi-directly) printf '%s\n' "core entry avoids direct driver ABI calls and direct VGA writes" ;;
     abi-exports-live-only-in-target-facades) printf '%s\n' "ABI exports live only in target entry and klib facade files" ;;
     exports-match-allowlist) printf '%s\n' "kernel exports match the architecture allowlist exactly" ;;
     makefile-does-not-compile-src-kernel-peers-individually) printf '%s\n' "Makefile does not compile src/kernel peer files individually" ;;
@@ -141,6 +145,25 @@ assert_no_top_level_peer_files() {
   echo "PASS ${CASE}: no top-level kernel peer files"
 }
 
+assert_legacy_type_placement_is_absent() {
+  local offenders=()
+  local path
+
+  for path in \
+    "${REPO_ROOT}/src/kernel/types/port.rs" \
+    "${REPO_ROOT}/src/kernel/types.rs"; do
+    [[ -e "${path}" ]] && offenders+=("${path#${REPO_ROOT}/}")
+  done
+
+  if [[ "${#offenders[@]}" -gt 0 ]]; then
+    echo "FAIL ${CASE}: found legacy type placement in deprecated paths"
+    printf '%s\n' "${offenders[@]}"
+    return 1
+  fi
+
+  echo "PASS ${CASE}: legacy type placement removed from old layer"
+}
+
 assert_private_leaves_stay_under_owning_subsystem() {
   local offenders
 
@@ -235,6 +258,31 @@ assert_no_raw_hardware_access_in_high_layers() {
   echo "PASS ${CASE}: core/services/types avoid raw hardware access"
 }
 
+assert_core_entry_avoids_driver_abi_directly() {
+  local search_roots=()
+  local offenders
+
+  [[ -f "${REPO_ROOT}/src/kernel/kmain.rs" ]] && search_roots+=("${REPO_ROOT}/src/kernel/kmain.rs")
+  [[ -d "${REPO_ROOT}/src/kernel/core" ]] && search_roots+=("${REPO_ROOT}/src/kernel/core")
+
+  [[ "${#search_roots[@]}" -gt 0 ]] || {
+    echo "PASS ${CASE}: no core entry sources exist yet"
+    return 0
+  }
+
+  offenders="$(
+    rg -n '\bvga_(init|putc|puts)\b|0x[bB]8000|write_volatile' -S "${search_roots[@]}" || true
+  )"
+
+  if [[ -n "${offenders}" ]]; then
+    echo "FAIL ${CASE}: found direct driver ABI call or VGA write in core entry path"
+    printf '%s\n' "${offenders}"
+    return 1
+  fi
+
+  echo "PASS ${CASE}: core entry avoids direct driver ABI and VGA writes"
+}
+
 assert_abi_exports_live_only_in_target_facades() {
   local offenders
 
@@ -320,6 +368,9 @@ run_case() {
     no-top-level-kernel-peer-files)
       assert_no_top_level_peer_files
       ;;
+    legacy-type-placement-is-absent)
+      assert_legacy_type_placement_is_absent
+      ;;
     private-leaves-stay-under-owning-subsystem)
       assert_private_leaves_stay_under_owning_subsystem
       ;;
@@ -331,6 +382,9 @@ run_case() {
       ;;
     core-services-types-have-no-raw-hardware-access)
       assert_no_raw_hardware_access_in_high_layers
+      ;;
+    core-entry-does-not-call-driver-abi-directly)
+      assert_core_entry_avoids_driver_abi_directly
       ;;
     abi-exports-live-only-in-target-facades)
       assert_abi_exports_live_only_in_target_facades

@@ -10,9 +10,11 @@ list_cases() {
 new-top-level-kernel-peer-file-fails
 disallowed-first-level-layer-fails
 missing-required-artifact-fails
+legacy-type-placement-fails
 types-abi-export-fails
 private-leaf-import-fails
 raw-hardware-in-services-fails
+core-entry-driver-abi-call-fails
 abi-export-outside-target-facade-fails
 per-file-kernel-build-fails
 exports-allowlist-drift-fails
@@ -24,9 +26,11 @@ describe_case() {
     new-top-level-kernel-peer-file-fails) printf '%s\n' "rejects a new top-level kernel peer file" ;;
     disallowed-first-level-layer-fails) printf '%s\n' "rejects a disallowed first-level kernel layer" ;;
     missing-required-artifact-fails) printf '%s\n' "rejects a missing required future-architecture artifact" ;;
+    legacy-type-placement-fails) printf '%s\n' "rejects legacy type placement in deprecated paths" ;;
     types-abi-export-fails) printf '%s\n' "rejects ABI exports in the types layer" ;;
     private-leaf-import-fails) printf '%s\n' "rejects private leaf imports outside the owning facade" ;;
     raw-hardware-in-services-fails) printf '%s\n' "rejects raw hardware access in services" ;;
+    core-entry-driver-abi-call-fails) printf '%s\n' "rejects direct driver ABI calls from core entry" ;;
     abi-export-outside-target-facade-fails) printf '%s\n' "rejects ABI export markers outside target facade files" ;;
     per-file-kernel-build-fails) printf '%s\n' "rejects per-file kernel compilation in the Makefile" ;;
     exports-allowlist-drift-fails) printf '%s\n' "rejects unexpected export allowlist drift" ;;
@@ -55,6 +59,10 @@ make_target_tree() {
 
   cat >"${TMPDIR}/src/kernel.rs" <<'EOF'
 pub mod kernel;
+EOF
+
+  cat >"${TMPDIR}/src/kernel/types.rs" <<'EOF'
+pub type LegacyPort = u16;
 EOF
 
   cat >"${TMPDIR}/src/kernel/core/entry.rs" <<'EOF'
@@ -202,6 +210,10 @@ EOF
   [[ "${missing}" -eq 0 ]]
 }
 
+check_no_legacy_type_placement() {
+  [[ ! -e "${TMPDIR}/src/kernel/types.rs" ]] && [[ ! -e "${TMPDIR}/src/kernel/types/port.rs" ]]
+}
+
 check_no_types_abi_export() {
   ! rg -n '#\[no_mangle\]|extern[[:space:]]+"C"' "${TMPDIR}/src/kernel/types" >/dev/null
 }
@@ -212,6 +224,10 @@ check_no_private_leaf_imports() {
 
 check_no_raw_hardware_in_services() {
   ! rg -n '0x[bB]8000|write_volatile|read_volatile|\binb\b|\boutb\b' "${TMPDIR}/src/kernel/services" >/dev/null
+}
+
+check_core_entry_no_driver_abi() {
+  ! rg -n '\bvga_(init|putc|puts)\b|0x[bB]8000|write_volatile' "${TMPDIR}/src/kernel/core" >/dev/null
 }
 
 check_abi_exports_only_in_target_facades() {
@@ -248,6 +264,9 @@ run_case() {
       rm -f "${TMPDIR}/src/kernel/types/screen.rs"
       expect_failure "missing required architecture artifact" check_required_artifacts_exist
       ;;
+    legacy-type-placement-fails)
+      expect_failure "legacy type placement" check_no_legacy_type_placement
+      ;;
     types-abi-export-fails)
       printf '\n#[no_mangle]\npub extern "C" fn leaked() {}\n' >>"${TMPDIR}/src/kernel/types/range.rs"
       expect_failure "ABI export in types layer" check_no_types_abi_export
@@ -259,6 +278,10 @@ run_case() {
     raw-hardware-in-services-fails)
       printf '\nconst VGA_PTR: *mut u16 = 0xb8000 as *mut u16;\n' >>"${TMPDIR}/src/kernel/services/console.rs"
       expect_failure "raw hardware access in services" check_no_raw_hardware_in_services
+      ;;
+    core-entry-driver-abi-call-fails)
+      printf '\nfn boot_console() { vga_puts(core::ptr::null()); }\n' >>"${TMPDIR}/src/kernel/core/entry.rs"
+      expect_failure "direct driver ABI call from core entry" check_core_entry_no_driver_abi
       ;;
     abi-export-outside-target-facade-fails)
       printf '\n#[no_mangle]\npub extern "C" fn leaked_driver_abi() {}\n' >>"${TMPDIR}/src/kernel/drivers/vga_text/writer.rs"
