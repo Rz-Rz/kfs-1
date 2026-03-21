@@ -119,8 +119,9 @@ collect_source_exports() {
 }
 
 collect_binary_exports() {
-  bash "${REPO_ROOT}/scripts/container.sh" run -- \
-    bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -g --defined-only 'build/kernel-${ARCH}.bin' | awk '{print \$3}' | sed '/^$/d' | sort -u"
+  bash "${REPO_ROOT}/scripts/with-build-lock.sh" \
+    bash "${REPO_ROOT}/scripts/container.sh" run -- \
+      bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -g --defined-only 'build/kernel-${ARCH}.bin' | awk '{print \$3}' | sed '/^$/d' | LC_ALL=C sort -u"
 }
 
 assert_export_ownership_by_source() {

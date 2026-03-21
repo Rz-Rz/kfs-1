@@ -313,15 +313,16 @@ assert_abi_exports_live_only_in_target_facades() {
 }
 
 collect_actual_exports() {
-  bash "${REPO_ROOT}/scripts/container.sh" run -- \
-    bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -g --defined-only 'build/kernel-${ARCH}.bin' | awk '{print \$3}' | sed '/^$/d' | sort -u"
+  bash "${REPO_ROOT}/scripts/with-build-lock.sh" \
+    bash "${REPO_ROOT}/scripts/container.sh" run -- \
+      bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -g --defined-only 'build/kernel-${ARCH}.bin' | awk '{print \$3}' | sed '/^$/d' | LC_ALL=C sort -u"
 }
 
 assert_exports_match_allowlist() {
   [[ -f "${ALLOWLIST}" ]] || die "missing allowlist: ${ALLOWLIST}"
 
   local expected actual
-  expected="$(sort -u "${ALLOWLIST}")"
+  expected="$(LC_ALL=C sort -u "${ALLOWLIST}")"
   actual="$(collect_actual_exports)"
 
   if [[ "${actual}" != "${expected}" ]]; then

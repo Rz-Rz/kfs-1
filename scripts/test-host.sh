@@ -6,7 +6,9 @@ ARCH="${1:-i386}"
 VERBOSE="${KFS_VERBOSE:-0}"
 TUI_PROTOCOL="${KFS_TUI_PROTOCOL:-0}"
 SKIP_TUI_MANIFEST="${KFS_TUI_SKIP_MANIFEST:-0}"
+DEBUG_DIR="${KFS_TEST_DEBUG_DIR:-}"
 SCRIPT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DEBUG_INDEX=""
 
 if [[ "${ARCH}" == "--manifest" ]]; then
   MODE="manifest"
@@ -90,6 +92,56 @@ emit_event() {
     shift
   done
   printf '\n'
+}
+
+slugify() {
+  printf '%s' "$1" |
+    tr '[:upper:]' '[:lower:]' |
+    sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
+}
+
+init_debug_index() {
+  [[ -n "${DEBUG_DIR}" ]] || return 0
+  mkdir -p "${DEBUG_DIR}"
+  DEBUG_INDEX="${DEBUG_DIR}/case-index.tsv"
+  if [[ ! -f "${DEBUG_INDEX}" ]]; then
+    printf 'section\tsubgroup\tcase\ttitle\trc\tlog_path\n' >"${DEBUG_INDEX}"
+  fi
+}
+
+persist_case_log() {
+  local section="$1"
+  local subgroup="$2"
+  local title="$3"
+  local test_case="$4"
+  local rc="$5"
+  local log="$6"
+  local section_slug subgroup_slug case_slug path
+
+  [[ -n "${DEBUG_DIR}" ]] || return 0
+
+  section_slug="$(slugify "${section}")"
+  subgroup_slug="$(slugify "${subgroup}")"
+  case_slug="$(slugify "${test_case}")"
+
+  [[ -n "${section_slug}" ]] || section_slug="unknown-section"
+  [[ -n "${subgroup_slug}" ]] || subgroup_slug="root"
+  [[ -n "${case_slug}" && "${case_slug}" != "-" ]] || case_slug="$(slugify "${title}")"
+  [[ -n "${case_slug}" ]] || case_slug="unnamed-case"
+
+  path="${DEBUG_DIR}/${section_slug}/${subgroup_slug}/${case_slug}.log"
+  mkdir -p "$(dirname "${path}")"
+  cp "${log}" "${path}"
+
+  if [[ -n "${DEBUG_INDEX}" ]]; then
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "${section}" \
+      "${subgroup}" \
+      "${test_case}" \
+      "${title}" \
+      "${rc}" \
+      "${path}" >>"${DEBUG_INDEX}"
+  fi
 }
 
 collect_section_entries() {
@@ -189,6 +241,7 @@ run_item() {
   "$@" >"${log}" 2>&1
   local rc="$?"
   set -e
+  persist_case_log "${section}" "${subgroup}" "${title}" "${test_case}" "${rc}" "${log}"
 
   if [[ "${rc}" -eq 0 ]]; then
     pass
@@ -257,6 +310,7 @@ is_tty && export KFS_CONTAINER_TTY=1
 entries="$(mktemp -t kfs-manifest.XXXXXX)"
 trap 'rm -f "${entries}"' EXIT
 build_manifest "${entries}"
+init_debug_index
 
 if [[ "${MODE}" == "manifest" ]]; then
   emit_manifest "${entries}"

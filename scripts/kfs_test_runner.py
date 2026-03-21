@@ -12,7 +12,9 @@ from pathlib import Path
 from kfs_metrics import (
     RunCase,
     RunRecord,
+    build_run_id,
     capture_git_context,
+    debug_root,
     repo_root_for,
     save_run,
     sync_branch_lifecycle,
@@ -98,6 +100,17 @@ def main() -> int:
     repo_root = repo_root_for(__file__)
     started_at = datetime.now(timezone.utc)
     capture = ProtocolCapture()
+    git = capture_git_context(repo_root)
+    run_id = build_run_id(started_at, args.arch, git.head_sha)
+    debug_dir = debug_root(repo_root) / run_id
+    case_logs_dir = debug_dir / "cases"
+    raw_log_path = debug_dir / "runner.raw.log"
+    latest_path = debug_root(repo_root) / f"latest-{args.arch}.path"
+
+    debug_dir.mkdir(parents=True, exist_ok=True)
+    case_logs_dir.mkdir(parents=True, exist_ok=True)
+    latest_path.parent.mkdir(parents=True, exist_ok=True)
+    latest_path.write_text(f"{debug_dir.relative_to(repo_root)}\n", encoding="utf-8")
 
     process = subprocess.Popen(
         ["bash", "scripts/test-host.sh", args.arch],
@@ -109,20 +122,24 @@ def main() -> int:
         env={
             **os.environ.copy(),
             "KFS_TUI_PROTOCOL": "1",
+            "KFS_TEST_DEBUG_DIR": str(case_logs_dir),
+            "KFS_TEST_RUN_ID": run_id,
         },
     )
 
     assert process.stdout is not None
-    for raw_line in process.stdout:
-        sys.stdout.write(raw_line)
-        sys.stdout.flush()
-        capture.process_line(raw_line.rstrip("\n"))
+    with raw_log_path.open("w", encoding="utf-8") as raw_log:
+        for raw_line in process.stdout:
+            raw_log.write(raw_line)
+            raw_log.flush()
+            sys.stdout.write(raw_line)
+            sys.stdout.flush()
+            capture.process_line(raw_line.rstrip("\n"))
 
     exit_code = process.wait()
     finished_at = datetime.now(timezone.utc)
 
     try:
-        git = capture_git_context(repo_root)
         run = RunRecord(
             started_at=started_at.isoformat(),
             finished_at=finished_at.isoformat(),
@@ -138,6 +155,9 @@ def main() -> int:
             section_failed=capture.section_failed,
             cases=capture.to_cases(),
             git=git,
+            debug_dir=str(debug_dir.relative_to(repo_root)),
+            raw_log_path=str(raw_log_path.relative_to(repo_root)),
+            run_id=run_id,
         )
         save_run(repo_root, run)
         sync_branch_lifecycle(repo_root, fetch_remote=True)
