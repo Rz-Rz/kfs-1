@@ -14,7 +14,7 @@ host-vga-cell-unit-tests-pass
 rust-defines-layout-order-check
 rust-defines-vga-text-cell
 rust-kmain-uses-layout-order-check
-rust-kmain-uses-vga-text-cell
+rust-kmain-uses-vga-writer
 EOF
 }
 
@@ -25,7 +25,7 @@ describe_case() {
     rust-defines-layout-order-check) printf '%s\n' "Rust defines the pure layout-order helper" ;;
     rust-defines-vga-text-cell) printf '%s\n' "Rust defines the VGA text cell helper" ;;
     rust-kmain-uses-layout-order-check) printf '%s\n' "kmain uses the shared layout-order helper" ;;
-    rust-kmain-uses-vga-text-cell) printf '%s\n' "kmain uses the shared VGA text cell helper" ;;
+    rust-kmain-uses-vga-writer) printf '%s\n' "kmain uses the VGA writer interface" ;;
     *) return 1 ;;
   esac
 }
@@ -93,11 +93,12 @@ run_direct_case() {
     rust-kmain-uses-layout-order-check)
       assert_pattern '\blayout_order_is_sane\(' 'kmain call to layout_order_is_sane' "${KMAIN_SOURCE}"
       ;;
-    rust-kmain-uses-vga-text-cell)
-      assert_pattern '\bvga_text_cell\(' 'kmain call to vga_text_cell' "${KMAIN_SOURCE}"
+    rust-kmain-uses-vga-writer)
+      assert_pattern '\bvga_init\(' 'kmain call to vga_init' "${KMAIN_SOURCE}"
+      assert_pattern '\bvga_puts\(' 'kmain call to vga_puts' "${KMAIN_SOURCE}"
       ;;
     *)
-      die "usage: $0 <arch> {host-layout-order-unit-tests-pass|host-vga-cell-unit-tests-pass|rust-defines-layout-order-check|rust-defines-vga-text-cell|rust-kmain-uses-layout-order-check|rust-kmain-uses-vga-text-cell}"
+      die "usage: $0 <arch> {host-layout-order-unit-tests-pass|host-vga-cell-unit-tests-pass|rust-defines-layout-order-check|rust-defines-vga-text-cell|rust-kmain-uses-layout-order-check|rust-kmain-uses-vga-writer}"
       ;;
   esac
 }

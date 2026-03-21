@@ -1,5 +1,3 @@
-#![no_std]
-
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
 const VGA_WIDTH: usize = 80;
 const VGA_HEIGHT: usize = 25;

@@ -7,8 +7,6 @@ use core::panic::PanicInfo;
 mod kernel_types;
 #[path = "kmain/logic_impl.rs"]
 mod kmain_logic;
-#[path = "vga.rs"]
-mod vga;
 use kernel_types::{KernelRange, Port};
 use kmain_logic::layout_order_is_sane;
 const COM1_DATA: Port = Port::new(0x3f8);
@@ -39,6 +37,8 @@ unsafe extern "C" {
     static bss_start: u8;
     static bss_end: u8;
     static kfs_test_mode: u8;
+    fn vga_init();
+    fn vga_puts(text: *const u8);
     fn kfs_strlen(ptr: *const u8) -> usize;
     fn kfs_strcmp(lhs: *const u8, rhs: *const u8) -> i32;
     fn kfs_memcpy(dst: *mut u8, src: *const u8, len: usize) -> *mut u8;
@@ -240,8 +240,10 @@ fn memory_override_requested() -> bool {
 }
 
 fn write_42_to_vga() {
-    vga::vga_init();
-    vga::vga_puts(b"42\0".as_ptr());
+    unsafe {
+        vga_init();
+        vga_puts(b"42\0".as_ptr());
+    }
 }
 
 fn runtime_fail(marker: &str) -> ! {

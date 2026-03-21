@@ -83,10 +83,10 @@ run_direct_case() {
       assert_release_symbol 'vga_puts'
       ;;
     rust-kmain-uses-vga-init)
-      assert_source_pattern '\bvga::vga_init\b' 'kmain call to vga::vga_init' "${KMAIN}"
+      assert_source_pattern '\bvga_init\b' 'kmain call to vga_init' "${KMAIN}"
       ;;
     rust-kmain-uses-vga-puts)
-      assert_source_pattern '\bvga::vga_puts\b' 'kmain call to vga::vga_puts' "${KMAIN}"
+      assert_source_pattern '\bvga_puts\b' 'kmain call to vga_puts' "${KMAIN}"
       ;;
     *)
       die "unknown case: ${CASE}"
