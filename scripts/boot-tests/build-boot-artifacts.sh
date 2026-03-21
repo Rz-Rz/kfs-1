@@ -32,11 +32,11 @@ main() {
 
   case "${CASE}" in
     build-iso)
-      bash scripts/container.sh run -- \
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
         bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null"
       ;;
     build-img-artifact)
-      bash scripts/container.sh run -- \
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
         bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null"
       ;;
     *)

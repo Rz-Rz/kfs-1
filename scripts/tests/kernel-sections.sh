@@ -85,7 +85,7 @@ verify_required_kernel_layout() {
   fi
 
   if [[ "${missing}" -ne 0 ]]; then
-    echo "hint: Feature M3.2 expects linker output sections (.text/.rodata/.data/.bss) and the Rust canary symbols from src/rust/section_markers.rs"
+    echo "hint: Feature M3.2 expects linker output sections (.text/.rodata/.data/.bss) and the Rust canary symbols from src/freestanding/section_markers.rs"
     return 1
   fi
 
@@ -96,56 +96,56 @@ verify_required_kernel_layout() {
 run_host_case() {
   case "${CASE}" in
     release-iso-bootable)
-      bash scripts/container.sh run -- \
-        bash -lc "make -B iso arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.iso && test \$(wc -c < build/os-${ARCH}.iso) -le 10485760 && file build/os-${ARCH}.iso | grep -q 'ISO 9660'"
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+        bash -lc "make clean >/dev/null 2>&1 || true; make -B iso arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.iso && test \$(wc -c < build/os-${ARCH}.iso) -le 10485760 && file build/os-${ARCH}.iso | grep -q 'ISO 9660'"
       ;;
     release-img-bootable)
-      bash scripts/container.sh run -- \
-        bash -lc "make -B img arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+        bash -lc "make clean >/dev/null 2>&1 || true; make -B img arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
       ;;
     linker-script-defines-rodata-section)
-      bash scripts/container.sh run -- \
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
         bash -lc "grep -nE '^\\s*\\.rodata\\b' src/arch/${ARCH}/linker.ld >/dev/null"
       ;;
     linker-script-defines-data-section)
-      bash scripts/container.sh run -- \
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
         bash -lc "grep -nE '^\\s*\\.data\\b' src/arch/${ARCH}/linker.ld >/dev/null"
       ;;
     linker-script-defines-bss-section)
-      bash scripts/container.sh run -- \
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
         bash -lc "grep -nE '^\\s*\\.bss\\b' src/arch/${ARCH}/linker.ld >/dev/null"
       ;;
     release-kernel-contains-text-section)
-      bash scripts/container.sh run -- \
-        bash -lc "make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.text[[:space:]]'"
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+        bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.text[[:space:]]'"
       ;;
     release-kernel-contains-rodata-section)
-      bash scripts/container.sh run -- \
-        bash -lc "make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.rodata[[:space:]]'"
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+        bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.rodata[[:space:]]'"
       ;;
     release-kernel-contains-data-section)
-      bash scripts/container.sh run -- \
-        bash -lc "make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.data[[:space:]]'"
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+        bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.data[[:space:]]'"
       ;;
     release-kernel-contains-bss-section)
-      bash scripts/container.sh run -- \
-        bash -lc "make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.bss[[:space:]]'"
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+        bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.bss[[:space:]]'"
       ;;
     release-rodata-marker)
-      bash scripts/container.sh run -- \
-        bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]R[[:space:]]+KFS_RODATA_MARKER$'"
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+        bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]R[[:space:]]+KFS_RODATA_MARKER$'"
       ;;
     release-data-marker)
-      bash scripts/container.sh run -- \
-        bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]D[[:space:]]+KFS_DATA_MARKER$'"
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+        bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]D[[:space:]]+KFS_DATA_MARKER$'"
       ;;
     release-bss-marker)
-      bash scripts/container.sh run -- \
-        bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]][Bb][[:space:]]+KFS_BSS_MARKER$'"
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+        bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]][Bb][[:space:]]+KFS_BSS_MARKER$'"
       ;;
     release-bss-is-nobits)
-      bash scripts/container.sh run -- \
-        bash -lc "make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '\\.bss\\b.*NOBITS'"
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+        bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '\\.bss\\b.*NOBITS'"
       ;;
     *)
       return 1

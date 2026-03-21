@@ -31,8 +31,8 @@ die() {
 declare -a RELEASE_OBJECT_FILES=()
 
 ensure_release_objects() {
-  make clean >/dev/null 2>&1 || true
-  make -B all arch="${ARCH}" >/dev/null
+  bash scripts/with-build-lock.sh \
+    bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null"
 
   mapfile -t RELEASE_OBJECT_FILES < <(
     find "build/arch/${ARCH}" -type f -name '*.o' ! -path "*/test/*" | sort
@@ -255,7 +255,7 @@ run_direct_case() {
 }
 
 run_host_case() {
-  bash scripts/container.sh run -- \
+  bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
     bash -lc "KFS_HOST_TEST_DIRECT=1 bash scripts/rejection-tests/freestanding-rejections.sh '${ARCH}' '${CASE}'"
 }
 

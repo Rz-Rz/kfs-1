@@ -7,7 +7,7 @@ TIMEOUT_SECS="${TEST_TIMEOUT_SECS:-10}"
 PASS_RC="${TEST_PASS_RC:-33}"
 ISO="build/os-${ARCH}-test.iso"
 LOG="build/m5-string-runtime-${CASE}.log"
-KMAIN_SOURCE="src/kernel/kmain.rs"
+INIT_SOURCE="src/kernel/core/init.rs"
 
 list_cases() {
   cat <<'EOF'
@@ -22,9 +22,9 @@ EOF
 
 describe_case() {
   case "$1" in
-    release-kmain-calls-kfs-strlen) printf '%s\n' "release kmain calls kfs_strlen in the string sanity path" ;;
+    release-kmain-calls-kfs-strlen) printf '%s\n' "release core init calls string::strlen in the string sanity path" ;;
     runtime-confirms-strlen) printf '%s\n' "runtime emits STRLEN_OK" ;;
-    release-kmain-calls-kfs-strcmp) printf '%s\n' "release kmain calls kfs_strcmp in the string sanity path" ;;
+    release-kmain-calls-kfs-strcmp) printf '%s\n' "release core init calls string::strcmp in the string sanity path" ;;
     runtime-confirms-strcmp) printf '%s\n' "runtime emits STRCMP_OK" ;;
     runtime-confirms-string-helpers) printf '%s\n' "runtime emits STRING_HELPERS_OK" ;;
     runtime-string-markers-are-ordered) printf '%s\n' "runtime emits STRLEN_OK then STRCMP_OK then STRING_HELPERS_OK in order" ;;
@@ -124,14 +124,14 @@ run_direct_case() {
 
   case "${CASE}" in
     release-kmain-calls-kfs-strlen)
-      assert_pattern 'kfs_strlen\(' 'kfs_strlen call in kmain' "${KMAIN_SOURCE}"
+      assert_pattern 'string::strlen\(' 'string::strlen call in core init' "${INIT_SOURCE}"
       assert_log_contains "STRLEN_OK"
       ;;
     runtime-confirms-strlen)
       assert_log_contains "STRLEN_OK"
       ;;
     release-kmain-calls-kfs-strcmp)
-      assert_pattern 'kfs_strcmp\(' 'kfs_strcmp call in kmain' "${KMAIN_SOURCE}"
+      assert_pattern 'string::strcmp\(' 'string::strcmp call in core init' "${INIT_SOURCE}"
       assert_log_contains "STRCMP_OK"
       ;;
     runtime-confirms-strcmp)

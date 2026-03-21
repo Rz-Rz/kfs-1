@@ -7,7 +7,7 @@ TIMEOUT_SECS="${TEST_TIMEOUT_SECS:-10}"
 PASS_RC="${TEST_PASS_RC:-33}"
 ISO="build/os-${ARCH}-test.iso"
 LOG="build/m5-memory-runtime-${CASE}.log"
-KMAIN_SOURCE="src/kernel/kmain.rs"
+INIT_SOURCE="src/kernel/core/init.rs"
 
 list_cases() {
   cat <<'EOF'
@@ -22,9 +22,9 @@ EOF
 
 describe_case() {
   case "$1" in
-    release-kmain-calls-kfs-memcpy) printf '%s\n' "release kmain calls kfs_memcpy in the memory sanity path" ;;
+    release-kmain-calls-kfs-memcpy) printf '%s\n' "release core init calls memory::memcpy in the memory sanity path" ;;
     runtime-confirms-memcpy) printf '%s\n' "runtime emits MEMCPY_OK" ;;
-    release-kmain-calls-kfs-memset) printf '%s\n' "release kmain calls kfs_memset in the memory sanity path" ;;
+    release-kmain-calls-kfs-memset) printf '%s\n' "release core init calls memory::memset in the memory sanity path" ;;
     runtime-confirms-memset) printf '%s\n' "runtime emits MEMSET_OK" ;;
     runtime-confirms-memory-helpers) printf '%s\n' "runtime emits MEMORY_HELPERS_OK" ;;
     runtime-memory-markers-are-ordered) printf '%s\n' "runtime emits MEMCPY_OK then MEMSET_OK then MEMORY_HELPERS_OK in order" ;;
@@ -124,14 +124,14 @@ run_direct_case() {
 
   case "${CASE}" in
     release-kmain-calls-kfs-memcpy)
-      assert_pattern 'kfs_memcpy\(' 'kfs_memcpy call in kmain' "${KMAIN_SOURCE}"
+      assert_pattern 'memory::memcpy\(' 'memory::memcpy call in core init' "${INIT_SOURCE}"
       assert_log_contains "MEMCPY_OK"
       ;;
     runtime-confirms-memcpy)
       assert_log_contains "MEMCPY_OK"
       ;;
     release-kmain-calls-kfs-memset)
-      assert_pattern 'kfs_memset\(' 'kfs_memset call in kmain' "${KMAIN_SOURCE}"
+      assert_pattern 'memory::memset\(' 'memory::memset call in core init' "${INIT_SOURCE}"
       assert_log_contains "MEMSET_OK"
       ;;
     runtime-confirms-memset)

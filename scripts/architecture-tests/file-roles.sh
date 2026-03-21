@@ -22,7 +22,7 @@ EOF
 
 describe_case() {
   case "$1" in
-    crate-root-is-lone-top-level-rs) printf '%s\n' "kernel.rs is the only top-level Rust file under src/kernel" ;;
+    crate-root-is-lone-top-level-rs) printf '%s\n' "src/main.rs is the freestanding root and src/kernel/mod.rs is the only top-level Rust file under src/kernel" ;;
     kernel-top-level-directories-are-layers-only) printf '%s\n' "kernel top-level directories match the target layer set" ;;
     layer-roots-are-mod-rs) printf '%s\n' "each kernel layer has a mod.rs root" ;;
     subsystem-facade-shapes-are-valid) printf '%s\n' "subsystem facades are in allowed shapes and locations" ;;
@@ -41,19 +41,24 @@ die() {
 assert_crate_root_is_lone_top_level_rs() {
   local peers
 
-  [[ -f "${REPO_ROOT}/src/kernel.rs" ]] || {
-    echo "FAIL ${CASE}: missing src/kernel.rs"
+  [[ -f "${REPO_ROOT}/src/main.rs" ]] || {
+    echo "FAIL ${CASE}: missing src/main.rs"
+    return 1
+  }
+
+  [[ -f "${REPO_ROOT}/src/kernel/mod.rs" ]] || {
+    echo "FAIL ${CASE}: missing src/kernel/mod.rs"
     return 1
   }
 
   peers="$(find "${REPO_ROOT}/src/kernel" -mindepth 1 -maxdepth 1 -type f -name '*.rs' -printf '%f\n' | sort)"
-  if [[ -n "${peers}" ]] && [[ "${peers}" != "kernel.rs" ]]; then
+  if [[ -n "${peers}" ]] && [[ "${peers}" != "mod.rs" ]]; then
     echo "FAIL ${CASE}: top-level Rust peer files must not exist under src/kernel"
     printf '%s\n' "${peers}"
     return 1
   fi
 
-  echo "PASS ${CASE}: src/kernel.rs is the only top-level Rust file"
+  echo "PASS ${CASE}: src/main.rs and src/kernel/mod.rs are the only top-level Rust roots"
 }
 
 assert_top_level_is_layers_only() {
@@ -105,39 +110,20 @@ assert_subsystem_facade_shapes_are_valid() {
 
   [[ -f "${REPO_ROOT}/src/kernel/core/entry.rs" ]] || offenders+=("src/kernel/core/entry.rs")
   [[ -f "${REPO_ROOT}/src/kernel/core/init.rs" ]] || offenders+=("src/kernel/core/init.rs")
-  [[ -f "${REPO_ROOT}/src/kernel/core/panic.rs" ]] || offenders+=("src/kernel/core/panic.rs")
   [[ -f "${REPO_ROOT}/src/kernel/machine/port.rs" ]] || offenders+=("src/kernel/machine/port.rs")
   [[ -f "${REPO_ROOT}/src/kernel/types/range.rs" ]] || offenders+=("src/kernel/types/range.rs")
   [[ -f "${REPO_ROOT}/src/kernel/types/screen.rs" ]] || offenders+=("src/kernel/types/screen.rs")
   [[ -f "${REPO_ROOT}/src/kernel/services/console.rs" ]] || offenders+=("src/kernel/services/console.rs")
+  [[ -f "${REPO_ROOT}/src/kernel/services/diagnostics.rs" ]] || offenders+=("src/kernel/services/diagnostics.rs")
 
   # Facades with private leaves must be directories with a mod.rs and owned leaf.
   [[ -f "${REPO_ROOT}/src/kernel/klib/string/mod.rs" ]] || offenders+=("src/kernel/klib/string/mod.rs")
   [[ -f "${REPO_ROOT}/src/kernel/klib/string/imp.rs" ]] || offenders+=("src/kernel/klib/string/imp.rs")
   [[ -f "${REPO_ROOT}/src/kernel/klib/memory/mod.rs" ]] || offenders+=("src/kernel/klib/memory/mod.rs")
   [[ -f "${REPO_ROOT}/src/kernel/klib/memory/imp.rs" ]] || offenders+=("src/kernel/klib/memory/imp.rs")
+  [[ -f "${REPO_ROOT}/src/kernel/drivers/serial/mod.rs" ]] || offenders+=("src/kernel/drivers/serial/mod.rs")
   [[ -f "${REPO_ROOT}/src/kernel/drivers/vga_text/mod.rs" ]] || offenders+=("src/kernel/drivers/vga_text/mod.rs")
   [[ -f "${REPO_ROOT}/src/kernel/drivers/vga_text/writer.rs" ]] || offenders+=("src/kernel/drivers/vga_text/writer.rs")
-
-  # Peer facade files are forbidden now that these facades live under subsystem directories.
-  if [[ -f "${REPO_ROOT}/src/kernel/string.rs" ]]; then
-    offenders+=("src/kernel/string.rs")
-  fi
-  if [[ -f "${REPO_ROOT}/src/kernel/memory.rs" ]]; then
-    offenders+=("src/kernel/memory.rs")
-  fi
-  if [[ -f "${REPO_ROOT}/src/kernel/vga_text.rs" ]]; then
-    offenders+=("src/kernel/vga_text.rs")
-  fi
-  if [[ -f "${REPO_ROOT}/src/kernel/klib/string.rs" ]]; then
-    offenders+=("src/kernel/klib/string.rs")
-  fi
-  if [[ -f "${REPO_ROOT}/src/kernel/klib/memory.rs" ]]; then
-    offenders+=("src/kernel/klib/memory.rs")
-  fi
-  if [[ -f "${REPO_ROOT}/src/kernel/drivers/vga_text.rs" ]]; then
-    offenders+=("src/kernel/drivers/vga_text.rs")
-  fi
 
   if [[ "${#offenders[@]}" -gt 0 ]]; then
     echo "FAIL ${CASE}: invalid subsystem facade shape or missing required target facade/leaf files"
@@ -208,12 +194,13 @@ assert_kernel_files_have_recognized_roles() {
   while IFS= read -r -d '' path; do
     rel="${path#${REPO_ROOT}/}"
     case "${rel}" in
-      src/kernel.rs) ;;
+      src/main.rs) ;;
+      src/kernel/mod.rs) ;;
       src/kernel/core/mod.rs) ;;
       src/kernel/core/entry.rs) ;;
       src/kernel/core/init.rs) ;;
-      src/kernel/core/panic.rs) ;;
       src/kernel/drivers/mod.rs) ;;
+      src/kernel/drivers/serial/mod.rs) ;;
       src/kernel/drivers/vga_text/mod.rs) ;;
       src/kernel/drivers/vga_text/writer.rs) ;;
       src/kernel/klib/mod.rs) ;;
@@ -225,6 +212,7 @@ assert_kernel_files_have_recognized_roles() {
       src/kernel/machine/port.rs) ;;
       src/kernel/services/mod.rs) ;;
       src/kernel/services/console.rs) ;;
+      src/kernel/services/diagnostics.rs) ;;
       src/kernel/types/mod.rs) ;;
       src/kernel/types/range.rs) ;;
       src/kernel/types/screen.rs) ;;

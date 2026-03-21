@@ -8,22 +8,18 @@ TMPDIR=""
 list_cases() {
   cat <<'EOF'
 top-level-peer-file-fails
-facade-peer-shape-fails
 orphan-leaf-location-fails
 cross-facade-leaf-import-fails
 unknown-role-file-fails
-mixed-facade-and-leaf-shape-fails
 EOF
 }
 
 describe_case() {
   case "$1" in
     top-level-peer-file-fails) printf '%s\n' "rejects top-level Rust peer files under src/kernel" ;;
-    facade-peer-shape-fails) printf '%s\n' "rejects peer subsystem facade files beside subsystem directories" ;;
     orphan-leaf-location-fails) printf '%s\n' "rejects private leaves outside owning subsystem paths" ;;
     cross-facade-leaf-import-fails) printf '%s\n' "rejects facade importing another subsystem's private leaf" ;;
     unknown-role-file-fails) printf '%s\n' "rejects unknown file roles in kernel tree" ;;
-    mixed-facade-and-leaf-shape-fails) printf '%s\n' "rejects mixing facade and leaf role shapes in one subsystem layout" ;;
     *) return 1 ;;
   esac
 }
@@ -43,10 +39,18 @@ trap cleanup EXIT
 make_tree() {
   TMPDIR="$(mktemp -d)"
 
-  mkdir -p "${TMPDIR}/src/kernel"/{core,drivers/vga_text,klib/string,klib/memory,machine,services,types}
+  mkdir -p "${TMPDIR}/src/kernel"/{core,drivers/vga_text,drivers/serial,klib/string,klib/memory,machine,services,types}
 
-  cat >"${TMPDIR}/src/kernel.rs" <<'EOF'
+  cat >"${TMPDIR}/src/main.rs" <<'EOF'
 pub mod kernel;
+EOF
+  cat >"${TMPDIR}/src/kernel/mod.rs" <<'EOF'
+pub mod core;
+pub mod drivers;
+pub mod klib;
+pub mod machine;
+pub mod services;
+pub mod types;
 EOF
   for layer in core drivers klib machine services types; do
     printf 'pub mod placeholder;\n' >"${TMPDIR}/src/kernel/${layer}/mod.rs"
@@ -57,11 +61,6 @@ pub fn kmain() {}
 EOF
   cat >"${TMPDIR}/src/kernel/core/init.rs" <<'EOF'
 pub fn init() {}
-EOF
-  cat >"${TMPDIR}/src/kernel/core/panic.rs" <<'EOF'
-pub fn halt_forever() -> ! {
-    loop {}
-}
 EOF
   cat >"${TMPDIR}/src/kernel/machine/port.rs" <<'EOF'
 #[repr(transparent)]
@@ -112,11 +111,25 @@ EOF
 #[path = "writer.rs"]
 mod writer;
 EOF
+  cat >"${TMPDIR}/src/kernel/drivers/serial/mod.rs" <<'EOF'
+use crate::kernel::machine::port::Port;
+
+pub fn initialize() {
+    let _ = Port::new(0x3f8);
+}
+EOF
   cat >"${TMPDIR}/src/kernel/drivers/vga_text/writer.rs" <<'EOF'
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
 EOF
   cat >"${TMPDIR}/src/kernel/services/console.rs" <<'EOF'
 pub fn console_write() {}
+EOF
+  cat >"${TMPDIR}/src/kernel/services/diagnostics.rs" <<'EOF'
+use crate::kernel::drivers::serial;
+
+pub fn write_line() {
+    serial::initialize();
+}
 EOF
 }
 
@@ -135,9 +148,10 @@ expect_failure() {
 
 check_kernel_root_is_lone_top_level_rs() {
   local peers
-  [[ -f "${TMPDIR}/src/kernel.rs" ]] || return 1
+  [[ -f "${TMPDIR}/src/main.rs" ]] || return 1
+  [[ -f "${TMPDIR}/src/kernel/mod.rs" ]] || return 1
   peers="$(find "${TMPDIR}/src/kernel" -mindepth 1 -maxdepth 1 -type f -name '*.rs' -printf '%f\n' | sort)"
-  [[ -n "${peers}" ]] && [[ "${peers}" == "kernel.rs" ]]
+  [[ -n "${peers}" ]] && [[ "${peers}" == "mod.rs" ]]
 }
 
 check_subsystem_facade_shapes_valid() {
@@ -145,15 +159,11 @@ check_subsystem_facade_shapes_valid() {
   [[ -f "${TMPDIR}/src/kernel/klib/string/imp.rs" ]] || return 1
   [[ -f "${TMPDIR}/src/kernel/klib/memory/mod.rs" ]] || return 1
   [[ -f "${TMPDIR}/src/kernel/klib/memory/imp.rs" ]] || return 1
+  [[ -f "${TMPDIR}/src/kernel/drivers/serial/mod.rs" ]] || return 1
   [[ -f "${TMPDIR}/src/kernel/drivers/vga_text/mod.rs" ]] || return 1
   [[ -f "${TMPDIR}/src/kernel/drivers/vga_text/writer.rs" ]] || return 1
   [[ -f "${TMPDIR}/src/kernel/services/console.rs" ]] || return 1
-  [[ ! -f "${TMPDIR}/src/kernel/string.rs" ]] || return 1
-  [[ ! -f "${TMPDIR}/src/kernel/memory.rs" ]] || return 1
-  [[ ! -f "${TMPDIR}/src/kernel/vga_text.rs" ]] || return 1
-  [[ ! -f "${TMPDIR}/src/kernel/klib/string.rs" ]] || return 1
-  [[ ! -f "${TMPDIR}/src/kernel/klib/memory.rs" ]] || return 1
-  [[ ! -f "${TMPDIR}/src/kernel/drivers/vga_text.rs" ]] || return 1
+  [[ -f "${TMPDIR}/src/kernel/services/diagnostics.rs" ]] || return 1
   return 0
 }
 
@@ -198,12 +208,13 @@ check_unknown_roles() {
   while IFS= read -r -d '' path; do
     rel="${path#${TMPDIR}/}"
     case "${rel}" in
-      src/kernel.rs) ;;
+      src/main.rs) ;;
+      src/kernel/mod.rs) ;;
       src/kernel/core/mod.rs) ;;
       src/kernel/core/entry.rs) ;;
       src/kernel/core/init.rs) ;;
-      src/kernel/core/panic.rs) ;;
       src/kernel/drivers/mod.rs) ;;
+      src/kernel/drivers/serial/mod.rs) ;;
       src/kernel/drivers/vga_text/mod.rs) ;;
       src/kernel/drivers/vga_text/writer.rs) ;;
       src/kernel/klib/mod.rs) ;;
@@ -215,6 +226,7 @@ check_unknown_roles() {
       src/kernel/machine/port.rs) ;;
       src/kernel/services/mod.rs) ;;
       src/kernel/services/console.rs) ;;
+      src/kernel/services/diagnostics.rs) ;;
       src/kernel/types/*.rs) ;;
       *) offenders+=("${rel}") ;;
     esac
@@ -232,10 +244,6 @@ run_case() {
       printf '\npub fn bad() {}\n' >"${TMPDIR}/src/kernel/extra.rs"
       expect_failure "top-level peer file" check_kernel_root_is_lone_top_level_rs
       ;;
-    facade-peer-shape-fails)
-      printf '\npub fn bad() {}\n' >"${TMPDIR}/src/kernel/string.rs"
-      expect_failure "facade peer file" check_subsystem_facade_shapes_valid
-      ;;
     orphan-leaf-location-fails)
       printf '\npub fn bad() {}\n' >"${TMPDIR}/src/kernel/services/imp.rs"
       expect_failure "orphan private leaf location" check_private_leaves_owned
@@ -247,11 +255,6 @@ run_case() {
     unknown-role-file-fails)
       printf '\npub fn telemetry() {}\n' >"${TMPDIR}/src/kernel/services/telemetry.rs"
       expect_failure "unknown role file" check_unknown_roles
-      ;;
-    mixed-facade-and-leaf-shape-fails)
-      mkdir -p "${TMPDIR}/src/kernel/klib/memory"
-      printf '\npub fn legacy_memory() {}\n' >"${TMPDIR}/src/kernel/klib/memory.rs"
-      expect_failure "mixed facade and leaf shape" check_subsystem_facade_shapes_valid
       ;;
     *)
       die "unknown case: ${CASE}"

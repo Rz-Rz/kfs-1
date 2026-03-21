@@ -47,7 +47,7 @@ is_disallowed_export_file() {
   local path="$1"
 
   case "${path}" in
-    src/kernel/types/*|src/kernel/types.rs)
+    src/kernel/types/*)
       return 0
       ;;
     src/kernel/services/*)

@@ -4,8 +4,10 @@ set -euo pipefail
 ARCH="${1:-i386}"
 CASE="${2:-}"
 TEST_SOURCE="tests/host_kmain_logic.rs"
-KMAIN_SOURCE="src/kernel/kmain.rs"
-KMAIN_IMPL="src/kernel/kmain/logic_impl.rs"
+INIT_SOURCE="src/kernel/types/range.rs"
+DRIVER_SOURCE="src/kernel/drivers/vga_text/mod.rs"
+ENTRY_SOURCE="src/kernel/core/entry.rs"
+source "$(dirname "${BASH_SOURCE[0]}")/host-rust-lib.sh"
 
 list_cases() {
   cat <<'EOF'
@@ -37,8 +39,9 @@ die() {
 
 ensure_sources_exist() {
   [[ -r "${TEST_SOURCE}" ]] || die "missing host unit test source: ${TEST_SOURCE}"
-  [[ -r "${KMAIN_SOURCE}" ]] || die "missing kernel source: ${KMAIN_SOURCE}"
-  [[ -r "${KMAIN_IMPL}" ]] || die "missing kmain logic implementation: ${KMAIN_IMPL}"
+  [[ -r "${INIT_SOURCE}" ]] || die "missing range source: ${INIT_SOURCE}"
+  [[ -r "${DRIVER_SOURCE}" ]] || die "missing VGA driver source: ${DRIVER_SOURCE}"
+  [[ -r "${ENTRY_SOURCE}" ]] || die "missing core entry source: ${ENTRY_SOURCE}"
 }
 
 find_pattern() {
@@ -70,8 +73,7 @@ run_host_tests() {
   local filter="$1"
   local test_bin="build/ut_kmain_logic_${filter%_}"
 
-  bash scripts/container.sh run -- \
-    bash -lc "mkdir -p build && rustc --test -o '${test_bin}' '${TEST_SOURCE}' >/dev/null && '${test_bin}' '${filter}'"
+  run_host_rust_test "${TEST_SOURCE}" "${test_bin}" "${filter}"
 }
 
 run_direct_case() {
@@ -85,17 +87,16 @@ run_direct_case() {
       run_host_tests 'vga_text_cell_'
       ;;
     rust-defines-layout-order-check)
-      assert_pattern '\bfn[[:space:]]+layout_order_is_sane\b' 'layout_order_is_sane definition' "${KMAIN_IMPL}"
+      assert_pattern '\bfn[[:space:]]+layout_order_is_sane\b' 'layout_order_is_sane definition' "${INIT_SOURCE}"
       ;;
     rust-defines-vga-text-cell)
-      assert_pattern '\bfn[[:space:]]+vga_text_cell\b' 'vga_text_cell definition' "${KMAIN_IMPL}"
+      assert_pattern '\bfn[[:space:]]+vga_text_cell\b' 'vga_text_cell definition' "${DRIVER_SOURCE}"
       ;;
     rust-kmain-uses-layout-order-check)
-      assert_pattern '\blayout_order_is_sane\(' 'kmain call to layout_order_is_sane' "${KMAIN_SOURCE}"
+      assert_pattern '\brun_early_init\(' 'kmain call to core init sequencing' "${ENTRY_SOURCE}"
       ;;
     rust-kmain-uses-vga-writer)
-      assert_pattern '\bvga_init\(' 'kmain call to vga_init' "${KMAIN_SOURCE}"
-      assert_pattern '\bvga_puts\(' 'kmain call to vga_puts' "${KMAIN_SOURCE}"
+      assert_pattern '\brun_early_init\(' 'kmain delegates to init before console path' "${ENTRY_SOURCE}"
       ;;
     *)
       die "usage: $0 <arch> {host-layout-order-unit-tests-pass|host-vga-cell-unit-tests-pass|rust-defines-layout-order-check|rust-defines-vga-text-cell|rust-kmain-uses-layout-order-check|rust-kmain-uses-vga-writer}"

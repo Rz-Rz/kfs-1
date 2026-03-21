@@ -162,7 +162,7 @@ run_host_case() {
       ;;
   esac
 
-  bash scripts/container.sh run -- \
+  bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
     bash -lc "make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/stability-tests/section-stability.sh '${ARCH}' '${CASE}'"
 }
 

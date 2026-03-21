@@ -8,24 +8,12 @@ TMPDIR=""
 list_cases() {
   cat <<'EOF'
 missing-required-tree-artifact-fails
-legacy-kmain-path-fails
-legacy-string-facade-path-fails
-legacy-memory-facade-path-fails
-legacy-vga-facade-path-fails
-legacy-types-root-path-fails
-legacy-port-helper-path-fails
 EOF
 }
 
 describe_case() {
   case "$1" in
     missing-required-tree-artifact-fails) printf '%s\n' "rejects missing required future tree artifacts" ;;
-    legacy-kmain-path-fails) printf '%s\n' "rejects legacy core entry peer path under src/kernel" ;;
-    legacy-string-facade-path-fails) printf '%s\n' "rejects legacy string helper facade path" ;;
-    legacy-memory-facade-path-fails) printf '%s\n' "rejects legacy memory helper facade path" ;;
-    legacy-vga-facade-path-fails) printf '%s\n' "rejects legacy VGA driver facade path" ;;
-    legacy-types-root-path-fails) printf '%s\n' "rejects legacy types root path" ;;
-    legacy-port-helper-path-fails) printf '%s\n' "rejects legacy machine helper path under types" ;;
     *) return 1 ;;
   esac
 }
@@ -45,10 +33,20 @@ trap cleanup EXIT
 
 make_target_tree() {
   TMPDIR="$(mktemp -d)"
-  mkdir -p "${TMPDIR}/src/kernel"/{core,services,types,klib/string,klib/memory,drivers/vga_text,machine}
+  mkdir -p "${TMPDIR}/src/kernel"/{core,services,types,klib/string,klib/memory,drivers/vga_text,drivers/serial,machine}
+  mkdir -p "${TMPDIR}/src/freestanding"
 
-  cat >"${TMPDIR}/src/kernel.rs" <<'EOF'
+  cat >"${TMPDIR}/src/main.rs" <<'EOF'
+pub mod kernel;
+EOF
+
+  cat >"${TMPDIR}/src/kernel/mod.rs" <<'EOF'
 pub mod core;
+pub mod drivers;
+pub mod klib;
+pub mod machine;
+pub mod services;
+pub mod types;
 EOF
 
 cat >"${TMPDIR}/src/kernel/core/entry.rs" <<'EOF'
@@ -59,8 +57,18 @@ EOF
 pub fn init() {}
 EOF
 
-  cat >"${TMPDIR}/src/kernel/core/panic.rs" <<'EOF'
+  cat >"${TMPDIR}/src/freestanding/mod.rs" <<'EOF'
+mod panic;
+mod section_markers;
+EOF
+
+  cat >"${TMPDIR}/src/freestanding/panic.rs" <<'EOF'
 pub fn panic_handler() {}
+EOF
+
+  cat >"${TMPDIR}/src/freestanding/section_markers.rs" <<'EOF'
+#[no_mangle]
+static KFS_RODATA_MARKER: [u8; 8] = *b"KFSRODAT";
 EOF
 
   cat >"${TMPDIR}/src/kernel/machine/port.rs" <<'EOF'
@@ -117,6 +125,14 @@ EOF
 pub fn write() {}
 EOF
 
+  cat >"${TMPDIR}/src/kernel/drivers/serial/mod.rs" <<'EOF'
+pub fn initialize() {}
+EOF
+
+  cat >"${TMPDIR}/src/kernel/services/diagnostics.rs" <<'EOF'
+pub fn write_line() {}
+EOF
+
   cat >"${TMPDIR}/src/kernel/services/console.rs" <<'EOF'
 pub fn print() {}
 EOF
@@ -126,10 +142,13 @@ EOF
 
 required_tree_artifacts() {
   cat <<'EOF'
-src/kernel.rs
+src/main.rs
+src/freestanding/mod.rs
+src/freestanding/panic.rs
+src/freestanding/section_markers.rs
+src/kernel/mod.rs
 src/kernel/core/entry.rs
 src/kernel/core/init.rs
-src/kernel/core/panic.rs
 src/kernel/machine/port.rs
 src/kernel/types/range.rs
 src/kernel/types/screen.rs
@@ -137,23 +156,11 @@ src/kernel/klib/string/mod.rs
 src/kernel/klib/string/imp.rs
 src/kernel/klib/memory/mod.rs
 src/kernel/klib/memory/imp.rs
+src/kernel/drivers/serial/mod.rs
 src/kernel/drivers/vga_text/mod.rs
 src/kernel/drivers/vga_text/writer.rs
+src/kernel/services/diagnostics.rs
 src/kernel/services/console.rs
-EOF
-}
-
-legacy_helper_type_paths() {
-  cat <<'EOF'
-src/kernel/kmain.rs
-src/kernel/string.rs
-src/kernel/memory.rs
-src/kernel/vga.rs
-src/kernel/types.rs
-src/kernel/types/port.rs
-src/kernel/kmain/logic_impl.rs
-src/kernel/string/string_impl.rs
-src/kernel/memory/memory_impl.rs
 EOF
 }
 
@@ -179,17 +186,6 @@ check_required_artifacts_exist() {
   [[ "${missing}" -eq 0 ]]
 }
 
-check_legacy_paths_absent() {
-  local path
-  while IFS= read -r path; do
-    if [[ -e "${TMPDIR}/${path}" ]]; then
-      return 1
-    fi
-  done < <(legacy_helper_type_paths)
-
-  return 0
-}
-
 run_case() {
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
   make_target_tree
@@ -198,44 +194,6 @@ run_case() {
     missing-required-tree-artifact-fails)
       rm -f "${TMPDIR}/src/kernel/services/console.rs"
       expect_failure "missing required future artifact" check_required_artifacts_exist
-      ;;
-    legacy-kmain-path-fails)
-      cat >"${TMPDIR}/src/kernel/kmain.rs" <<'EOF'
-pub fn kmain() {}
-EOF
-      expect_failure "legacy kmain path" check_legacy_paths_absent
-      ;;
-    legacy-string-facade-path-fails)
-      cat >"${TMPDIR}/src/kernel/string.rs" <<'EOF'
-pub fn strlen() {}
-EOF
-      expect_failure "legacy string facade path" check_legacy_paths_absent
-      ;;
-    legacy-memory-facade-path-fails)
-      cat >"${TMPDIR}/src/kernel/memory.rs" <<'EOF'
-pub fn memcpy() {}
-EOF
-      expect_failure "legacy memory facade path" check_legacy_paths_absent
-      ;;
-    legacy-vga-facade-path-fails)
-      cat >"${TMPDIR}/src/kernel/vga.rs" <<'EOF'
-pub fn vga_puts() {}
-EOF
-      expect_failure "legacy VGA facade path" check_legacy_paths_absent
-      ;;
-    legacy-types-root-path-fails)
-      cat >"${TMPDIR}/src/kernel/types.rs" <<'EOF'
-pub struct Port(pub u16);
-EOF
-      expect_failure "legacy types root path" check_legacy_paths_absent
-      ;;
-    legacy-port-helper-path-fails)
-      mkdir -p "${TMPDIR}/src/kernel/types"
-      cat >"${TMPDIR}/src/kernel/types/port.rs" <<'EOF'
-#[repr(transparent)]
-pub struct LegacyPort(pub u16);
-EOF
-      expect_failure "legacy port helper path" check_legacy_paths_absent
       ;;
     *)
       die "unknown case: ${CASE}"

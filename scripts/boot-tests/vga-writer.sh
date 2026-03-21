@@ -2,30 +2,28 @@
 set -euo pipefail
 
 ARCH="${1:-i386}"
-CASE="${2:-release-kernel-links-vga-writer}"
+CASE="${2:-core-init-uses-services-console}"
 KERNEL="build/kernel-${ARCH}.bin"
-SOURCE="src/kernel/vga.rs"
-KMAIN="src/kernel/kmain.rs"
+DRIVER_SOURCE="src/kernel/drivers/vga_text/mod.rs"
+WRITER_SOURCE="src/kernel/drivers/vga_text/writer.rs"
+CONSOLE_SOURCE="src/kernel/services/console.rs"
+INIT_SOURCE="src/kernel/core/init.rs"
 
 list_cases() {
   cat <<'EOF'
-release-kernel-exports-vga-init
-release-kernel-exports-vga-putc
-release-kernel-exports-vga-puts
-release-kernel-links-vga-writer
-rust-kmain-uses-vga-init
-rust-kmain-uses-vga-puts
+release-kernel-omits-vga-abi-exports
+driver-vga-writer-exists
+services-console-uses-driver
+core-init-uses-services-console
 EOF
 }
 
 describe_case() {
   case "$1" in
-    release-kernel-exports-vga-init) printf '%s\n' "release kernel exports vga_init" ;;
-    release-kernel-exports-vga-putc) printf '%s\n' "release kernel exports vga_putc" ;;
-    release-kernel-exports-vga-puts) printf '%s\n' "release kernel exports vga_puts" ;;
-    release-kernel-links-vga-writer) printf '%s\n' "release kernel links VGA writer symbols" ;;
-    rust-kmain-uses-vga-init) printf '%s\n' "kmain uses vga_init" ;;
-    rust-kmain-uses-vga-puts) printf '%s\n' "kmain uses vga_puts" ;;
+    release-kernel-omits-vga-abi-exports) printf '%s\n' "release kernel does not export removed VGA ABI symbols" ;;
+    driver-vga-writer-exists) printf '%s\n' "driver VGA writer files exist and define writer helpers" ;;
+    services-console-uses-driver) printf '%s\n' "services console uses the VGA driver facade" ;;
+    core-init-uses-services-console) printf '%s\n' "core init uses services console instead of driver ABI" ;;
     *) return 1 ;;
   esac
 }
@@ -68,25 +66,22 @@ assert_release_symbol() {
 
 run_direct_case() {
   case "${CASE}" in
-    release-kernel-exports-vga-init)
-      assert_release_symbol 'vga_init'
+    release-kernel-omits-vga-abi-exports)
+      [[ -r "${KERNEL}" ]] || die "missing artifact: ${KERNEL} (build it with make all/iso arch=${ARCH})"
+      if nm -n "${KERNEL}" | grep -qE '[[:space:]]T[[:space:]]+vga_(init|putc|puts)$'; then
+        echo "FAIL ${KERNEL}: removed VGA ABI export still present"
+        return 1
+      fi
       ;;
-    release-kernel-exports-vga-putc)
-      assert_release_symbol 'vga_putc'
+    driver-vga-writer-exists)
+      assert_source_pattern '\bfn[[:space:]]+write_bytes\b' 'driver write_bytes helper' "${WRITER_SOURCE}"
+      assert_source_pattern '\bfn[[:space:]]+vga_text_cell\b' 'driver cell encoding helper' "${DRIVER_SOURCE}"
       ;;
-    release-kernel-exports-vga-puts)
-      assert_release_symbol 'vga_puts'
+    services-console-uses-driver)
+      assert_source_pattern '\bdrivers::vga_text\b' 'services console driver import' "${CONSOLE_SOURCE}"
       ;;
-    release-kernel-links-vga-writer)
-      assert_release_symbol 'vga_init'
-      assert_release_symbol 'vga_putc'
-      assert_release_symbol 'vga_puts'
-      ;;
-    rust-kmain-uses-vga-init)
-      assert_source_pattern '\bvga_init\b' 'kmain call to vga_init' "${KMAIN}"
-      ;;
-    rust-kmain-uses-vga-puts)
-      assert_source_pattern '\bvga_puts\b' 'kmain call to vga_puts' "${KMAIN}"
+    core-init-uses-services-console)
+      assert_source_pattern '\bservices::console\b' 'core init console call' "${INIT_SOURCE}"
       ;;
     *)
       die "unknown case: ${CASE}"
@@ -97,7 +92,7 @@ run_direct_case() {
 run_host_case() {
   bash scripts/with-build-lock.sh \
     bash scripts/container.sh run -- \
-    bash -lc "make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/vga-writer.sh '${ARCH}' '${CASE}'"
+    bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/vga-writer.sh '${ARCH}' '${CASE}'"
 }
 
 main() {
@@ -112,7 +107,7 @@ main() {
   fi
 
   [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
-  [[ -r "${SOURCE}" ]] || die "missing VGA writer source: ${SOURCE}"
+  [[ -r "${DRIVER_SOURCE}" ]] || die "missing VGA driver source: ${DRIVER_SOURCE}"
 
   if describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
     run_host_case

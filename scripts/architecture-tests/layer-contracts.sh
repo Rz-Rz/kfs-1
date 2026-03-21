@@ -22,8 +22,8 @@ EOF
 describe_case() {
   case "$1" in
     layer-roots-exist-as-mod-rs) printf '%s\n' "each kernel layer has a mod.rs root" ;;
-    boot-start-hands-off-only-to-kmain) printf '%s\n' "_start hands off only to kmain" ;;
-    core-init-surface-exists) printf '%s\n' "core init and panic surfaces exist" ;;
+    boot-start-hands-off-only-to-kmain) printf '%s\n' "start hands off only to kmain" ;;
+    core-init-surface-exists) printf '%s\n' "core init plus freestanding panic surfaces exist" ;;
     console-runtime-path-files-exist) printf '%s\n' "console runtime path files exist through services and drivers" ;;
     core-init-avoids-raw-hw-and-asm) printf '%s\n' "core entry and init avoid raw hardware access and inline asm" ;;
     services-avoid-raw-hw-and-asm) printf '%s\n' "services avoid raw hardware access and inline asm" ;;
@@ -83,7 +83,7 @@ assert_core_init_surfaces_exist() {
   local missing=()
   local path
 
-  for path in src/kernel/core/entry.rs src/kernel/core/init.rs src/kernel/core/panic.rs; do
+  for path in src/kernel/core/entry.rs src/kernel/core/init.rs src/freestanding/panic.rs; do
     [[ -f "${REPO_ROOT}/${path}" ]] || missing+=("${path}")
   done
 
@@ -120,7 +120,6 @@ assert_core_avoids_raw_hw_and_asm() {
   local search_roots=()
   local offenders
 
-  [[ -f "${REPO_ROOT}/src/kernel/kmain.rs" ]] && search_roots+=("${REPO_ROOT}/src/kernel/kmain.rs")
   [[ -d "${REPO_ROOT}/src/kernel/core" ]] && search_roots+=("${REPO_ROOT}/src/kernel/core")
 
   [[ "${#search_roots[@]}" -gt 0 ]] || {
@@ -175,7 +174,6 @@ assert_types_have_no_side_effects() {
   local roots=()
   local offenders
 
-  [[ -f "${REPO_ROOT}/src/kernel/types.rs" ]] && roots+=("${REPO_ROOT}/src/kernel/types.rs")
   [[ -d "${REPO_ROOT}/src/kernel/types" ]] && roots+=("${REPO_ROOT}/src/kernel/types")
 
   [[ "${#roots[@]}" -gt 0 ]] || {

@@ -4,6 +4,7 @@ set -euo pipefail
 ARCH="${1:-i386}"
 CASE="${2:-}"
 TEST_SOURCE="tests/host_types.rs"
+source "$(dirname "${BASH_SOURCE[0]}")/host-rust-lib.sh"
 
 list_cases() {
   cat <<'EOF'
@@ -30,8 +31,7 @@ run_host_tests() {
   local test_bin="build/ut_types_${filter%_}"
 
   [[ -r "${TEST_SOURCE}" ]] || die "missing required source: ${TEST_SOURCE}"
-  bash scripts/container.sh run -- \
-    bash -lc "mkdir -p build && rustc --test -o '${test_bin}' '${TEST_SOURCE}' >/dev/null && '${test_bin}' '${filter}'"
+  run_host_rust_test "${TEST_SOURCE}" "${test_bin}" "${filter}"
 }
 
 run_direct_case() {

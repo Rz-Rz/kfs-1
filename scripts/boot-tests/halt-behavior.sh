@@ -17,7 +17,7 @@ describe_case() {
   case "$1" in
     rust-kmain-path-halts) printf '%s\n' "Rust kmain path ends in a halt loop" ;;
     asm-boot-path-halts) printf '%s\n' "ASM boot path provides a halt loop" ;;
-    panic-handler-halts) printf '%s\n' "panic handler converges to the halt path" ;;
+    panic-handler-halts) printf '%s\n' "freestanding panic handler converges to the halt path" ;;
     release-kmain-disassembly-halts) printf '%s\n' "release kmain disassembly contains cli/hlt" ;;
     *) return 1 ;;
   esac
@@ -29,13 +29,13 @@ die() {
 }
 
 assert_rust_kmain_path_halts() {
-  if ! grep -q 'fn halt_forever() -> !' src/kernel/kmain.rs; then
-    echo "FAIL src/kernel/kmain.rs: missing halt_forever()" >&2
+  if ! grep -q 'fn halt_forever() -> !' src/kernel/core/entry.rs; then
+    echo "FAIL src/kernel/core/entry.rs: missing halt_forever()" >&2
     exit 1
   fi
 
-  if ! grep -q 'core::arch::asm!(\"cli\", \"hlt\"' src/kernel/kmain.rs; then
-    echo "FAIL src/kernel/kmain.rs: missing cli/hlt halt loop" >&2
+  if ! grep -q 'kfs_arch_halt_forever()' src/kernel/core/entry.rs; then
+    echo "FAIL src/kernel/core/entry.rs: missing arch halt handoff" >&2
     exit 1
   fi
 }
@@ -53,30 +53,56 @@ assert_asm_boot_path_halts() {
 }
 
 assert_panic_handler_halts() {
-  if ! grep -qF '#[panic_handler]' src/kernel/kmain.rs; then
-    echo "FAIL src/kernel/kmain.rs: missing panic handler" >&2
+  if ! grep -qF '#[panic_handler]' src/freestanding/panic.rs; then
+    echo "FAIL src/freestanding/panic.rs: missing panic handler" >&2
     exit 1
   fi
 
-  if ! grep -A8 -F '#[panic_handler]' src/kernel/kmain.rs | grep -q 'halt_forever()'; then
-    echo "FAIL src/kernel/kmain.rs: panic handler does not call halt_forever()" >&2
+  if ! grep -A12 -F '#[panic_handler]' src/freestanding/panic.rs | grep -q 'halt_forever()'; then
+    echo "FAIL src/freestanding/panic.rs: panic handler does not call halt_forever()" >&2
     exit 1
   fi
 }
 
 assert_release_kmain_disassembly_halts() {
   local kernel="build/kernel-${ARCH}.bin"
+  local start_addr
+  local stop_addr
+  local halt_disasm
   [[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make all arch=${ARCH})"
 
-  if ! objdump -d "${kernel}" | sed -n '/<kmain>:/,/^$/p' | grep -q 'cli'; then
-    echo "FAIL ${kernel}: kmain disassembly missing cli" >&2
-    objdump -d "${kernel}" | sed -n '/<kmain>:/,/^$/p' >&2 || true
+  start_addr="$(
+    nm -n "${kernel}" |
+      awk '$3 == "kfs_arch_halt_forever" { print "0x" $1; exit }'
+  )"
+  [[ -n "${start_addr}" ]] || die "missing symbol: kfs_arch_halt_forever in ${kernel}"
+
+  stop_addr="$(
+    nm -n "${kernel}" |
+      awk '
+        $3 == "kfs_arch_halt_forever" { seen = 1; next }
+        seen && $2 ~ /^[Tt]$/ && index($3, "kfs_arch_halt_forever") != 1 {
+          print "0x" $1
+          exit
+        }
+      '
+  )"
+
+  if [[ -n "${stop_addr}" ]]; then
+    halt_disasm="$(objdump -d --start-address="${start_addr}" --stop-address="${stop_addr}" "${kernel}")"
+  else
+    halt_disasm="$(objdump -d --start-address="${start_addr}" "${kernel}")"
+  fi
+
+  if ! printf '%s\n' "${halt_disasm}" | grep -q 'cli'; then
+    echo "FAIL ${kernel}: halt routine disassembly missing cli" >&2
+    printf '%s\n' "${halt_disasm}" >&2 || true
     exit 1
   fi
 
-  if ! objdump -d "${kernel}" | sed -n '/<kmain>:/,/^$/p' | grep -q 'hlt'; then
-    echo "FAIL ${kernel}: kmain disassembly missing hlt" >&2
-    objdump -d "${kernel}" | sed -n '/<kmain>:/,/^$/p' >&2 || true
+  if ! printf '%s\n' "${halt_disasm}" | grep -q 'hlt'; then
+    echo "FAIL ${kernel}: halt routine disassembly missing hlt" >&2
+    printf '%s\n' "${halt_disasm}" >&2 || true
     exit 1
   fi
 }

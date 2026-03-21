@@ -21,7 +21,7 @@ EOF
 
 describe_case() {
   case "$1" in
-    kernel-rust-root-is-single-entry) printf '%s\n' "kernel.rs is the only rust_source_files input from src/kernel" ;;
+    kernel-rust-root-is-single-entry) printf '%s\n' "src/main.rs is the only kernel crate-root source and src/kernel/*.rs files are not compiled directly" ;;
     makefile-does-not-glob-src-kernel-peers) printf '%s\n' "Makefile does not compile src/kernel/*.rs by glob" ;;
     build-produces-single-kernel-rust-unit) printf '%s\n' "kernel build emits one Rust kernel unit (kernel.o or kernel.a)" ;;
     no-kernel-subsystem-rust-objects) printf '%s\n' "kernel subsystem files are not emitted as separate Rust objects" ;;
@@ -34,6 +34,20 @@ die() {
   exit 2
 }
 
+extract_make_var() {
+  local var_name="$1"
+
+  awk -v var="${var_name}" '
+    $1 == var && ($2=="=" || $2==":=" || $2=="?=" || $2=="+=") {
+      $1 = "";
+      $2 = "";
+      sub(/^[[:space:]]+/, "");
+      print;
+      exit;
+    }
+  ' <<<"${MAKE_DB}"
+}
+
 load_make_database() {
   MAKE_DB="$(make -np -f "${REPO_ROOT}/Makefile" ARCH="${ARCH}" 2>/dev/null || true)"
   if [[ -z "${MAKE_DB}" ]]; then
@@ -43,29 +57,8 @@ load_make_database() {
 }
 
 load_make_lists() {
-  RUST_SOURCE_FILES="$(
-    printf '%s\n' "${MAKE_DB}" \
-      | awk -v var="rust_source_files" '
-        $1 == var && ($2=="=" || $2==":=" || $2=="?=" || $2=="+=") {
-          $1 = "";
-          $2 = "";
-          sub(/^[[:space:]]+/, "");
-          print;
-          exit;
-        }'
-  )"
-
-  RUST_OBJECT_FILES="$(
-    printf '%s\n' "${MAKE_DB}" \
-      | awk -v var="rust_object_files" '
-        $1 == var && ($2=="=" || $2==":=" || $2=="?=" || $2=="+=") {
-          $1 = "";
-          $2 = "";
-          sub(/^[[:space:]]+/, "");
-          print;
-          exit;
-        }'
-  )"
+  RUST_SOURCE_FILES="$(extract_make_var "rust_source_files")"
+  RUST_OBJECT_FILES="$(extract_make_var "rust_object_files")"
 
   if [[ -z "${RUST_SOURCE_FILES}" ]]; then
     echo "FAIL ${CASE}: rust_source_files is empty"
@@ -77,7 +70,7 @@ assert_kernel_root_is_single_entry() {
   mapfile -t kernel_sources < <(
     printf '%s\n' "${RUST_SOURCE_FILES}" |
     tr ' ' '\n' |
-    rg '^src/kernel/[^[:space:]]+\.rs$' || true
+    rg '^src/(main\.rs|kernel/[^[:space:]]+\.rs)$' || true
   )
 
   local -a disallowed_sources=()
@@ -86,7 +79,7 @@ assert_kernel_root_is_single_entry() {
 
   for file in "${kernel_sources[@]}"; do
     [[ -n "${file}" ]] || continue
-    if [[ "${file}" == "src/kernel.rs" ]]; then
+    if [[ "${file}" == "src/main.rs" ]]; then
       has_kernel_root=1
     else
       disallowed_sources+=("${file}")
@@ -94,7 +87,7 @@ assert_kernel_root_is_single_entry() {
   done
 
   if (( has_kernel_root == 0 )); then
-    echo "FAIL ${CASE}: src/kernel.rs is missing from rust_source_files"
+    echo "FAIL ${CASE}: src/main.rs is missing from rust_source_files"
     return 1
   fi
 
@@ -104,7 +97,7 @@ assert_kernel_root_is_single_entry() {
     return 1
   fi
 
-  echo "PASS ${CASE}: only src/kernel.rs appears in rust_source_files for kernel tree compilation"
+  echo "PASS ${CASE}: only src/main.rs is compiled as the kernel crate root"
 }
 
 assert_no_kernel_peer_glob() {

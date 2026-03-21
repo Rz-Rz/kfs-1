@@ -72,7 +72,7 @@ fn run_early_init() {}
 EOF
 
   cat >"${TMPDIR}/src/kernel/core/init.rs" <<'EOF'
-use crate::services::console;
+use crate::kernel::services::console;
 
 pub fn init() {
     console::write_banner();
@@ -80,7 +80,7 @@ pub fn init() {
 EOF
 
   cat >"${TMPDIR}/src/kernel/services/console.rs" <<'EOF'
-use crate::drivers::vga_text;
+use crate::kernel::drivers::vga_text;
 
 pub fn write_banner() {
     vga_text::paint();
@@ -91,7 +91,7 @@ EOF
 
   cat >"${TMPDIR}/src/kernel/drivers/vga_text/mod.rs" <<'EOF'
 pub fn paint() {
-    crate::drivers::vga_text::writer::write();
+    crate::kernel::drivers::vga_text::writer::write();
 }
 
 pub use self::writer::write;
@@ -117,10 +117,10 @@ check_boot_only_kmain() {
 check_entry_has_init_chain() {
   local entry="${TMPDIR}/src/kernel/core/entry.rs"
 
-  if ! rg -n 'pub[[:space:]]+.*fn[[:space:]]+kmain' "${entry}" >/dev/null; then
+  if ! rg -n '\bfn[[:space:]]+kmain\b' "${entry}" >/dev/null; then
     return 1
   fi
-  if ! rg -n '\b(init|run_early_init|core::init)\s*\(' "${entry}" >/dev/null; then
+  if ! rg -n '\b(init|run_early_init)\s*\(' "${entry}" >/dev/null; then
     return 1
   fi
   return 0
@@ -193,7 +193,7 @@ EOF
       ;;
     core-init-skips-services-fails)
       cat >"${TMPDIR}/src/kernel/core/init.rs" <<'EOF'
-use crate::drivers::vga_text::writer;
+use crate::kernel::drivers::vga_text::writer;
 
 pub fn init() {
     writer::write();

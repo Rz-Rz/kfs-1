@@ -1,4 +1,5 @@
-arch ?= i386
+ARCH ?=
+arch ?= $(if $(ARCH),$(ARCH),i386)
 PYTHON ?= python3
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
@@ -16,9 +17,10 @@ assembly_object_files_test := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/test/%.o, $(assembly_source_files))
 
 rust_target := i686-unknown-linux-gnu
-rust_source_files := $(wildcard src/rust/*.rs) $(filter-out src/kernel/types.rs,$(wildcard src/kernel/*.rs))
-rust_object_files := $(patsubst src/%.rs, \
-	build/arch/$(arch)/rust/%.o, $(rust_source_files))
+rust_source_files := src/main.rs
+rust_object_files := build/arch/$(arch)/rust/kernel.o
+rust_output_dir := build/arch/$(arch)/rust
+kernel_keepglobals := scripts/architecture-tests/fixtures/exports.$(arch).keepglobals
 
 KFS_TEST_FORCE_FAIL ?= 0
 KFS_TEST_DIRTY_BSS ?= 0
@@ -62,7 +64,7 @@ test_ui_python := $(if $(wildcard $(test_ui_venv)/bin/python),$(test_ui_venv)/bi
 all: $(kernel)
 
 clean:
-	@rm -r build
+	@rm -rf build
 
 run: $(iso)
 	@qemu-system-i386 -cdrom $(iso)
@@ -82,15 +84,16 @@ $(iso): $(kernel) $(grub_cfg)
 	@cp $(kernel) build/isofiles/boot/kernel.bin
 	@cp $(grub_cfg) build/isofiles/boot/grub
 	@grub-mkrescue -o $(iso) build/isofiles 2> /dev/null
-	@rm -r build/isofiles
+	@rm -rf build/isofiles
 
 $(kernel): $(assembly_object_files) $(rust_object_files) $(linker_script)
 	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(rust_object_files)
+	@objcopy --keep-global-symbols=$(kernel_keepglobals) $(kernel)
 	@KFS_M3_2_KERNEL="$(kernel)" bash scripts/tests/kernel-sections.sh $(arch)
 
 # compile assembly files
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
-	@mkdir -p $(shell dirname $@)
+	@mkdir -p $(dir $@)
 	@nasm -felf32 $< -o $@
 
 iso-test: $(iso_test)
@@ -105,18 +108,21 @@ $(iso_test): $(kernel_test) $(grub_cfg)
 	@cp $(kernel_test) build/isofiles/boot/kernel.bin
 	@cp $(grub_cfg) build/isofiles/boot/grub
 	@grub-mkrescue -o $(iso_test) build/isofiles 2> /dev/null
-	@rm -r build/isofiles
+	@rm -rf build/isofiles
 
 $(kernel_test): $(assembly_object_files_test) $(rust_object_files) $(linker_script)
 	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel_test) $(assembly_object_files_test) $(rust_object_files)
+	@objcopy --keep-global-symbols=$(kernel_keepglobals) $(kernel_test)
 	@KFS_M3_2_KERNEL="$(kernel_test)" bash scripts/tests/kernel-sections.sh $(arch)
 
 build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
-	@mkdir -p $(shell dirname $@)
+	@mkdir -p $(dir $@)
 	@nasm -felf32 $(TEST_ASM_DEFS) $< -o $@
 
-build/arch/$(arch)/rust/%.o: src/%.rs
-	@mkdir -p $(shell dirname $@)
+$(rust_output_dir):
+	@mkdir -p $@
+
+build/arch/$(arch)/rust/kernel.o: src/main.rs | $(rust_output_dir)
 	@rustc \
 		--crate-type lib \
 		--target $(rust_target) \

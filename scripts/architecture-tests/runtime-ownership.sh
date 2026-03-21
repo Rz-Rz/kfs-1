@@ -20,7 +20,7 @@ EOF
 
 describe_case() {
   case "$1" in
-    runtime-path-artifacts-exist) printf '%s\n' "runtime ownership artifacts exist for _start -> core -> services -> drivers path" ;;
+    runtime-path-artifacts-exist) printf '%s\n' "runtime ownership artifacts exist for start -> core -> services -> drivers path" ;;
     boot-start-hand-off-only-to-kmain) printf '%s\n' "boot start handoff enters kmain directly" ;;
     start-not-direct-to-driver-or-helper) printf '%s\n' "boot handoff does not jump directly to driver/helper surfaces" ;;
     entry-calls-core-init-sequence) printf '%s\n' "core entry invokes the core init sequence" ;;
@@ -37,17 +37,8 @@ die() {
 }
 
 pick_kmain_file() {
-  local file=""
-
-  if [[ -f "${REPO_ROOT}/src/kernel/core/entry.rs" ]]; then
-    file="${REPO_ROOT}/src/kernel/core/entry.rs"
-  elif [[ -f "${REPO_ROOT}/src/kernel/kmain.rs" ]]; then
-    file="${REPO_ROOT}/src/kernel/kmain.rs"
-  else
-    return 1
-  fi
-
-  printf '%s\n' "${file}"
+  [[ -f "${REPO_ROOT}/src/kernel/core/entry.rs" ]] || return 1
+  printf '%s\n' "${REPO_ROOT}/src/kernel/core/entry.rs"
 }
 
 assert_runtime_path_artifacts() {
@@ -58,6 +49,8 @@ assert_runtime_path_artifacts() {
     "src/arch/${ARCH}/boot.asm" \
     "src/kernel/core/entry.rs" \
     "src/kernel/core/init.rs" \
+    "src/kernel/services/diagnostics.rs" \
+    "src/kernel/drivers/serial/mod.rs" \
     "src/kernel/services/console.rs" \
     "src/kernel/drivers/vga_text/mod.rs" \
     "src/kernel/drivers/vga_text/writer.rs"; do
@@ -105,12 +98,12 @@ assert_entry_init_chain() {
     return 1
   }
 
-  if ! rg -n 'pub[[:space:]]+[^\\n]*fn[[:space:]]+kmain' "${entry_file}" >/dev/null; then
+  if ! rg -n '\bfn[[:space:]]+kmain\b' "${entry_file}" >/dev/null; then
     echo "FAIL ${CASE}: core entry file has no kmain export"
     return 1
   fi
 
-  if ! rg -n '\\b(run_early_init|core::init|init)\\s*\\(' "${entry_file}" >/dev/null; then
+  if ! rg -n '\b(run_early_init|init)\s*\(' "${entry_file}" >/dev/null; then
     echo "FAIL ${CASE}: kmain does not reference core init sequencing"
     return 1
   fi

@@ -38,6 +38,7 @@ make_tree() {
   TMPDIR="$(mktemp -d)"
   mkdir -p "${TMPDIR}/src/arch/i386"
   mkdir -p "${TMPDIR}/src/kernel"/{core,machine,types,klib,drivers,services}
+  mkdir -p "${TMPDIR}/src/freestanding"
   for layer in core machine types klib drivers services; do
     printf 'pub mod placeholder;\n' >"${TMPDIR}/src/kernel/${layer}/mod.rs"
   done
@@ -52,7 +53,7 @@ EOF
   cat >"${TMPDIR}/src/kernel/core/init.rs" <<'EOF'
 pub fn init() {}
 EOF
-  cat >"${TMPDIR}/src/kernel/core/panic.rs" <<'EOF'
+  cat >"${TMPDIR}/src/freestanding/panic.rs" <<'EOF'
 pub fn halt_forever() -> ! { loop {} }
 EOF
   cat >"${TMPDIR}/src/kernel/services/console.rs" <<'EOF'

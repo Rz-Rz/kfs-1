@@ -151,7 +151,7 @@ run_coverage_matrix() {
   negative_cases="$(collect_cases "${NEGATIVE_CASE_SCRIPTS[@]}")"
 
   declare -A INVARIANT_TITLES=(
-    [tree-migration]="Tree migration and legacy path cleanup"
+    [tree-migration]="Tree migration and path cleanup"
     [file-roles]="Kernel file roles and facade boundaries"
     [layer-dependencies]="Layer dependency direction and ownership"
     [layer-contracts]="Layer contracts and raw hardware policy"
@@ -168,9 +168,8 @@ run_coverage_matrix() {
 required-architecture-artifacts-exist
 kernel-first-level-dirs-match-allowlist
 no-top-level-kernel-peer-files
-legacy-type-placement-is-absent
-future-architecture-tree-artifacts-exist
-future-architecture-tree-rejects-legacy-helper-type-paths'
+types-layer-contains-only-current-files
+future-architecture-tree-artifacts-exist'
     [file-roles]=$'crate-root-is-lone-top-level-rs
 kernel-top-level-directories-are-layers-only
 kernel-files-have-recognized-roles
@@ -240,20 +239,11 @@ cursor-pos-uses-repr-c'
   declare -A NEGATIVE_PATTERNS=(
     [tree-migration]=$'missing-required-tree-artifact-fails
 new-top-level-kernel-peer-file-fails
-disallowed-first-level-layer-fails
-legacy-kmain-path-fails
-legacy-string-facade-path-fails
-legacy-memory-facade-path-fails
-legacy-vga-facade-path-fails
-legacy-types-root-path-fails
-legacy-port-helper-path-fails
-legacy-type-placement-fails'
+disallowed-first-level-layer-fails'
     [file-roles]=$'top-level-peer-file-fails
-facade-peer-shape-fails
 orphan-leaf-location-fails
 cross-facade-leaf-import-fails
-unknown-role-file-fails
-mixed-facade-and-leaf-shape-fails'
+unknown-role-file-fails'
     [layer-dependencies]=$'core-imports-machine-fails
 services-import-driver-leaf-fails
 drivers-own-boot-policy-fails

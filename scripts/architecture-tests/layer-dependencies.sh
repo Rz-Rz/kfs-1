@@ -71,7 +71,6 @@ assert_no_matches() {
 
 assert_core_sources() {
   local -n out_files="$1"
-  [[ -f "${REPO_ROOT}/src/kernel/kmain.rs" ]] && out_files+=( "${REPO_ROOT}/src/kernel/kmain.rs" )
   if [[ -d "${REPO_ROOT}/src/kernel/core" ]]; then
     collect_rs_files "${REPO_ROOT}/src/kernel/core" out_files
   fi
@@ -117,7 +116,6 @@ assert_klib_sources() {
 
 assert_types_sources() {
   local -n out_files="$1"
-  [[ -f "${REPO_ROOT}/src/kernel/types.rs" ]] && out_files+=( "${REPO_ROOT}/src/kernel/types.rs" )
   [[ -d "${REPO_ROOT}/src/kernel/types" ]] && collect_rs_files "${REPO_ROOT}/src/kernel/types" out_files
   [[ "${#out_files[@]}" -gt 0 ]] || {
     echo "FAIL ${CASE}: missing types sources"

@@ -1,4 +1,4 @@
-include!("../src/kernel/string/string_impl.rs");
+use kfs::kernel::klib::string::{strcmp, strlen};
 
 #[test]
 fn strlen_empty_string() {

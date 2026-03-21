@@ -10,7 +10,7 @@ list_cases() {
 new-top-level-kernel-peer-file-fails
 disallowed-first-level-layer-fails
 missing-required-artifact-fails
-legacy-type-placement-fails
+unexpected-types-layer-file-fails
 types-abi-export-fails
 private-leaf-import-fails
 raw-hardware-in-services-fails
@@ -26,7 +26,7 @@ describe_case() {
     new-top-level-kernel-peer-file-fails) printf '%s\n' "rejects a new top-level kernel peer file" ;;
     disallowed-first-level-layer-fails) printf '%s\n' "rejects a disallowed first-level kernel layer" ;;
     missing-required-artifact-fails) printf '%s\n' "rejects a missing required future-architecture artifact" ;;
-    legacy-type-placement-fails) printf '%s\n' "rejects legacy type placement in deprecated paths" ;;
+    unexpected-types-layer-file-fails) printf '%s\n' "rejects unexpected files inside the types layer" ;;
     types-abi-export-fails) printf '%s\n' "rejects ABI exports in the types layer" ;;
     private-leaf-import-fails) printf '%s\n' "rejects private leaf imports outside the owning facade" ;;
     raw-hardware-in-services-fails) printf '%s\n' "rejects raw hardware access in services" ;;
@@ -54,15 +54,20 @@ trap cleanup EXIT
 make_target_tree() {
   TMPDIR="$(mktemp -d)"
 
-  mkdir -p "${TMPDIR}/src/kernel"/{core,machine,types,klib/string,klib/memory,drivers/vga_text,services}
+  mkdir -p "${TMPDIR}/src/kernel"/{core,machine,types,klib/string,klib/memory,drivers/vga_text,drivers/serial,services}
+  mkdir -p "${TMPDIR}/src/freestanding"
   mkdir -p "${TMPDIR}/scripts/architecture-tests/fixtures"
 
-  cat >"${TMPDIR}/src/kernel.rs" <<'EOF'
+  cat >"${TMPDIR}/src/main.rs" <<'EOF'
 pub mod kernel;
 EOF
-
-  cat >"${TMPDIR}/src/kernel/types.rs" <<'EOF'
-pub type LegacyPort = u16;
+  cat >"${TMPDIR}/src/kernel/mod.rs" <<'EOF'
+pub mod core;
+pub mod drivers;
+pub mod klib;
+pub mod machine;
+pub mod services;
+pub mod types;
 EOF
 
   cat >"${TMPDIR}/src/kernel/core/entry.rs" <<'EOF'
@@ -73,8 +78,18 @@ EOF
 pub fn init() {}
 EOF
 
-  cat >"${TMPDIR}/src/kernel/core/panic.rs" <<'EOF'
+  cat >"${TMPDIR}/src/freestanding/panic.rs" <<'EOF'
 pub fn halt_forever() -> ! { loop {} }
+EOF
+
+  cat >"${TMPDIR}/src/freestanding/mod.rs" <<'EOF'
+mod panic;
+mod section_markers;
+EOF
+
+  cat >"${TMPDIR}/src/freestanding/section_markers.rs" <<'EOF'
+#[no_mangle]
+static KFS_RODATA_MARKER: [u8; 8] = *b"KFSRODAT";
 EOF
 
   cat >"${TMPDIR}/src/kernel/machine/port.rs" <<'EOF'
@@ -134,8 +149,24 @@ EOF
 mod writer;
 EOF
 
+  cat >"${TMPDIR}/src/kernel/drivers/serial/mod.rs" <<'EOF'
+use crate::kernel::machine::port::Port;
+
+pub fn initialize() {
+    let _ = Port::new(0x3f8);
+}
+EOF
+
   cat >"${TMPDIR}/src/kernel/drivers/vga_text/writer.rs" <<'EOF'
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
+EOF
+
+  cat >"${TMPDIR}/src/kernel/services/diagnostics.rs" <<'EOF'
+use crate::kernel::drivers::serial;
+
+pub fn write_line() {
+    serial::initialize();
+}
 EOF
 
   cat >"${TMPDIR}/src/kernel/services/console.rs" <<'EOF'
@@ -143,7 +174,7 @@ pub fn console_write() {}
 EOF
 
   cat >"${TMPDIR}/Makefile" <<'EOF'
-rust_source_files := src/kernel.rs
+rust_source_files := src/main.rs
 EOF
 
   cat >"${TMPDIR}/scripts/architecture-tests/fixtures/exports.i386.allowlist" <<'EOF'
@@ -166,7 +197,9 @@ expect_failure() {
 }
 
 check_no_top_level_peer_files() {
-  ! find "${TMPDIR}/src/kernel" -mindepth 1 -maxdepth 1 -type f -name '*.rs' | grep -q .
+  local peers
+  peers="$(find "${TMPDIR}/src/kernel" -mindepth 1 -maxdepth 1 -type f -name '*.rs' -printf '%f\n' | sort)"
+  [[ -n "${peers}" ]] && [[ "${peers}" == "mod.rs" ]]
 }
 
 check_first_level_allowlist() {
@@ -191,10 +224,13 @@ check_required_artifacts_exist() {
   while IFS= read -r path; do
     [[ -f "${TMPDIR}/${path}" ]] || missing=1
   done <<'EOF'
-src/kernel.rs
+src/main.rs
+src/freestanding/mod.rs
+src/freestanding/panic.rs
+src/freestanding/section_markers.rs
+src/kernel/mod.rs
 src/kernel/core/entry.rs
 src/kernel/core/init.rs
-src/kernel/core/panic.rs
 src/kernel/machine/port.rs
 src/kernel/types/range.rs
 src/kernel/types/screen.rs
@@ -202,16 +238,27 @@ src/kernel/klib/string/mod.rs
 src/kernel/klib/string/imp.rs
 src/kernel/klib/memory/mod.rs
 src/kernel/klib/memory/imp.rs
+src/kernel/drivers/serial/mod.rs
 src/kernel/drivers/vga_text/mod.rs
 src/kernel/drivers/vga_text/writer.rs
+src/kernel/services/diagnostics.rs
 src/kernel/services/console.rs
 EOF
 
   [[ "${missing}" -eq 0 ]]
 }
 
-check_no_legacy_type_placement() {
-  [[ ! -e "${TMPDIR}/src/kernel/types.rs" ]] && [[ ! -e "${TMPDIR}/src/kernel/types/port.rs" ]]
+check_types_layer_contains_only_current_files() {
+  local expected actual
+
+  expected="$(cat <<'EOF'
+mod.rs
+range.rs
+screen.rs
+EOF
+)"
+  actual="$(find "${TMPDIR}/src/kernel/types" -mindepth 1 -maxdepth 1 -type f -name '*.rs' -printf '%f\n' | sort)"
+  [[ "${actual}" == "${expected}" ]]
 }
 
 check_no_types_abi_export() {
@@ -264,8 +311,9 @@ run_case() {
       rm -f "${TMPDIR}/src/kernel/types/screen.rs"
       expect_failure "missing required architecture artifact" check_required_artifacts_exist
       ;;
-    legacy-type-placement-fails)
-      expect_failure "legacy type placement" check_no_legacy_type_placement
+    unexpected-types-layer-file-fails)
+      printf '\npub struct Unexpected;\n' >"${TMPDIR}/src/kernel/types/bad.rs"
+      expect_failure "unexpected types-layer file" check_types_layer_contains_only_current_files
       ;;
     types-abi-export-fails)
       printf '\n#[no_mangle]\npub extern "C" fn leaked() {}\n' >>"${TMPDIR}/src/kernel/types/range.rs"

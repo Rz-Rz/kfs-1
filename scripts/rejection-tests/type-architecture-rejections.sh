@@ -59,28 +59,19 @@ make_tmp_tree() {
   TMPDIR="$(mktemp -d)"
   mkdir -p "${TMPDIR}/src/kernel/types"
   mkdir -p "${TMPDIR}/src/kernel/machine"
-  cp src/kernel/types.rs "${TMPDIR}/src/kernel/types.rs"
-  cp src/kernel/types/port.rs "${TMPDIR}/src/kernel/types/port.rs"
-  cp src/kernel/types/port.rs "${TMPDIR}/src/kernel/machine/port.rs"
+  mkdir -p "${TMPDIR}/src/kernel/core"
+  mkdir -p "${TMPDIR}/src/kernel/klib/string"
+  mkdir -p "${TMPDIR}/src/kernel/klib/memory"
+  cp src/kernel/types/mod.rs "${TMPDIR}/src/kernel/types/mod.rs"
+  cp src/kernel/machine/port.rs "${TMPDIR}/src/kernel/machine/port.rs"
   cp src/kernel/types/range.rs "${TMPDIR}/src/kernel/types/range.rs"
-  cat >"${TMPDIR}/src/kernel/types/screen.rs" <<'EOF'
-#[repr(transparent)]
-pub struct ColorCode(pub u8);
-
-#[repr(C)]
-pub struct ScreenCell {
-    pub ascii: u8,
-    pub color: ColorCode,
-}
-
-#[repr(C)]
-pub struct CursorPos {
-    pub row: usize,
-    pub col: usize,
-}
-EOF
-  cp src/kernel/string.rs "${TMPDIR}/src/kernel/string.rs"
-  cp src/kernel/kmain.rs "${TMPDIR}/src/kernel/kmain.rs"
+  cp src/kernel/types/screen.rs "${TMPDIR}/src/kernel/types/screen.rs"
+  cp src/kernel/core/entry.rs "${TMPDIR}/src/kernel/core/entry.rs"
+  cp src/kernel/core/init.rs "${TMPDIR}/src/kernel/core/init.rs"
+  cp src/kernel/klib/string/mod.rs "${TMPDIR}/src/kernel/klib/string/mod.rs"
+  cp src/kernel/klib/string/imp.rs "${TMPDIR}/src/kernel/klib/string/imp.rs"
+  cp src/kernel/klib/memory/mod.rs "${TMPDIR}/src/kernel/klib/memory/mod.rs"
+  cp src/kernel/klib/memory/imp.rs "${TMPDIR}/src/kernel/klib/memory/imp.rs"
 }
 
 find_pattern() {
@@ -152,7 +143,8 @@ check_struct_repr() {
 
   awk -v repr="${repr}" -v name="${struct_name}" '
     $0 ~ ("#\\[repr\\(" repr "\\)\\]") { seen_repr = 1; next }
-    seen_repr && $0 ~ ("pub struct " name "\\b") { found = 1; exit }
+    seen_repr && $0 ~ /^#\[/ { next }
+    seen_repr && $0 ~ ("pub struct " name "([^A-Za-z0-9_]|$)") { found = 1; exit }
     { seen_repr = 0 }
     END { exit(found ? 0 : 1) }
   ' "${file}"
@@ -186,14 +178,14 @@ check_private_impl_boundary() {
   if command -v rg >/dev/null 2>&1; then
     offenders="$(
       find "${TMPDIR}/src/kernel" -type f -name '*.rs' -print0 |
-        xargs -0 rg -n '(string/string_impl|memory/memory_impl)\.rs' -S 2>/dev/null |
-        grep -vE "^${TMPDIR}/src/kernel/(string|memory)\\.rs:" || true
+        xargs -0 rg -n 'klib/(string|memory)/imp\.rs' -S 2>/dev/null |
+        grep -vE "^${TMPDIR}/src/kernel/klib/(string|memory)/mod\\.rs:" || true
     )"
   else
     offenders="$(
       find "${TMPDIR}/src/kernel" -type f -name '*.rs' -print0 |
-        xargs -0 grep -En '(string/string_impl|memory/memory_impl)\.rs' 2>/dev/null |
-        grep -vE "^${TMPDIR}/src/kernel/(string|memory)\\.rs:" || true
+        xargs -0 grep -En 'klib/(string|memory)/imp\.rs' 2>/dev/null |
+        grep -vE "^${TMPDIR}/src/kernel/klib/(string|memory)/mod\\.rs:" || true
     )"
   fi
 
@@ -206,28 +198,29 @@ run_direct_case() {
 
   case "${CASE}" in
     std-in-helper-layer-fails)
-      printf 'use std::vec::Vec;\n' >>"${TMPDIR}/src/kernel/types.rs"
+      printf 'use std::vec::Vec;\n' >>"${TMPDIR}/src/kernel/types/mod.rs"
       expect_check_fail "std usage in helper/type layer" \
         check_no_std \
-        "${TMPDIR}/src/kernel/types.rs" \
-        "${TMPDIR}/src/kernel/types/port.rs" \
+        "${TMPDIR}/src/kernel/types/mod.rs" \
+        "${TMPDIR}/src/kernel/machine/port.rs" \
         "${TMPDIR}/src/kernel/types/range.rs" \
-        "${TMPDIR}/src/kernel/string.rs" \
-        "${TMPDIR}/src/kernel/kmain.rs"
+        "${TMPDIR}/src/kernel/types/screen.rs" \
+        "${TMPDIR}/src/kernel/klib/string/mod.rs" \
+        "${TMPDIR}/src/kernel/core/init.rs"
       ;;
     alias-only-primitive-layer-fails)
-      printf 'pub type Byte = u8;\n' >>"${TMPDIR}/src/kernel/types.rs"
+      printf 'pub type Byte = u8;\n' >>"${TMPDIR}/src/kernel/types/mod.rs"
       expect_check_fail "alias-only primitive wrapper layer" \
         check_no_alias_only \
-        "${TMPDIR}/src/kernel/types.rs" \
-        "${TMPDIR}/src/kernel/types/port.rs" \
+        "${TMPDIR}/src/kernel/types/mod.rs" \
+        "${TMPDIR}/src/kernel/machine/port.rs" \
         "${TMPDIR}/src/kernel/types/range.rs"
       ;;
     port-missing-repr-transparent-fails)
-      sed -i '/repr(transparent)/d' "${TMPDIR}/src/kernel/types/port.rs"
+      sed -i '/repr(transparent)/d' "${TMPDIR}/src/kernel/machine/port.rs"
       expect_check_fail "Port repr(transparent) marker" \
         check_port_repr \
-        "${TMPDIR}/src/kernel/types/port.rs"
+        "${TMPDIR}/src/kernel/machine/port.rs"
       ;;
     kernel-range-missing-repr-c-fails)
       sed -i '/repr(C)/d' "${TMPDIR}/src/kernel/types/range.rs"
@@ -236,13 +229,17 @@ run_direct_case() {
         "${TMPDIR}/src/kernel/types/range.rs"
       ;;
     port-owner-path-fails)
+      cat >>"${TMPDIR}/src/kernel/core/init.rs" <<'EOF'
+#[allow(dead_code)]
+pub struct Port(u16);
+EOF
       expect_check_fail "Port ownership path" \
         check_struct_owned_only \
         'Port' \
         "${TMPDIR}/src/kernel/machine/port.rs"
       ;;
     kernel-range-owner-path-fails)
-      cat >>"${TMPDIR}/src/kernel/kmain.rs" <<'EOF'
+      cat >>"${TMPDIR}/src/kernel/core/init.rs" <<'EOF'
 #[allow(dead_code)]
 pub struct KernelRange {
     pub start: usize,
@@ -255,7 +252,7 @@ EOF
         "${TMPDIR}/src/kernel/types/range.rs"
       ;;
     screen-types-owner-path-fails)
-      cat >>"${TMPDIR}/src/kernel/kmain.rs" <<'EOF'
+      cat >>"${TMPDIR}/src/kernel/core/init.rs" <<'EOF'
 #[repr(transparent)]
 pub struct ColorCode(pub u8);
 
@@ -306,19 +303,19 @@ EOF
         "${TMPDIR}/src/kernel/types/screen.rs"
       ;;
     cursor-pos-missing-repr-c-fails)
-      perl -0pi -e 's/#\[repr\(C\)\]\npub struct CursorPos/pub struct CursorPos/' "${TMPDIR}/src/kernel/types/screen.rs"
+      perl -0pi -e 's/#\[repr\(C\)\]\n(#\[derive\([^\n]+\)\]\n)?pub struct CursorPos/$1pub struct CursorPos/' "${TMPDIR}/src/kernel/types/screen.rs"
       expect_check_fail "CursorPos repr(C) marker" \
         check_cursor_pos_repr \
         "${TMPDIR}/src/kernel/types/screen.rs"
       ;;
     helper-wrapper-missing-extern-c-fails)
-      sed -i 's/extern "C" fn/fn/' "${TMPDIR}/src/kernel/string.rs"
+      sed -i 's/extern "C" fn/fn/' "${TMPDIR}/src/kernel/klib/string/mod.rs"
       expect_check_fail "extern C helper wrapper" \
         check_wrapper_abi \
-        "${TMPDIR}/src/kernel/string.rs"
+        "${TMPDIR}/src/kernel/klib/string/mod.rs"
       ;;
     private-helper-import-fails)
-      printf '\n#[path = "string/string_impl.rs"]\nmod leaked_impl;\n' >>"${TMPDIR}/src/kernel/kmain.rs"
+      printf '\n#[path = "../klib/string/imp.rs"]\nmod leaked_impl;\n' >>"${TMPDIR}/src/kernel/core/init.rs"
       expect_check_fail "private helper import outside boundary file" \
         check_private_impl_boundary
       ;;

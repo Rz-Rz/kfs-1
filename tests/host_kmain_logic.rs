@@ -1,11 +1,5 @@
-#[allow(dead_code)]
-#[path = "../src/kernel/types.rs"]
-mod kernel_types;
-#[path = "../src/kernel/kmain/logic_impl.rs"]
-mod kmain_logic;
-
-use kernel_types::KernelRange;
-use kmain_logic::{layout_order_is_sane, vga_text_cell};
+use kfs::kernel::drivers::vga_text::vga_text_cell;
+use kfs::kernel::types::range::{layout_order_is_sane, KernelRange};
 
 #[test]
 fn layout_order_accepts_non_empty_monotonic_bounds() {

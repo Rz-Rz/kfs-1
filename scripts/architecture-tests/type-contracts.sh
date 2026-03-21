@@ -3,14 +3,15 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-}"
-TYPES_SOURCE="src/kernel/types.rs"
+TYPES_SOURCE="src/kernel/types/mod.rs"
 MACHINE_PORT_SOURCE="src/kernel/machine/port.rs"
-PORT_SOURCE="src/kernel/types/port.rs"
+PORT_SOURCE="src/kernel/machine/port.rs"
 RANGE_SOURCE="src/kernel/types/range.rs"
 SCREEN_SOURCE="src/kernel/types/screen.rs"
-KMAIN_SOURCE="src/kernel/kmain.rs"
-KMAIN_IMPL="src/kernel/kmain/logic_impl.rs"
-STRING_SOURCE="src/kernel/string.rs"
+ENTRY_SOURCE="src/kernel/core/entry.rs"
+INIT_SOURCE="src/kernel/core/init.rs"
+STRING_SOURCE="src/kernel/klib/string/mod.rs"
+MEMORY_SOURCE="src/kernel/klib/memory/mod.rs"
 
 list_cases() {
   cat <<'EOF'
@@ -48,7 +49,7 @@ describe_case() {
     cursor-pos-uses-repr-c) printf '%s\n' "CursorPos uses repr(C)" ;;
     helper-wrappers-use-extern-c-and-no-mangle) printf '%s\n' "helper wrappers keep extern C and no_mangle" ;;
     helper-private-impl-not-imported-directly) printf '%s\n' "private helper impl files are not imported directly outside boundary files" ;;
-    serial-path-uses-port-type) printf '%s\n' "serial path uses Port instead of raw u16 ports" ;;
+    serial-path-uses-port-type) printf '%s\n' "serial runtime path uses Port through machine and driver layers" ;;
     layout-path-uses-kernel-range-type) printf '%s\n' "layout path uses KernelRange instead of naked pairs" ;;
     future-port-owner-and-repr) printf '%s\n' "Port is owned by src/kernel/machine/port.rs with repr(transparent)" ;;
     future-kernel-range-owner-and-repr) printf '%s\n' "KernelRange is owned by src/kernel/types/range.rs with repr(C)" ;;
@@ -113,7 +114,8 @@ assert_struct_has_repr() {
   local file="$4"
   if awk -v repr="${repr}" -v name="${struct_name}" '
     $0 ~ ("#\\[repr\\(" repr "\\)\\]") { seen_repr = 1; next }
-    seen_repr && $0 ~ ("pub struct " name "\\b") { found = 1; exit }
+    seen_repr && $0 ~ /^#\[/ { next }
+    seen_repr && $0 ~ ("pub struct " name "([^A-Za-z0-9_]|$)") { found = 1; exit }
     { seen_repr = 0 }
     END { exit(found ? 0 : 1) }
   ' "${file}"; then
@@ -151,9 +153,9 @@ assert_struct_owned_only_in_file() {
 assert_private_impl_boundary() {
   local offenders
   if command -v rg >/dev/null 2>&1; then
-    offenders="$(find src/kernel -type f -name '*.rs' -print0 | xargs -0 rg -n '(string/string_impl|memory/memory_impl)\.rs' -S 2>/dev/null | grep -vE '^src/kernel/(string|memory)\.rs:' || true)"
+    offenders="$(find src/kernel -type f -name '*.rs' -print0 | xargs -0 rg -n 'klib/(string|memory)/imp\.rs' -S 2>/dev/null | grep -vE '^src/kernel/klib/(string|memory)/mod\.rs:' || true)"
   else
-    offenders="$(find src/kernel -type f -name '*.rs' -print0 | xargs -0 grep -En '(string/string_impl|memory/memory_impl)\.rs' 2>/dev/null | grep -vE '^src/kernel/(string|memory)\.rs:' || true)"
+    offenders="$(find src/kernel -type f -name '*.rs' -print0 | xargs -0 grep -En 'klib/(string|memory)/imp\.rs' 2>/dev/null | grep -vE '^src/kernel/klib/(string|memory)/mod\.rs:' || true)"
   fi
   if [[ -n "${offenders}" ]]; then
     echo "FAIL src: found private helper import outside public boundary file"
@@ -166,18 +168,19 @@ assert_private_impl_boundary() {
 run_direct_case() {
   case "${CASE}" in
     helper-boundary-files-exist)
-      ensure_sources_exist "${TYPES_SOURCE}" "${PORT_SOURCE}" "${RANGE_SOURCE}" "${KMAIN_SOURCE}" "${KMAIN_IMPL}" "${STRING_SOURCE}"
+      ensure_sources_exist "${TYPES_SOURCE}" "${PORT_SOURCE}" "${RANGE_SOURCE}" "${SCREEN_SOURCE}" "${ENTRY_SOURCE}" "${INIT_SOURCE}" "${STRING_SOURCE}" "${MEMORY_SOURCE}"
       echo "PASS files: helper boundary and type facade files exist"
       ;;
     helper-abi-uses-primitive-core-types)
-      ensure_sources_exist "${STRING_SOURCE}"
+      ensure_sources_exist "${STRING_SOURCE}" "${MEMORY_SOURCE}"
       assert_pattern '#\[no_mangle\]' 'no_mangle helper export' "${STRING_SOURCE}"
       assert_pattern 'pub[[:space:]]+unsafe[[:space:]]+extern[[:space:]]+"C"[[:space:]]+fn[[:space:]]+kfs_' 'extern C helper export' "${STRING_SOURCE}"
+      assert_pattern 'pub[[:space:]]+unsafe[[:space:]]+extern[[:space:]]+"C"[[:space:]]+fn[[:space:]]+kfs_' 'extern C memory helper export' "${MEMORY_SOURCE}"
       assert_no_pattern 'fn[[:space:]]+kfs_[A-Za-z0-9_]+\([^)]*(String|Vec|Option|Result|&|\[[^]]*\])' 'forbidden ABI types in helper exports' "${STRING_SOURCE}"
       ;;
     kernel-helper-code-avoids-std)
-      ensure_sources_exist "${TYPES_SOURCE}" "${PORT_SOURCE}" "${RANGE_SOURCE}" "${SCREEN_SOURCE}" "${STRING_SOURCE}" "${KMAIN_SOURCE}" "${KMAIN_IMPL}"
-      assert_no_pattern '\bstd::|extern[[:space:]]+crate[[:space:]]+std\b' 'std usage in helper/type layer' "${TYPES_SOURCE}" "${PORT_SOURCE}" "${RANGE_SOURCE}" "${SCREEN_SOURCE}" "${STRING_SOURCE}" "${KMAIN_SOURCE}" "${KMAIN_IMPL}"
+      ensure_sources_exist "${TYPES_SOURCE}" "${PORT_SOURCE}" "${RANGE_SOURCE}" "${SCREEN_SOURCE}" "${STRING_SOURCE}" "${MEMORY_SOURCE}" "${ENTRY_SOURCE}" "${INIT_SOURCE}"
+      assert_no_pattern '\bstd::|extern[[:space:]]+crate[[:space:]]+std\b' 'std usage in helper/type layer' "${TYPES_SOURCE}" "${PORT_SOURCE}" "${RANGE_SOURCE}" "${SCREEN_SOURCE}" "${STRING_SOURCE}" "${MEMORY_SOURCE}" "${ENTRY_SOURCE}" "${INIT_SOURCE}"
       ;;
     no-alias-only-primitive-layer)
       ensure_sources_exist "${TYPES_SOURCE}" "${PORT_SOURCE}" "${RANGE_SOURCE}" "${SCREEN_SOURCE}"
@@ -215,20 +218,21 @@ run_direct_case() {
       assert_pattern 'pub[[:space:]]+unsafe[[:space:]]+extern[[:space:]]+"C"[[:space:]]+fn[[:space:]]+kfs_' 'extern C helper wrapper' "${STRING_SOURCE}"
       ;;
     helper-private-impl-not-imported-directly)
-      ensure_sources_exist "${KMAIN_SOURCE}" "${STRING_SOURCE}"
+      ensure_sources_exist "${INIT_SOURCE}" "${STRING_SOURCE}" "${MEMORY_SOURCE}"
       assert_private_impl_boundary
       ;;
     serial-path-uses-port-type)
-      ensure_sources_exist "${KMAIN_SOURCE}"
-      assert_pattern 'const[[:space:]]+COM1_DATA:[[:space:]]+Port[[:space:]]*=' 'Port-based serial constant' "${KMAIN_SOURCE}"
-      assert_pattern 'fn[[:space:]]+outb\(port:[[:space:]]+Port,[[:space:]]+value:[[:space:]]+u8\)' 'Port-based outb signature' "${KMAIN_SOURCE}"
-      assert_pattern 'fn[[:space:]]+inb\(port:[[:space:]]+Port\)[[:space:]]*->[[:space:]]+u8' 'Port-based inb signature' "${KMAIN_SOURCE}"
+      ensure_sources_exist "${MACHINE_PORT_SOURCE}" "${ENTRY_SOURCE}" "src/kernel/drivers/serial/mod.rs" "src/kernel/services/diagnostics.rs"
+      assert_pattern '\bstruct[[:space:]]+Port\b' 'Port machine primitive exists' "${MACHINE_PORT_SOURCE}"
+      assert_pattern '\bcrate::kernel::machine::port::Port\b' 'serial driver imports Port' "src/kernel/drivers/serial/mod.rs"
+      assert_pattern '\bPort::new\(' 'serial driver constructs machine Port values' "src/kernel/drivers/serial/mod.rs"
+      assert_pattern '\bdrivers::serial\b' 'diagnostics service reaches serial driver facade' "src/kernel/services/diagnostics.rs"
+      assert_no_pattern '\bPort\b' 'Port leaking into core entry' "${ENTRY_SOURCE}"
       ;;
     layout-path-uses-kernel-range-type)
-      ensure_sources_exist "${KMAIN_SOURCE}" "${KMAIN_IMPL}"
-      assert_pattern 'KernelRange::new\(' 'KernelRange construction in kmain' "${KMAIN_SOURCE}"
-      assert_pattern 'use[[:space:]]+super::kernel_types::KernelRange;' 'KernelRange import in layout helper module' "${KMAIN_IMPL}"
-      assert_pattern 'layout_order_is_sane\(kernel,[[:space:]]*bss,[[:space:]]*layout_override\)' 'KernelRange-based layout helper call from kmain' "${KMAIN_SOURCE}"
+      ensure_sources_exist "${ENTRY_SOURCE}" "${INIT_SOURCE}" "${RANGE_SOURCE}"
+      assert_pattern 'KernelRange::new\(' 'KernelRange construction in core entry' "${ENTRY_SOURCE}"
+      assert_pattern 'layout_order_is_sane\(' 'KernelRange-based layout helper call from core init' "${INIT_SOURCE}"
       ;;
     future-port-owner-and-repr)
       ensure_sources_exist "${MACHINE_PORT_SOURCE}"

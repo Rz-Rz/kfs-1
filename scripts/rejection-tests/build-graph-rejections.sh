@@ -20,7 +20,7 @@ EOF
 describe_case() {
   case "$1" in
     kernel-sources-glob-fails) printf '%s\n' "rejects Makefile using src/kernel/*.rs in source selection" ;;
-    kernel-entrypoint-not-root-fails) printf '%s\n' "rejects build where kernel root entrypoint is not src/kernel.rs" ;;
+    kernel-entrypoint-not-root-fails) printf '%s\n' "rejects build where kernel root entrypoint is not src/main.rs" ;;
     kernel-sources-not-single-fails) printf '%s\n' "rejects multiple src/kernel sources being compiled" ;;
     kernel-subsystem-objects-fail) printf '%s\n' "rejects separate Rust outputs for kernel subsystem files" ;;
     *) return 1 ;;
@@ -30,6 +30,20 @@ describe_case() {
 die() {
   echo "error: $*" >&2
   exit 2
+}
+
+extract_make_var() {
+  local var_name="$1"
+
+  awk -v var="${var_name}" '
+    $1 == var && ($2=="=" || $2==":=" || $2=="?=" || $2=="+=") {
+      $1 = "";
+      $2 = "";
+      sub(/^[[:space:]]+/, "");
+      print;
+      exit;
+    }
+  ' <<<"${MAKE_DB}"
 }
 
 cleanup() {
@@ -45,13 +59,13 @@ make_tree() {
 
   mkdir -p "${TMPDIR}/src/kernel"
 
-  cat >"${TMPDIR}/src/kernel.rs" <<'EOF'
+  cat >"${TMPDIR}/src/main.rs" <<'EOF'
 pub fn kmain() {}
 EOF
 
 cat >"${TMPDIR}/Makefile" <<'EOF'
 arch ?= i386
-rust_source_files := src/kernel.rs
+rust_source_files := src/main.rs
 rust_source_files += src/rust/kernel_marker.rs
 rust_object_files := $(patsubst src/%.rs, build/arch/$(arch)/rust/%.o, $(rust_source_files))
 
@@ -79,28 +93,8 @@ load_make_state() {
     return 1
   fi
 
-  RUST_SOURCE_FILES="$(
-    printf '%s\n' "${MAKE_DB}" \
-      | awk -v var="rust_source_files" '
-        $1 == var && ($2=="=" || $2==":=" || $2=="?=" || $2=="+=") {
-          $1 = "";
-          $2 = "";
-          sub(/^[[:space:]]+/, "");
-          print;
-          exit;
-        }'
-  )"
-  RUST_OBJECT_FILES="$(
-    printf '%s\n' "${MAKE_DB}" \
-      | awk -v var="rust_object_files" '
-        $1 == var && ($2=="=" || $2==":=" || $2=="?=" || $2=="+=") {
-          $1 = "";
-          $2 = "";
-          sub(/^[[:space:]]+/, "");
-          print;
-          exit;
-        }'
-  )"
+  RUST_SOURCE_FILES="$(extract_make_var "rust_source_files")"
+  RUST_OBJECT_FILES="$(extract_make_var "rust_object_files")"
 
   if [[ -z "${RUST_SOURCE_FILES}" ]]; then
     echo "FAIL ${CASE}: rust_source_files is empty"
@@ -139,7 +133,7 @@ assert_no_kernel_peer_glob() {
 
 assert_kernel_root_is_single_entry() {
   mapfile -t kernel_sources < <(
-    printf '%s\n' "${RUST_SOURCE_FILES}" | tr ' ' '\n' | rg '^src/kernel/[^[:space:]]+\.rs$' || true
+    printf '%s\n' "${RUST_SOURCE_FILES}" | tr ' ' '\n' | rg '^src/(main\.rs|kernel/[^[:space:]]+\.rs)$' || true
   )
 
   local -a disallowed_sources=()
@@ -148,7 +142,7 @@ assert_kernel_root_is_single_entry() {
 
   for file in "${kernel_sources[@]}"; do
     [[ -n "${file}" ]] || continue
-    if [[ "${file}" == "src/kernel.rs" ]]; then
+    if [[ "${file}" == "src/main.rs" ]]; then
       has_kernel_root=1
     else
       disallowed_sources+=("${file}")
@@ -177,25 +171,24 @@ run_case() {
 
   case "${CASE}" in
     kernel-sources-glob-fails)
-      mkdir -p "${TMPDIR}/src/kernel"
-      printf '\n' >"${TMPDIR}/src/kernel/kmain.rs"
       set_kernel_sources '$$(wildcard src/kernel/*.rs)'
       expect_failure "src/kernel/*.rs glob in rust_source_files" assert_no_kernel_peer_glob
       ;;
     kernel-entrypoint-not-root-fails)
-      set_kernel_sources 'src/kernel/memory.rs'
+      printf '\n' >"${TMPDIR}/src/kernel/extra.rs"
+      set_kernel_sources 'src/kernel/extra.rs'
       load_make_state
       expect_failure "non-root kernel source entrypoint" assert_kernel_root_is_single_entry
       ;;
     kernel-sources-not-single-fails)
-      set_kernel_sources 'src/kernel.rs src/kernel/memory.rs'
-      printf '\n' >"${TMPDIR}/src/kernel/memory.rs"
+      printf '\n' >"${TMPDIR}/src/kernel/extra.rs"
+      set_kernel_sources 'src/main.rs src/kernel/extra.rs'
       load_make_state
       expect_failure "multiple kernel tree sources" assert_kernel_root_is_single_entry
       ;;
     kernel-subsystem-objects-fail)
-      set_kernel_sources 'src/kernel.rs src/kernel/vga.rs'
-      printf '\n' >"${TMPDIR}/src/kernel/vga.rs"
+      printf '\n' >"${TMPDIR}/src/kernel/extra.rs"
+      set_kernel_sources 'src/main.rs src/kernel/extra.rs'
       load_make_state
       expect_failure "separate kernel subsystem object outputs" assert_no_kernel_subsystem_outputs
       ;;
