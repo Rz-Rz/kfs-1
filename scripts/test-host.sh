@@ -338,6 +338,12 @@ if ! run_item "SETUP" "-" "Verify tools exist" "-" "-" \
   exit 1
 fi
 
+if ! run_item "SETUP" "-" "Verify host test tools exist" "-" "-" \
+  bash -lc 'command -v rg >/dev/null 2>&1'; then
+  emit_event "summary" "fail"
+  exit 1
+fi
+
 run_section "TESTS" "${entries}"
 run_section "ARCHITECTURE TESTS" "${entries}"
 run_section "STABILITY TESTS" "${entries}"
