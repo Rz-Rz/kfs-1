@@ -399,7 +399,7 @@ Evidence:
 - `src/kernel/services/console.rs` routes normal screen output through `src/kernel/drivers/vga_text`
 - `src/kernel/drivers/vga_text/writer.rs` writes packed text cells to VGA text memory at `0xB8000`
 - `src/kernel/core/init.rs` prints `42` through the service-owned screen path
-- Headless automation now reads VGA text memory and proves the first screen bytes encode `42`
+- Headless automation now reads VGA text memory twice, proves the first screen bytes encode `42`, and checks the visible buffer stays stable across monitor snapshots
 - Host unit coverage now includes a buffer-backed VGA writer model for write progression and wrap behavior
 - The subject's cursor/scroll work is bonus-owned follow-up scope, not a blocker for base `M6`
 
@@ -420,6 +420,7 @@ Proof:
 - `bash scripts/boot-tests/runtime-markers.sh i386 runtime-completes-early-init`
 - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-starts-with-42`
 - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-uses-default-attribute`
+- `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-stable-across-snapshots`
 - `bash scripts/boot-tests/vga-writer.sh i386 release-kernel-omits-vga-abi-exports`
 
 ---
@@ -461,5 +462,5 @@ Evidence:
   - Gap: no explicit per-section denylist step yet (current allowlist already caught `.eh_frame`)
 - Infra Epic **I1** (Serial console assertions): ❌ Not done
 - Infra Epic **I2** (VGA memory assertions): ✅ Done
-  - Proof: `make test arch=i386` includes headless VGA-memory checks for the first `42` screen cells
+  - Proof: `make test arch=i386` includes headless VGA-memory checks for the first `42` screen cells plus repeated monitor snapshots for buffer stability
   - Proof: `make test-vga arch=i386`

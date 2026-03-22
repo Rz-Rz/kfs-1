@@ -16,7 +16,7 @@ What it does:
 - Checks the tracked release ISO/disk-image artifacts (type + size)
 - Builds the test ISO/disk-image artifacts
 - Runs headless QEMU boot/runtime checks
-- Asserts the first VGA text-memory bytes for `42` without any GUI
+- Asserts the first VGA text-memory bytes for `42` without any GUI and verifies the buffer is stable across repeated QEMU monitor snapshots
 
 ## What the test proves
 

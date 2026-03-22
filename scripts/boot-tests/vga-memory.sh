@@ -12,6 +12,7 @@ list_cases() {
   cat <<'EOF'
 vga-buffer-starts-with-42
 vga-buffer-uses-default-attribute
+vga-buffer-stable-across-snapshots
 EOF
 }
 
@@ -19,6 +20,7 @@ describe_case() {
   case "$1" in
     vga-buffer-starts-with-42) printf '%s\n' "VGA memory starts with the bytes for 42" ;;
     vga-buffer-uses-default-attribute) printf '%s\n' "VGA memory uses the default attribute for the printed 42" ;;
+    vga-buffer-stable-across-snapshots) printf '%s\n' "VGA memory stays stable across repeated monitor snapshots" ;;
     *) return 1 ;;
   esac
 }
@@ -34,7 +36,9 @@ run_qemu_capture() {
   set +e
   {
     sleep "${BOOT_WAIT_SECS}"
-    printf 'xp /4bx 0xb8000\n'
+    printf 'xp /8bx 0xb8000\n'
+    sleep 1
+    printf 'xp /8bx 0xb8000\n'
     sleep 1
     printf 'quit\n'
   } | timeout --foreground "${TIMEOUT_SECS}" \
@@ -57,10 +61,10 @@ run_qemu_capture() {
   fi
 }
 
-capture_line() {
+capture_lines() {
   local line
 
-  line="$(grep -Ei 'b8000:.*0x[0-9a-f]{2}' "${LOG}" | tail -n 1 || true)"
+  line="$(grep -Ei 'b8000:.*0x[0-9a-f]{2}' "${LOG}" | tail -n 2 || true)"
   [[ -n "${line}" ]] || {
     echo "FAIL ${CASE}: missing VGA memory dump for 0xb8000" >&2
     cat "${LOG}" >&2
@@ -70,11 +74,11 @@ capture_line() {
   printf '%s\n' "${line}"
 }
 
-assert_contains_pattern() {
+assert_first_snapshot_contains_pattern() {
   local pattern="$1"
   local line
 
-  line="$(capture_line)"
+  line="$(capture_lines | head -n 1)"
   if ! printf '%s\n' "${line}" | grep -Eq "${pattern}"; then
     echo "FAIL ${CASE}: unexpected VGA memory bytes" >&2
     printf '%s\n' "${line}" >&2
@@ -83,13 +87,42 @@ assert_contains_pattern() {
   fi
 }
 
+assert_snapshots_are_stable() {
+  local first_snapshot
+  local second_snapshot
+  local -a snapshots
+
+  mapfile -t snapshots < <(capture_lines)
+
+  if [[ "${#snapshots[@]}" -lt 2 ]]; then
+    echo "FAIL ${CASE}: expected two VGA memory snapshots" >&2
+    cat "${LOG}" >&2
+    exit 1
+  fi
+
+  first_snapshot="${snapshots[0]}"
+  second_snapshot="${snapshots[1]}"
+
+  if [[ "${first_snapshot}" != "${second_snapshot}" ]]; then
+    echo "FAIL ${CASE}: VGA memory changed between monitor snapshots" >&2
+    printf '%s\n' "${first_snapshot}" >&2
+    printf '%s\n' "${second_snapshot}" >&2
+    cat "${LOG}" >&2
+    exit 1
+  fi
+}
+
 run_case() {
   case "${CASE}" in
     vga-buffer-starts-with-42)
-      assert_contains_pattern '0x34[[:space:]]+0x02[[:space:]]+0x32[[:space:]]+0x02'
+      assert_first_snapshot_contains_pattern '0x34[[:space:]]+0x02[[:space:]]+0x32[[:space:]]+0x02'
       ;;
     vga-buffer-uses-default-attribute)
-      assert_contains_pattern '0x34[[:space:]]+0x02[[:space:]]+0x32[[:space:]]+0x02'
+      assert_first_snapshot_contains_pattern '0x34[[:space:]]+0x02[[:space:]]+0x32[[:space:]]+0x02'
+      ;;
+    vga-buffer-stable-across-snapshots)
+      assert_first_snapshot_contains_pattern '0x34[[:space:]]+0x02[[:space:]]+0x32[[:space:]]+0x02'
+      assert_snapshots_are_stable
       ;;
     *)
       die "unknown case: ${CASE}"

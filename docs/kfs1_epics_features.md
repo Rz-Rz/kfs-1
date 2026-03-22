@@ -97,6 +97,7 @@ Proof / tests (definition of done):
 - WP-I2.1-1 (VGA harness wired): `make -n test-vga arch=i386 | rg -n "boot-tests/vga-memory\\.sh"`
 - WP-I2.1-2 (VGA bytes asserted): `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-starts-with-42`
 - WP-I2.1-3 (VGA attributes asserted): `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-uses-default-attribute`
+- WP-I2.1-4 (VGA snapshot stability asserted): `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-stable-across-snapshots`
 
 Definition of Done (I2):
 - “Print 42” can be asserted headlessly by reading VGA memory.
