@@ -51,6 +51,7 @@ cmd_check() {
   need_cmd file
   need_cmd rustc
   need_cmd cc
+  need_cmd rg
 
   need_cmd grub-mkrescue
   need_cmd xorriso
