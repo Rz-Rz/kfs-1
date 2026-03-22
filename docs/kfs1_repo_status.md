@@ -399,23 +399,27 @@ Evidence:
 - `src/kernel/services/console.rs` routes normal screen output through `src/kernel/drivers/vga_text`
 - `src/kernel/drivers/vga_text/writer.rs` writes packed text cells to VGA text memory at `0xB8000`
 - `src/kernel/core/init.rs` prints `42` through the service-owned screen path
+- Headless automation now reads VGA text memory and proves the first screen bytes encode `42`
+- Host unit coverage now includes a buffer-backed VGA writer model for write progression and wrap behavior
 - The subject's cursor/scroll work is bonus-owned follow-up scope, not a blocker for base `M6`
 
 Gaps / follow-up:
-- Infra Epic `I2` (headless VGA-memory assertions) is still missing
-- The repo still lacks buffer-backed host tests for write progression and later cursor/newline behavior
-- `services::console::write_bytes` currently resets the VGA writer on each call, which is
-  sufficient for the current one-shot `42` flow but not yet a general append-style console
-  contract
+- Cursor/newline/scroll behavior remains bonus-owned follow-up work under `B1`
+- The repo still does not expose a richer general-purpose console API beyond the current minimal writer path
 
 Proof:
 - `bash scripts/tests/unit/kmain-logic.sh i386 host-vga-cell-unit-tests-pass`
+- `bash scripts/tests/unit/vga-writer-model.sh i386 host-vga-writer-sequential-writes`
+- `bash scripts/tests/unit/vga-writer-model.sh i386 host-vga-writer-wraps-at-buffer-end`
+- `bash scripts/tests/unit/vga-writer-model.sh i386 services-console-keeps-writer-state`
 - `bash scripts/boot-tests/vga-writer.sh i386 driver-vga-writer-exists`
 - `bash scripts/boot-tests/vga-writer.sh i386 services-console-uses-driver`
 - `bash scripts/boot-tests/vga-writer.sh i386 core-init-uses-services-console`
 - `bash scripts/architecture-tests/runtime-ownership.sh i386 core-init-calls-services-console`
 - `bash scripts/architecture-tests/runtime-ownership.sh i386 services-console-calls-driver-facade`
 - `bash scripts/boot-tests/runtime-markers.sh i386 runtime-completes-early-init`
+- `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-starts-with-42`
+- `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-uses-default-attribute`
 - `bash scripts/boot-tests/vga-writer.sh i386 release-kernel-omits-vga-abi-exports`
 
 ---
@@ -437,7 +441,7 @@ Status: ⚠️ Partial
 Evidence:
 - ISO exists and is <= 10 MB: `build/os-i386.iso`
 What’s left:
-- Update `README.md` with the expected output 42 once the screen interface is implemented.
+- Turn-in packaging is still partial for reasons outside the now-corrected VGA screen path.
 
 ---
 
@@ -456,4 +460,6 @@ Evidence:
   - Gap: no `--orphan-handling=error` gate yet
   - Gap: no explicit per-section denylist step yet (current allowlist already caught `.eh_frame`)
 - Infra Epic **I1** (Serial console assertions): ❌ Not done
-- Infra Epic **I2** (VGA memory assertions): ❌ Not done
+- Infra Epic **I2** (VGA memory assertions): ✅ Done
+  - Proof: `make test arch=i386` includes headless VGA-memory checks for the first `42` screen cells
+  - Proof: `make test-vga arch=i386`

@@ -84,7 +84,8 @@ Definition of Done (I1):
 Implementation tasks:
 - Keep the kernel’s visible output in VGA text mode (as per subject).
 - Add a headless harness that boots QEMU and then reads guest memory at `0xB8000`
-  (e.g., via QEMU gdbstub `-S -s` + a host script) to assert the expected characters.
+  (for example via the QEMU monitor or gdbstub plus a host script) to assert the expected
+  characters.
 
 Acceptance criteria:
 - A host test can prove “`42` is on screen” without any GUI or screenshot.
@@ -93,8 +94,9 @@ Implementation scope:
 - `AUTOMATION` (+ kernel output in `ASM`/`RUST`)
 
 Proof / tests (definition of done):
-- WP-I2.1-1 (gdbstub enabled): `make -n test-vga arch=i386 | rg -n "(-S\\s+-s|gdb)"`
-- WP-I2.1-2 (VGA bytes asserted): the harness reads `0xB8000` and asserts it contains `0x34`/`0x32` as the character bytes (with your chosen attribute)
+- WP-I2.1-1 (VGA harness wired): `make -n test-vga arch=i386 | rg -n "boot-tests/vga-memory\\.sh"`
+- WP-I2.1-2 (VGA bytes asserted): `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-starts-with-42`
+- WP-I2.1-3 (VGA attributes asserted): `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-uses-default-attribute`
 
 Definition of Done (I2):
 - “Print 42” can be asserted headlessly by reading VGA memory.
@@ -2867,14 +2869,13 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
     - no hardware cursor programming
     - no scroll behavior
 - Status: exists now
-  - `services::console::write_bytes` reinitializes the VGA writer on each call, so the
-    current screen path is sufficient for the present one-shot `42` flow but is not yet a
-    general append-style console contract
-- Status: missing now
+  - `services::console::write_bytes` preserves VGA writer state across successive calls
+- Status: exists now
   - headless VGA-memory proof via Infra `I2.1`
+- Status: exists now
+  - buffer-backed host tests for write progression and wrap behavior
 - Status: missing now
-  - buffer-backed host tests for write progression, wrap behavior, and later
-    cursor/newline semantics
+  - buffer-backed host tests for later cursor/newline semantics
 
 #### Target end-state
 - Status: build now
@@ -2974,8 +2975,11 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `src/kernel/drivers/vga_text/writer.rs`
   - `src/kernel/core/init.rs` as the current mandatory-output caller
   - `tests/host_kmain_logic.rs`
+  - `tests/host_vga_writer.rs`
   - `scripts/tests/unit/kmain-logic.sh`
+  - `scripts/tests/unit/vga-writer-model.sh`
   - `scripts/boot-tests/vga-writer.sh`
+  - `scripts/boot-tests/vga-memory.sh`
 - Build now:
   - shared/public surface already visible to host-linked tests:
     - `ColorCode`
@@ -3107,22 +3111,25 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Assertion:
     - the repo can prove the exact VGA memory bytes for `42` without relying on a GUI
   - Evidence:
-    - Infra `I2.1`
+    - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-starts-with-42`
+    - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-uses-default-attribute`
   - Failure caught:
     - false greens where the kernel boots and reaches early init but the visible VGA bytes are
       wrong or absent
   - Status:
-    - to add
+    - exists now
 - `UT-M6-8`
   - Assertion:
     - a buffer-backed writer model proves write progression, wrap semantics, and the later
       cursor/newline contract without hardware access
   - Evidence:
-    - host-side buffer-model unit tests for the VGA writer
+    - `bash scripts/tests/unit/vga-writer-model.sh i386 host-vga-writer-sequential-writes`
+    - `bash scripts/tests/unit/vga-writer-model.sh i386 host-vga-writer-wraps-at-buffer-end`
+    - `bash scripts/tests/unit/vga-writer-model.sh i386 host-vga-writer-continues-from-cursor`
   - Failure caught:
     - off-by-one, overwrite, and cursor/newline regressions that are difficult to debug only in QEMU
   - Status:
-    - to add
+    - exists now
 
 #### Common bad implementations
 - Writing directly to `0xB8000` from `core` or from boot ASM instead of going through the
@@ -3153,8 +3160,11 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 - `src/kernel/drivers/vga_text/writer.rs`
 - `src/kernel/core/init.rs`
 - `tests/host_kmain_logic.rs`
+- `tests/host_vga_writer.rs`
 - `scripts/tests/unit/kmain-logic.sh`
+- `scripts/tests/unit/vga-writer-model.sh`
 - `scripts/boot-tests/vga-writer.sh`
+- `scripts/boot-tests/vga-memory.sh`
 - `scripts/architecture-tests/runtime-ownership.sh`
 - `scripts/rejection-tests/runtime-ownership-rejections.sh`
 - OSDev Printing To Screen

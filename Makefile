@@ -58,7 +58,7 @@ test_ui_python := $(if $(wildcard $(test_ui_venv)/bin/python),$(test_ui_venv)/bi
 	metrics-sync \
 	test test-plain test-ui test-ui-demo test-ui-bootstrap \
 	dev iso-in-container run-in-container \
-	iso-test test-qemu \
+	iso-test test-qemu test-vga \
 	img img-test run-img
 
 all: $(kernel)
@@ -174,6 +174,12 @@ test-qemu: container-image-force
 		KFS_TEST_BAD_STRING=$(KFS_TEST_BAD_STRING) \
 		KFS_TEST_BAD_MEMORY=$(KFS_TEST_BAD_MEMORY) \
 		bash scripts/boot-tests/qemu-boot.sh $(arch)
+
+test-vga: container-image-force
+	@KFS_CONTAINER_TTY=1 bash scripts/container.sh run -- env \
+		TEST_TIMEOUT_SECS=$(TEST_TIMEOUT_SECS) \
+		KFS_HOST_TEST_DIRECT=1 \
+		bash scripts/boot-tests/vga-memory.sh $(arch)
 
 test:
 	@bash -lc 'set -euo pipefail; \
