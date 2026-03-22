@@ -32,6 +32,37 @@ die() {
   exit 2
 }
 
+find_pattern() {
+  local pattern="$1"
+  shift
+
+  if command -v rg >/dev/null 2>&1; then
+    rg -n "${pattern}" "$@"
+  else
+    grep -En "${pattern}" "$@"
+  fi
+}
+
+stdin_matches_pattern() {
+  local pattern="$1"
+
+  if command -v rg >/dev/null 2>&1; then
+    rg -q "${pattern}"
+  else
+    grep -Eq "${pattern}"
+  fi
+}
+
+filter_stdin_pattern() {
+  local pattern="$1"
+
+  if command -v rg >/dev/null 2>&1; then
+    rg "${pattern}" || true
+  else
+    grep -E "${pattern}" || true
+  fi
+}
+
 extract_make_var() {
   local var_name="$1"
 
@@ -125,7 +156,7 @@ EOF
 }
 
 assert_no_kernel_peer_glob() {
-  if rg -n 'src/kernel/\*\.rs' "${TMPDIR}/Makefile" >/dev/null; then
+  if find_pattern 'src/kernel/\*\.rs' "${TMPDIR}/Makefile" >/dev/null; then
     return 1
   fi
   return 0
@@ -133,7 +164,7 @@ assert_no_kernel_peer_glob() {
 
 assert_kernel_root_is_single_entry() {
   mapfile -t kernel_sources < <(
-    printf '%s\n' "${RUST_SOURCE_FILES}" | tr ' ' '\n' | rg '^src/(main\.rs|kernel/[^[:space:]]+\.rs)$' || true
+    printf '%s\n' "${RUST_SOURCE_FILES}" | tr ' ' '\n' | filter_stdin_pattern '^src/(main\.rs|kernel/[^[:space:]]+\.rs)$'
   )
 
   local -a disallowed_sources=()
@@ -160,7 +191,7 @@ assert_kernel_root_is_single_entry() {
 }
 
 assert_no_kernel_subsystem_outputs() {
-  if printf '%s\n' "${RUST_OBJECT_FILES}" | tr ' ' '\n' | rg "build/arch/${ARCH}/rust/kernel/" >/dev/null; then
+  if printf '%s\n' "${RUST_OBJECT_FILES}" | tr ' ' '\n' | stdin_matches_pattern "build/arch/${ARCH}/rust/kernel/"; then
     return 1
   fi
   return 0
