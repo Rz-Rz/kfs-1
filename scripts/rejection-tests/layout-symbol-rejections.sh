@@ -132,11 +132,11 @@ run_direct_case() {
   local expected
   expected="$(expected_message)"
 
-  make clean >/dev/null 2>&1 || true
+  bash scripts/with-build-lock.sh make clean >/dev/null 2>&1 || true
   mkdir -p build
   write_invalid_linker_script "${linker}"
 
-  if make -B all arch="${ARCH}" linker_script="${linker}" >"${log}" 2>&1; then
+  if bash scripts/with-build-lock.sh make -B all arch="${ARCH}" linker_script="${linker}" >"${log}" 2>&1; then
     echo "FAIL ${CASE}: wrong linker script unexpectedly passed the build gate" >&2
     cat "${log}" >&2
     exit 1

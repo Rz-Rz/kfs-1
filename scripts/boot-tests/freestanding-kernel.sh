@@ -39,9 +39,9 @@ die() {
 
 assert_rust_marker_symbol() {
   local kernel="$1"
-  if ! nm -n "${kernel}" | grep -qw 'kfs_rust_marker'; then
-    echo "FAIL ${kernel}: Rust marker symbol missing (kfs_rust_marker)"
-    echo "hint: the kernel must include the chosen language (Rust) object so M0.2 is proven for ASM+Rust, not ASM-only"
+  if ! nm -n "${kernel}" | grep -qw 'kmain'; then
+    echo "FAIL ${kernel}: Rust entry symbol missing (kmain)"
+    echo "hint: the kernel must include the Rust kernel entrypoint so M0.2 is proven for ASM+Rust, not ASM-only"
     return 1
   fi
 }
@@ -199,7 +199,7 @@ run_direct() {
 }
 
 run_host_case() {
-  bash scripts/container.sh run -- \
+  bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
     bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/freestanding-kernel.sh '${ARCH}' '${CASE}'"
 }
 

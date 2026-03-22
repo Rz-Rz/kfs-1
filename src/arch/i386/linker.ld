@@ -33,6 +33,13 @@ SECTIONS {
         bss_end = .;
     }
 
+    /DISCARD/ :
+    {
+        *(.eh_frame)
+        *(.eh_frame_hdr)
+        *(.gcc_except_table .gcc_except_table.*)
+    }
+
     kernel_end = .;
 
     ASSERT(kernel_start <= bss_start, "layout symbol order invalid: kernel_start > bss_start")

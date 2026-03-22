@@ -1,7 +1,5 @@
-#[path = "../src/kernel/types.rs"]
-mod kernel_types;
-
-use kernel_types::{KernelRange, Port};
+use kfs::kernel::machine::port::Port;
+use kfs::kernel::types::range::KernelRange;
 
 #[test]
 fn port_new_preserves_wrapped_value() {

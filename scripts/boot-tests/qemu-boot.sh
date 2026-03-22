@@ -131,11 +131,11 @@ run_direct_qemu() {
 run_host_case() {
   case "${MODE}" in
     grub-boots-iso)
-      bash scripts/container.sh run -- \
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
         bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null && TEST_TIMEOUT_SECS='${TIMEOUT_SECS}' TEST_PASS_RC='${PASS_RC}' TEST_FAIL_RC='${FAIL_RC}' KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/qemu-boot.sh '${ARCH}' cdrom"
       ;;
     grub-boots-img)
-      bash scripts/container.sh run -- \
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
         bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null && TEST_TIMEOUT_SECS='${TIMEOUT_SECS}' TEST_PASS_RC='${PASS_RC}' TEST_FAIL_RC='${FAIL_RC}' KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/qemu-boot.sh '${ARCH}' drive"
       ;;
     *)

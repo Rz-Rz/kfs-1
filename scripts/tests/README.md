@@ -16,6 +16,7 @@ This document exists mainly to make rebases easier for branches that still use t
 The host runner currently executes these sections:
 
 - `scripts/tests/`
+- `scripts/architecture-tests/`
 - `scripts/stability-tests/`
 - `scripts/rejection-tests/`
 - `scripts/boot-tests/`
@@ -43,6 +44,15 @@ The host runner does this:
 2. Calls each script with `--list`.
 3. Calls each script with `--description <case>`.
 4. Runs each discovered case independently.
+
+Hardcoded runner sections and their order are:
+
+- `SETUP`
+- `TESTS`
+- `ARCHITECTURE TESTS`
+- `STABILITY TESTS`
+- `REJECTION TESTS`
+- `BOOT TESTS`
 
 That means the real unit of discovery is the listed case, not the script file.
 
@@ -160,15 +170,15 @@ Bad candidates:
 
 When a kernel Rust file mixes pure logic with boot/runtime code:
 
-1. Extract the pure logic into a nested implementation file that is not compiled as its own
-   top-level kernel crate, for example `src/kernel/<area>/logic_impl.rs`.
-2. Include that file from the kernel entry file with `#[path = "..."] mod ...;`.
-3. Reuse the same implementation from `tests/host_*.rs` with `include!(...)`.
-4. Add a discoverable shell wrapper in `scripts/tests/unit/` so the host runner can execute the
-   Rust unit tests one behavior at a time.
+1. Extract the pure logic into the owning production module under `src/kernel/**`.
+2. Expose that logic through the real shared module boundary used by both crate roots:
+   `src/kernel/mod.rs`, `src/main.rs`, and `src/lib.rs`.
+3. Make host tests import the real API with `use kfs::kernel::...;`.
+4. Make the shell wrapper in `scripts/tests/unit/` link the host-test library boundary instead of
+   compiling production source files directly into the test crate.
 
-This keeps host unit tests aligned with the kernel source while avoiding hosted tests for
-code that only makes sense in the booted kernel.
+Do not use `#[path = "../src/..."]`, `include!(...)`, or `#[cfg(test)]` import switching to make
+host tests compile. If the production code is hard to test, fix the production boundary.
 
 ## How To Add A New Section
 

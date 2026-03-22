@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="620" viewBox="0 0 1180 620">
+  <defs>
+    <marker id="open-arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 12 7 L 1 13" fill="white" stroke="#222" stroke-width="1.8"/>
+    </marker>
+    <style>
+      .title { font: 700 28px Georgia, serif; fill: #111; }
+      .label { font: 700 16px Arial, sans-serif; fill: #111; }
+      .small { font: 14px Arial, sans-serif; fill: #333; }
+      .box { fill: #fff; stroke: #222; stroke-width: 2; rx: 10; ry: 10; }
+      .arrow { fill: none; stroke: #222; stroke-width: 2.2; stroke-dasharray: 10 7; marker-end: url(#open-arrow); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1180" height="620" fill="#fafafa"/>
+
+  <text x="590" y="44" text-anchor="middle" class="title">Kernel Layer Dependency Diagram</text>
+
+  <rect x="455" y="68" width="270" height="68" class="box"/>
+  <text x="590" y="95" text-anchor="middle" class="label">Dependency</text>
+  <line x1="505" y1="112" x2="675" y2="112" class="arrow"/>
+
+  <rect x="50" y="190" width="180" height="76" class="box"/>
+  <text x="140" y="220" text-anchor="middle" class="label">core</text>
+  <text x="140" y="244" text-anchor="middle" class="small">boot flow / kmain</text>
+
+  <rect x="270" y="190" width="180" height="76" class="box"/>
+  <text x="360" y="220" text-anchor="middle" class="label">services</text>
+  <text x="360" y="244" text-anchor="middle" class="small">kernel-facing API</text>
+
+  <rect x="490" y="190" width="180" height="76" class="box"/>
+  <text x="580" y="220" text-anchor="middle" class="label">drivers</text>
+  <text x="580" y="244" text-anchor="middle" class="small">device implementations</text>
+
+  <rect x="710" y="190" width="180" height="76" class="box"/>
+  <text x="800" y="220" text-anchor="middle" class="label">machine</text>
+  <text x="800" y="244" text-anchor="middle" class="small">typed CPU / platform</text>
+
+  <rect x="930" y="190" width="180" height="76" class="box"/>
+  <text x="1020" y="220" text-anchor="middle" class="label">arch</text>
+  <text x="1020" y="244" text-anchor="middle" class="small">asm / linker / entry</text>
+
+  <rect x="380" y="374" width="180" height="76" class="box"/>
+  <text x="470" y="404" text-anchor="middle" class="label">klib</text>
+  <text x="470" y="428" text-anchor="middle" class="small">strlen / memcpy / helpers</text>
+
+  <rect x="600" y="374" width="180" height="76" class="box"/>
+  <text x="690" y="404" text-anchor="middle" class="label">types</text>
+  <text x="690" y="428" text-anchor="middle" class="small">KernelRange / Port / meaning</text>
+
+  <path d="M 230 228 L 270 228" class="arrow"/>
+  <path d="M 450 228 L 490 228" class="arrow"/>
+  <path d="M 670 228 L 710 228" class="arrow"/>
+  <path d="M 890 228 L 930 228" class="arrow"/>
+
+  <path d="M 140 266 L 140 332 L 470 332 L 470 374" class="arrow"/>
+  <path d="M 140 266 L 140 344 L 690 344 L 690 374" class="arrow"/>
+
+  <path d="M 360 266 L 360 320 L 470 320 L 470 374" class="arrow"/>
+  <path d="M 360 266 L 360 332 L 690 332 L 690 374" class="arrow"/>
+
+  <path d="M 580 266 L 580 308 L 470 308 L 470 374" class="arrow"/>
+  <path d="M 580 266 L 580 374" class="arrow"/>
+  <path d="M 580 266 L 580 320 L 800 320 L 800 266" class="arrow"/>
+
+  <text x="590" y="536" text-anchor="middle" class="small">A dashed arrow from layer A to layer B means: A depends on B.</text>
+</svg>

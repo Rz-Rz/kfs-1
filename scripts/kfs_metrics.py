@@ -4,6 +4,7 @@ import json
 import socket
 import statistics
 import subprocess
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -12,6 +13,7 @@ from typing import Optional
 
 PROTECTED_BRANCH = "main"
 RUNS_ROOT = Path("metrics") / "runs"
+DEBUG_ROOT = Path("metrics") / "debug"
 SPARKLINE_BLOCKS = "▁▂▃▄▅▆▇█"
 
 
@@ -52,6 +54,8 @@ class RunRecord:
     section_failed: dict[str, int]
     cases: list[RunCase]
     git: GitContext
+    debug_dir: Optional[str] = None
+    raw_log_path: Optional[str] = None
     schema_version: int = 1
     run_id: str = ""
 
@@ -92,8 +96,19 @@ def default_db_path(repo_root: str | Path) -> Path:
     return runs_root(repo_root)
 
 
+def debug_root(repo_root: str | Path) -> Path:
+    return Path(repo_root) / DEBUG_ROOT
+
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def build_run_id(when: datetime, arch: str, head_sha: str) -> str:
+    stamp = when.strftime("%Y-%m-%dT%H-%M-%SZ")
+    host = socket.gethostname().split(".")[0] or "host"
+    short_sha = (head_sha or "unknown")[:7]
+    return f"{stamp}_{short_sha}_{host}_{arch}"
 
 
 def capture_git_context(repo_root: str | Path, protected_branch: str = PROTECTED_BRANCH) -> GitContext:
@@ -134,16 +149,17 @@ def save_run(repo_root: str | Path, run: RunRecord) -> Path:
     day_dir.mkdir(parents=True, exist_ok=True)
 
     if not run.run_id:
-        stamp = finished_at.strftime("%Y-%m-%dT%H-%M-%SZ")
-        host = socket.gethostname().split(".")[0] or "host"
-        short_sha = (run.git.head_sha or "unknown")[:7]
-        run.run_id = f"{stamp}_{short_sha}_{host}_{run.arch}"
+        run.run_id = build_run_id(finished_at, run.arch, run.git.head_sha)
 
     path = day_dir / f"{run.run_id}.json"
     payload = asdict(run)
     payload["cases"] = [asdict(case) for case in run.cases]
     payload["git"] = asdict(run.git)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    serialized = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    with tempfile.NamedTemporaryFile("w", dir=day_dir, delete=False, encoding="utf-8") as handle:
+        handle.write(serialized)
+        tmp_path = Path(handle.name)
+    tmp_path.replace(path)
     return path
 
 
@@ -271,7 +287,9 @@ def load_runs(repo_root: str | Path) -> list[RunRecord]:
     for path in sorted(runs_root(repo_root).rglob("*.json")):
         if path.name.startswith("."):
             continue
-        record = _record_from_payload(json.loads(path.read_text(encoding="utf-8")), path.stem)
+        record = _load_run_record(path.read_text(encoding="utf-8"), path.stem)
+        if record is None:
+            continue
         if record.run_id in seen_run_ids:
             continue
         seen_run_ids.add(record.run_id)
@@ -314,8 +332,18 @@ def _load_runs_from_git_refs(repo_root: Path) -> list[RunRecord]:
             blob = _git(repo_root, ["show", f"{ref}:{relpath}"])
             if not blob:
                 continue
-            records.append(_record_from_payload(json.loads(blob), Path(relpath).stem))
+            record = _load_run_record(blob, Path(relpath).stem)
+            if record is None:
+                continue
+            records.append(record)
     return records
+
+
+def _load_run_record(raw_payload: str, default_run_id: str) -> Optional[RunRecord]:
+    try:
+        return _record_from_payload(json.loads(raw_payload), default_run_id)
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+        return None
 
 
 def _record_from_payload(payload: dict, default_run_id: str) -> RunRecord:
@@ -338,6 +366,8 @@ def _record_from_payload(payload: dict, default_run_id: str) -> RunRecord:
         section_failed=payload.get("section_failed", {}),
         cases=[RunCase(**case) for case in cases_payload],
         git=GitContext(**git_payload),
+        debug_dir=payload.get("debug_dir"),
+        raw_log_path=payload.get("raw_log_path"),
     )
 
 

@@ -5,8 +5,8 @@ ARCH="${1:-i386}"
 CASE="${2:-}"
 TIMEOUT_SECS="${TEST_TIMEOUT_SECS:-10}"
 PASS_RC="${TEST_PASS_RC:-33}"
-KMAIN_SOURCE="src/kernel/kmain.rs"
-KMAIN_IMPL="src/kernel/kmain/logic_impl.rs"
+ENTRY_SOURCE="src/kernel/core/entry.rs"
+INIT_SOURCE="src/kernel/core/init.rs"
 
 list_cases() {
   cat <<'EOF'
@@ -17,7 +17,7 @@ EOF
 
 describe_case() {
   case "$1" in
-    runtime-serial-path-works-with-port) printf '%s\n' "runtime serial path still works through Port" ;;
+    runtime-serial-path-works-with-port) printf '%s\n' "runtime serial path works through machine Port and serial driver layers" ;;
     runtime-layout-path-works-with-kernel-range) printf '%s\n' "runtime layout path still works through KernelRange" ;;
     *) return 1 ;;
   esac
@@ -58,13 +58,14 @@ run_direct_case() {
 
   case "${CASE}" in
     runtime-serial-path-works-with-port)
-      assert_pattern 'const[[:space:]]+COM1_DATA:[[:space:]]+Port[[:space:]]*=' 'Port-based serial constants' "${KMAIN_SOURCE}"
+      assert_pattern '\bcrate::kernel::machine::port::Port\b' 'serial driver imports Port' "src/kernel/drivers/serial/mod.rs"
+      assert_pattern '\bdrivers::serial\b' 'diagnostics service reaches serial driver facade' "src/kernel/services/diagnostics.rs"
       KFS_HOST_TEST_DIRECT=1 TEST_TIMEOUT_SECS="${TIMEOUT_SECS}" TEST_PASS_RC="${PASS_RC}" \
         bash scripts/boot-tests/runtime-markers.sh "${ARCH}" runtime-reaches-kmain
       ;;
     runtime-layout-path-works-with-kernel-range)
-      assert_pattern 'use[[:space:]]+super::kernel_types::KernelRange;' 'KernelRange import in layout helper module' "${KMAIN_IMPL}"
-      assert_pattern 'KernelRange::new\(' 'KernelRange construction in runtime path' "${KMAIN_SOURCE}"
+      assert_pattern 'KernelRange::new\(' 'KernelRange construction in runtime path' "${ENTRY_SOURCE}"
+      assert_pattern 'layout_order_is_sane\(' 'layout helper use in runtime path' "${INIT_SOURCE}"
       KFS_HOST_TEST_DIRECT=1 TEST_TIMEOUT_SECS="${TIMEOUT_SECS}" TEST_PASS_RC="${PASS_RC}" \
         bash scripts/boot-tests/runtime-markers.sh "${ARCH}" runtime-confirms-layout
       ;;

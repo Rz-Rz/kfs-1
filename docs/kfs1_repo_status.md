@@ -40,8 +40,8 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `make test arch=i386` (includes release-kernel `kmain` export/callsite checks, ordered runtime markers, runtime rejection tests, and halt-path checks)
 - Base Epic M5 DoD: ✅ YES
   - Proof: `make test arch=i386` now proves `M5.1`, `M5.2`, and `M5.3` end to end (`Port`, `KernelRange`, string-helper ABI, memory-helper ABI, runtime integration, and rejection gates)
-- Base Epic M6 DoD: ❌ NO
-  - Proof: `src/kernel/kmain.rs` prints `42`, but there is still no reusable screen interface/module as required by M6.1/M6.2
+- Base Epic M6 DoD: ✅ YES
+  - Proof: the mandatory screen path exists, the normal success flow prints `42` through it, and cursor/scroll behavior remains bonus-owned follow-up work rather than a base-epic blocker
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
   - Proof: `make -n all arch=i386 | rg -n "\\brustc\\b"`
   - Proof: `make all arch=i386 && nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
@@ -78,7 +78,7 @@ Legend:
 - Base Epic M3 (custom linker script + layout): ✅
 - Base Epic M4 (kernel in chosen language): ✅
 - Base Epic M5 (kernel library helpers): ✅
-- Base Epic M6 (screen I/O interface + prints 42): ❌
+- Base Epic M6 (screen I/O interface + prints 42): ✅
 - Base Epic M7 (Makefile compiles ASM + language, links, image, run): ✅
 - Base Epic M8 (turn-in packaging): ⚠️
 
@@ -190,7 +190,7 @@ Proof:
 ### Feature M2.3: Transfer control to a higher-level `kmain`/`main`
 Status: ✅ Done
 Evidence:
-- ASM transfers control to Rust via `call kmain`; Rust entrypoint is defined in `src/kernel/kmain.rs`
+- ASM transfers control to Rust via `call kmain`; Rust entrypoint is defined in `src/kernel/core/entry.rs`
 Proof:
 - `rg -n "extern\\s+kmain|call\\s+kmain" -S src/arch/i386/boot.asm`
 - `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "\\bkmain\\b"`
@@ -246,12 +246,12 @@ Status: ✅ Done
 Evidence:
 - Linker script exports `kernel_start`, `kernel_end`, `bss_start`, `bss_end`
 - Linker script rejects impossible symbol ordering at link time with `ASSERT`
-- Rust references these layout symbols from `src/rust/layout_symbols.rs`
+- Rust references these layout symbols from `src/kernel/core/entry.rs`
 - Repo proofs validate symbol ordering and reject malformed linker layouts
 Proof:
 - `rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end|ASSERT)\\b" -S src/arch/i386/linker.ld`
 - `nm -n build/kernel-i386.bin | rg -n "\\b(kernel_start|kernel_end|bss_start|bss_end)\\b"`
-- `rg -n "kernel_start|kernel_end|bss_start|bss_end|addr_of!" -S src/rust/layout_symbols.rs`
+- `rg -n "kernel_start|kernel_end|bss_start|bss_end|addr_of!" -S src/kernel/core/entry.rs`
 - `bash scripts/boot-tests/layout-symbols.sh i386`
 - `bash scripts/rejection-tests/layout-symbol-rejections.sh i386 bss-before-kernel`
 - `bash scripts/rejection-tests/layout-symbol-rejections.sh i386 bss-end-before-bss-start`
@@ -278,7 +278,7 @@ Proof:
 - `bash scripts/rejection-tests/runtime-init-rejections.sh i386 dirty-bss-canary-fails`
 - `bash scripts/rejection-tests/runtime-init-rejections.sh i386 bad-layout-fails`
 - `bash scripts/boot-tests/halt-behavior.sh i386 release-kmain-disassembly-halts`
-- `rg -n "write_volatile|b'4'|b'2'" -S src/kernel/kmain.rs`
+- `rg -n "write_volatile|b'4'|b'2'|run_early_init|console::write_bytes" -S src/kernel/core`
 
 Epic DoD (M4) complete? ✅
 
@@ -289,11 +289,12 @@ Epic DoD (M4) complete? ✅
 Status: ✅ Done (`M5.1`, `M5.2`, and `M5.3` done)
 Evidence:
 - `M5.1` is now implemented as a real type/helper scaffold:
-  - `src/kernel/types.rs`
-  - `src/kernel/types/port.rs`
+  - `src/kernel/types/mod.rs`
   - `src/kernel/types/range.rs`
-  - `Port(u16)` is used by the live serial / port-I/O path in `src/kernel/kmain.rs`
-  - `KernelRange` is used by the live runtime-layout path in `src/kernel/kmain.rs` and `src/kernel/kmain/logic_impl.rs`
+  - `src/kernel/types/screen.rs`
+  - `src/kernel/machine/port.rs`
+  - `Port(u16)` is used by the live serial / port-I/O path in the architecture-owned runtime path
+  - `KernelRange` is used by the live runtime-layout path in `src/kernel/core/entry.rs` and `src/kernel/types/range.rs`
   - host, source-architecture, runtime, and rejection proofs exist for `M5.1`
   - keep as the permanent `M5.1` base:
     - one discoverable type facade
@@ -302,9 +303,9 @@ Evidence:
     - live kernel consumers in the serial and layout paths
     - dedicated host / source / runtime / rejection proof assets
 - `M5.2` is now implemented as the real string-helper family:
-  - `src/kernel/string/string_impl.rs` owns the scalar leaf algorithms
-  - `src/kernel/string.rs` exports `kfs_strlen` and `kfs_strcmp`
-  - `src/kernel/kmain.rs` owns the first real string-helper runtime sanity path
+  - `src/kernel/klib/string/imp.rs` owns the scalar leaf algorithms
+  - `src/kernel/klib/string/mod.rs` exports `kfs_strlen` and `kfs_strcmp`
+  - `src/kernel/core/init.rs` owns the first real string-helper runtime sanity path, entered from `kmain`
   - `tests/host_string.rs` now covers embedded-NUL, unaligned-start, same-pointer, empty/non-empty,
     prefix, and high-byte ordering behavior
   - `scripts/tests/unit/string-helpers.sh` now enforces source, ABI, artifact, and non-volatile-read checks
@@ -313,18 +314,18 @@ Evidence:
     `STRING_HELPERS_FAIL` and stop later normal flow
   - keep as the permanent `M5.2` base:
     - the public-family / private-leaf split:
-      - `src/kernel/string.rs`
-      - `src/kernel/string/string_impl.rs`
+      - `src/kernel/klib/string/mod.rs`
+      - `src/kernel/klib/string/imp.rs`
     - the raw scalar leaf algorithms as the correctness baseline
     - the real low-level helper ABI:
       - `kfs_strlen`
       - `kfs_strcmp`
-    - the `kmain`-owned runtime sanity path until `M6` becomes the natural consumer
+    - the `core/init.rs` runtime sanity path until `M6` becomes the natural consumer
     - the full `UT/WP/SM/AT/RT` proof surface
 - `M5.3` is now implemented to the same proof standard as `M5.2`:
-  - `src/kernel/memory.rs` exports `kfs_memcpy` and `kfs_memset`
-  - `src/kernel/memory/memory_impl.rs` owns the scalar `memcpy` / `memset` leaf algorithms
-  - `src/kernel/kmain.rs` owns the first real memory-helper runtime sanity path
+  - `src/kernel/klib/memory/mod.rs` exports `kfs_memcpy` and `kfs_memset`
+  - `src/kernel/klib/memory/imp.rs` owns the scalar `memcpy` / `memset` leaf algorithms
+  - `src/kernel/core/init.rs` owns the first real memory-helper runtime sanity path, entered from `kmain`
   - `tests/host_memory.rs` covers ordinary copy/fill behavior, zero-byte fill, zero-length behavior, return-pointer behavior, same-pointer copy, unaligned copy, and sentinel-preserving bounds
   - `scripts/tests/unit/memory-helpers.sh` enforces source, ABI, release-symbol, and non-volatile ordinary-memory checks
   - `scripts/boot-tests/memory-runtime.sh` proves the running kernel reaches the memory helpers
@@ -335,7 +336,7 @@ Evidence:
       - `kfs_memcpy`
       - `kfs_memset`
     - the scalar host-tested baseline for `memcpy` / `memset`
-    - the `kmain`-owned runtime sanity path until `M6` becomes the natural consumer
+    - the `core/init.rs` runtime sanity path until `M6` becomes the natural consumer
     - the full `UT/WP/SM/AT/RT` proof surface
 Proof:
 - `bash scripts/tests/unit/type-architecture.sh i386 port-host-unit-tests-pass`
@@ -381,8 +382,8 @@ Proof:
 - `bash scripts/boot-tests/string-runtime.sh i386 runtime-string-markers-are-ordered`
 - `bash scripts/rejection-tests/string-rejections.sh i386 bad-string-self-check-fails`
 - `bash scripts/rejection-tests/string-rejections.sh i386 bad-string-stops-before-normal-flow`
-- `rg -n "kfs_strlen|kfs_strcmp|string_len_impl|string_cmp_impl" -S src/kernel/string src/kernel/kmain.rs`
-- `rg -n "kfs_memcpy|kfs_memset|memory_copy_impl|memory_set_impl" -S src/kernel/memory.rs src/kernel/memory/memory_impl.rs`
+- `rg -n "kfs_strlen|kfs_strcmp|strlen|strcmp" -S src/kernel/klib/string src/kernel/core/init.rs`
+- `rg -n "kfs_memcpy|kfs_memset|memcpy|memset" -S src/kernel/klib/memory src/kernel/core/init.rs`
 - `make test arch=i386`
 What’s left:
 - No open `M5` gaps remain on this branch; the next unfinished base work is still `M6`
@@ -391,13 +392,36 @@ What’s left:
 
 ## Base Epic M6: Screen I/O Interface + Mandatory Output
 
-### Feature M6.3: Mandatory output: display `42`
-Status: ✅ Done
+Status: ✅ Done for mandatory scope
+
 Evidence:
-- `kmain` writes `4` then `2` directly to the VGA text buffer
+- `src/kernel/types/screen.rs` already owns the current screen-domain types
+- `src/kernel/services/console.rs` routes normal screen output through `src/kernel/drivers/vga_text`
+- `src/kernel/drivers/vga_text/writer.rs` writes packed text cells to VGA text memory at `0xB8000`
+- `src/kernel/core/init.rs` prints `42` through the service-owned screen path
+- Headless automation now reads VGA text memory twice, proves the first screen bytes encode `42`, and checks the visible buffer stays stable across monitor snapshots
+- Host unit coverage now includes a buffer-backed VGA writer model for write progression and wrap behavior
+- The subject's cursor/scroll work is bonus-owned follow-up scope, not a blocker for base `M6`
+
+Gaps / follow-up:
+- Cursor/newline/scroll behavior remains bonus-owned follow-up work under `B1`
+- The repo still does not expose a richer general-purpose console API beyond the current minimal writer path
+
 Proof:
-- `rg -n "0xb8000|write_volatile" -S src/kernel/kmain.rs`
-- `rg -n "b'4'|b'2'" -S src/kernel/kmain.rs`
+- `bash scripts/tests/unit/kmain-logic.sh i386 host-vga-cell-unit-tests-pass`
+- `bash scripts/tests/unit/vga-writer-model.sh i386 host-vga-writer-sequential-writes`
+- `bash scripts/tests/unit/vga-writer-model.sh i386 host-vga-writer-wraps-at-buffer-end`
+- `bash scripts/tests/unit/vga-writer-model.sh i386 services-console-keeps-writer-state`
+- `bash scripts/boot-tests/vga-writer.sh i386 driver-vga-writer-exists`
+- `bash scripts/boot-tests/vga-writer.sh i386 services-console-uses-driver`
+- `bash scripts/boot-tests/vga-writer.sh i386 core-init-uses-services-console`
+- `bash scripts/architecture-tests/runtime-ownership.sh i386 core-init-calls-services-console`
+- `bash scripts/architecture-tests/runtime-ownership.sh i386 services-console-calls-driver-facade`
+- `bash scripts/boot-tests/runtime-markers.sh i386 runtime-completes-early-init`
+- `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-starts-with-42`
+- `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-uses-default-attribute`
+- `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-stable-across-snapshots`
+- `bash scripts/boot-tests/vga-writer.sh i386 release-kernel-omits-vga-abi-exports`
 
 ---
 
@@ -418,7 +442,7 @@ Status: ⚠️ Partial
 Evidence:
 - ISO exists and is <= 10 MB: `build/os-i386.iso`
 What’s left:
-- Update `README.md` with the expected output 42 once the screen interface is implemented.
+- Turn-in packaging is still partial for reasons outside the now-corrected VGA screen path.
 
 ---
 
@@ -437,4 +461,6 @@ Evidence:
   - Gap: no `--orphan-handling=error` gate yet
   - Gap: no explicit per-section denylist step yet (current allowlist already caught `.eh_frame`)
 - Infra Epic **I1** (Serial console assertions): ❌ Not done
-- Infra Epic **I2** (VGA memory assertions): ❌ Not done
+- Infra Epic **I2** (VGA memory assertions): ✅ Done
+  - Proof: `make test arch=i386` includes headless VGA-memory checks for the first `42` screen cells plus repeated monitor snapshots for buffer stability
+  - Proof: `make test-vga arch=i386`

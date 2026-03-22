@@ -1,4 +1,4 @@
-include!("../src/kernel/memory/memory_impl.rs");
+use kfs::kernel::klib::memory::{memcpy, memset};
 
 #[test]
 fn memcpy_basic_copy() {

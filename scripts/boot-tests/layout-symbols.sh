@@ -3,7 +3,7 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-}"
-LAYOUT_SYMBOLS_SRC="src/rust/layout_symbols.rs"
+LAYOUT_SYMBOLS_SRC="src/kernel/core/entry.rs"
 
 list_cases() {
   cat <<'EOF'
@@ -33,13 +33,13 @@ describe_case() {
     release-kernel-exports-kernel-end) printf '%s\n' "release kernel exports kernel_end" ;;
     release-kernel-exports-bss-start) printf '%s\n' "release kernel exports bss_start" ;;
     release-kernel-exports-bss-end) printf '%s\n' "release kernel exports bss_end" ;;
-    release-kernel-links-layout-symbols-marker) printf '%s\n' "release kernel links kfs_layout_symbols_marker" ;;
+    release-kernel-links-layout-symbols-marker) printf '%s\n' "release kernel keeps Rust layout handling in core entry" ;;
     release-symbol-ordering) printf '%s\n' "release layout symbols are monotonic" ;;
     test-kernel-exports-kernel-start) printf '%s\n' "test kernel exports kernel_start" ;;
     test-kernel-exports-kernel-end) printf '%s\n' "test kernel exports kernel_end" ;;
     test-kernel-exports-bss-start) printf '%s\n' "test kernel exports bss_start" ;;
     test-kernel-exports-bss-end) printf '%s\n' "test kernel exports bss_end" ;;
-    test-kernel-links-layout-symbols-marker) printf '%s\n' "test kernel links kfs_layout_symbols_marker" ;;
+    test-kernel-links-layout-symbols-marker) printf '%s\n' "test kernel keeps Rust layout handling in core entry" ;;
     test-symbol-ordering) printf '%s\n' "test layout symbols are monotonic" ;;
     rust-declares-layout-symbols) printf '%s\n' "Rust declares extern \"C\" layout symbols" ;;
     rust-references-kernel-start) printf '%s\n' "Rust references kernel_start" ;;
@@ -179,7 +179,7 @@ run_direct_case() {
       assert_kernel_exports_symbol "build/kernel-${ARCH}.bin" 'bss_end'
       ;;
     release-kernel-links-layout-symbols-marker)
-      assert_kernel_exports_symbol "build/kernel-${ARCH}.bin" 'kfs_layout_symbols_marker'
+      assert_rust_declares_layout_symbols
       ;;
     release-symbol-ordering)
       assert_symbol_ordering "build/kernel-${ARCH}.bin"
@@ -197,7 +197,7 @@ run_direct_case() {
       assert_kernel_exports_symbol "build/kernel-${ARCH}-test.bin" 'bss_end'
       ;;
     test-kernel-links-layout-symbols-marker)
-      assert_kernel_exports_symbol "build/kernel-${ARCH}-test.bin" 'kfs_layout_symbols_marker'
+      assert_rust_declares_layout_symbols
       ;;
     test-symbol-ordering)
       assert_symbol_ordering "build/kernel-${ARCH}-test.bin"
@@ -226,11 +226,11 @@ run_direct_case() {
 run_host_case() {
   case "${CASE}" in
     release-kernel-exports-kernel-start|release-kernel-exports-kernel-end|release-kernel-exports-bss-start|release-kernel-exports-bss-end|release-kernel-links-layout-symbols-marker|release-symbol-ordering)
-      bash scripts/container.sh run -- \
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
         bash -lc "make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/layout-symbols.sh '${ARCH}' '${CASE}'"
       ;;
     test-kernel-exports-kernel-start|test-kernel-exports-kernel-end|test-kernel-exports-bss-start|test-kernel-exports-bss-end|test-kernel-links-layout-symbols-marker|test-symbol-ordering)
-      bash scripts/container.sh run -- \
+      bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
         bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/layout-symbols.sh '${ARCH}' '${CASE}'"
       ;;
     rust-declares-layout-symbols|rust-references-kernel-start|rust-references-kernel-end|rust-references-bss-start|rust-references-bss-end)
@@ -269,7 +269,7 @@ main() {
   assert_kernel_exports_symbol "build/kernel-${ARCH}-test.bin" 'kernel_end' || failures=$((failures + 1))
   assert_kernel_exports_symbol "build/kernel-${ARCH}-test.bin" 'bss_start' || failures=$((failures + 1))
   assert_kernel_exports_symbol "build/kernel-${ARCH}-test.bin" 'bss_end' || failures=$((failures + 1))
-  assert_kernel_exports_symbol "build/kernel-${ARCH}-test.bin" 'kfs_layout_symbols_marker' || failures=$((failures + 1))
+  assert_rust_declares_layout_symbols || failures=$((failures + 1))
   assert_symbol_ordering "build/kernel-${ARCH}-test.bin" || failures=$((failures + 1))
   assert_rust_declares_layout_symbols || failures=$((failures + 1))
   assert_rust_references_symbol 'kernel_start' || failures=$((failures + 1))
@@ -283,7 +283,7 @@ main() {
     assert_kernel_exports_symbol "build/kernel-${ARCH}.bin" 'kernel_end' || failures=$((failures + 1))
     assert_kernel_exports_symbol "build/kernel-${ARCH}.bin" 'bss_start' || failures=$((failures + 1))
     assert_kernel_exports_symbol "build/kernel-${ARCH}.bin" 'bss_end' || failures=$((failures + 1))
-    assert_kernel_exports_symbol "build/kernel-${ARCH}.bin" 'kfs_layout_symbols_marker' || failures=$((failures + 1))
+    assert_rust_declares_layout_symbols || failures=$((failures + 1))
     assert_symbol_ordering "build/kernel-${ARCH}.bin" || failures=$((failures + 1))
   fi
 

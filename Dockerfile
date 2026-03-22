@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mtools \
     nasm \
     qemu-system-x86 \
+    ripgrep \
     grub-common \
     grub-pc-bin \
     xorriso \

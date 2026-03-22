@@ -4,8 +4,9 @@ set -euo pipefail
 ARCH="${1:-i386}"
 CASE="${2:-}"
 TEST_SOURCE="tests/host_string.rs"
-SOURCE_CRATE="src/kernel/string.rs"
-SOURCE_IMPL="src/kernel/string/string_impl.rs"
+SOURCE_CRATE="src/kernel/klib/string/mod.rs"
+SOURCE_IMPL="src/kernel/klib/string/imp.rs"
+source "$(dirname "${BASH_SOURCE[0]}")/host-rust-lib.sh"
 
 list_cases() {
   cat <<'EOF'
@@ -111,14 +112,13 @@ run_host_tests() {
   local filter="$1"
   local test_bin="build/ut_string_${filter%_}"
 
-  bash scripts/container.sh run -- \
-    bash -lc "mkdir -p build && rustc --test -o '${test_bin}' '${TEST_SOURCE}' >/dev/null && '${test_bin}' '${filter}'"
+  run_host_rust_test "${TEST_SOURCE}" "${test_bin}" "${filter}"
 }
 
 assert_release_symbol() {
   local symbol="$1"
 
-  bash scripts/container.sh run -- \
+  bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
     bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]T[[:space:]]+${symbol}$'"
 
   echo "PASS build/kernel-${ARCH}.bin: ${symbol}"

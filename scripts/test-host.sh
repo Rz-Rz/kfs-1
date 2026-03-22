@@ -6,7 +6,9 @@ ARCH="${1:-i386}"
 VERBOSE="${KFS_VERBOSE:-0}"
 TUI_PROTOCOL="${KFS_TUI_PROTOCOL:-0}"
 SKIP_TUI_MANIFEST="${KFS_TUI_SKIP_MANIFEST:-0}"
+DEBUG_DIR="${KFS_TEST_DEBUG_DIR:-}"
 SCRIPT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DEBUG_INDEX=""
 
 if [[ "${ARCH}" == "--manifest" ]]; then
   MODE="manifest"
@@ -92,6 +94,56 @@ emit_event() {
   printf '\n'
 }
 
+slugify() {
+  printf '%s' "$1" |
+    tr '[:upper:]' '[:lower:]' |
+    sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
+}
+
+init_debug_index() {
+  [[ -n "${DEBUG_DIR}" ]] || return 0
+  mkdir -p "${DEBUG_DIR}"
+  DEBUG_INDEX="${DEBUG_DIR}/case-index.tsv"
+  if [[ ! -f "${DEBUG_INDEX}" ]]; then
+    printf 'section\tsubgroup\tcase\ttitle\trc\tlog_path\n' >"${DEBUG_INDEX}"
+  fi
+}
+
+persist_case_log() {
+  local section="$1"
+  local subgroup="$2"
+  local title="$3"
+  local test_case="$4"
+  local rc="$5"
+  local log="$6"
+  local section_slug subgroup_slug case_slug path
+
+  [[ -n "${DEBUG_DIR}" ]] || return 0
+
+  section_slug="$(slugify "${section}")"
+  subgroup_slug="$(slugify "${subgroup}")"
+  case_slug="$(slugify "${test_case}")"
+
+  [[ -n "${section_slug}" ]] || section_slug="unknown-section"
+  [[ -n "${subgroup_slug}" ]] || subgroup_slug="root"
+  [[ -n "${case_slug}" && "${case_slug}" != "-" ]] || case_slug="$(slugify "${title}")"
+  [[ -n "${case_slug}" ]] || case_slug="unnamed-case"
+
+  path="${DEBUG_DIR}/${section_slug}/${subgroup_slug}/${case_slug}.log"
+  mkdir -p "$(dirname "${path}")"
+  cp "${log}" "${path}"
+
+  if [[ -n "${DEBUG_INDEX}" ]]; then
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "${section}" \
+      "${subgroup}" \
+      "${test_case}" \
+      "${title}" \
+      "${rc}" \
+      "${path}" >>"${DEBUG_INDEX}"
+  fi
+}
+
 collect_section_entries() {
   local title="$1"
   local dir="$2"
@@ -137,6 +189,9 @@ build_manifest() {
   printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Rebuild the container toolchain image" >>"${entries}"
   printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify tools exist" >>"${entries}"
   collect_section_entries "TESTS" "${SCRIPT_ROOT}/tests" "${entries}"
+  if [[ -d "${SCRIPT_ROOT}/architecture-tests" ]]; then
+    collect_section_entries "ARCHITECTURE TESTS" "${SCRIPT_ROOT}/architecture-tests" "${entries}"
+  fi
   collect_section_entries "STABILITY TESTS" "${SCRIPT_ROOT}/stability-tests" "${entries}"
   collect_section_entries "REJECTION TESTS" "${SCRIPT_ROOT}/rejection-tests" "${entries}"
   collect_section_entries "BOOT TESTS" "${SCRIPT_ROOT}/boot-tests" "${entries}"
@@ -156,13 +211,13 @@ emit_manifest() {
   total="$(wc -l <"${entries}")"
   emit_event "suite" "${ARCH}" "${total}"
 
-  for section in "SETUP" "TESTS" "STABILITY TESTS" "REJECTION TESTS" "BOOT TESTS"; do
+  for section in "SETUP" "TESTS" "ARCHITECTURE TESTS" "STABILITY TESTS" "REJECTION TESTS" "BOOT TESTS"; do
     count="$(awk -F'\t' -v section="${section}" '$1 == section { count += 1 } END { print count + 0 }' "${entries}")"
     emit_event "section_total" "${section}" "${count}"
   done
 
   while IFS=$'\t' read -r current_section subgroup path test_case description; do
-    emit_event "declare" "${current_section}" "${subgroup}" "${description}"
+    emit_event "declare" "${current_section}" "${subgroup}" "${description}" "${path}" "${test_case}"
   done <"${entries}"
 }
 
@@ -170,9 +225,11 @@ run_item() {
   local section="$1"
   local subgroup="$2"
   local title="$3"
-  shift 3
+  local path="$4"
+  local test_case="$5"
+  shift 5
 
-  emit_event "start" "${section}" "${subgroup}" "${title}"
+  emit_event "start" "${section}" "${subgroup}" "${title}" "${path}" "${test_case}"
 
   color "1;34"
   printf '%s ' "${title}"
@@ -184,11 +241,12 @@ run_item() {
   "$@" >"${log}" 2>&1
   local rc="$?"
   set -e
+  persist_case_log "${section}" "${subgroup}" "${title}" "${test_case}" "${rc}" "${log}"
 
   if [[ "${rc}" -eq 0 ]]; then
     pass
     printf '\n'
-    emit_event "result" "${section}" "${subgroup}" "${title}" "pass"
+    emit_event "result" "${section}" "${subgroup}" "${title}" "pass" "${path}" "${test_case}"
     if [[ "${VERBOSE}" == "1" ]]; then
       cat "${log}" | indent
     fi
@@ -198,7 +256,7 @@ run_item() {
 
   fail
   printf '\n'
-  emit_event "result" "${section}" "${subgroup}" "${title}" "fail"
+  emit_event "result" "${section}" "${subgroup}" "${title}" "fail" "${path}" "${test_case}"
   cat "${log}" | indent
   rm -f "${log}"
   return "${rc}"
@@ -237,7 +295,7 @@ run_section() {
         reset_color
       fi
     fi
-    if ! run_item "${title}" "${subgroup}" "${description}" bash "${path}" "${ARCH}" "${test_case}"; then
+    if ! run_item "${title}" "${subgroup}" "${description}" "${path}" "${test_case}" bash "${path}" "${ARCH}" "${test_case}"; then
       emit_event "summary" "fail"
       exit 1
     fi
@@ -252,6 +310,7 @@ is_tty && export KFS_CONTAINER_TTY=1
 entries="$(mktemp -t kfs-manifest.XXXXXX)"
 trap 'rm -f "${entries}"' EXIT
 build_manifest "${entries}"
+init_debug_index
 
 if [[ "${MODE}" == "manifest" ]]; then
   emit_manifest "${entries}"
@@ -267,19 +326,26 @@ fi
 
 color "1;34"; printf '%s\n' "SETUP"; reset_color
 emit_event "section" "SETUP"
-if ! run_item "SETUP" "-" "Rebuild the container toolchain image" \
+if ! run_item "SETUP" "-" "Rebuild the container toolchain image" "-" "-" \
   env KFS_FORCE_IMAGE_BUILD=1 bash scripts/container.sh build-image; then
   emit_event "summary" "fail"
   exit 1
 fi
 
-if ! run_item "SETUP" "-" "Verify tools exist" \
+if ! run_item "SETUP" "-" "Verify tools exist" "-" "-" \
   bash scripts/container.sh env-check; then
   emit_event "summary" "fail"
   exit 1
 fi
 
+if ! run_item "SETUP" "-" "Verify host test tools exist" "-" "-" \
+  bash -lc 'command -v rg >/dev/null 2>&1'; then
+  emit_event "summary" "fail"
+  exit 1
+fi
+
 run_section "TESTS" "${entries}"
+run_section "ARCHITECTURE TESTS" "${entries}"
 run_section "STABILITY TESTS" "${entries}"
 run_section "REJECTION TESTS" "${entries}"
 run_section "BOOT TESTS" "${entries}"
