@@ -2824,54 +2824,342 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 
 ## Base Epic M6: Screen I/O Interface + Mandatory Output
 
-### Feature M6.1: VGA text mode writer (VGA memory at `0xB8000`)
-Implementation tasks:
-- Implement a screen module with `putc` and `puts`.
+#### Subject basis
+- Chapter II requires "some basic code to print some stuff on the screen" and a basic
+  "Hello world" kernel.
+- Chapter IV.0.1 requires the kernel to code the interface between the kernel and the screen
+  and to display `42`.
+- Chapter V places scroll and cursor support in the **bonus** scope.
+- Repo consequence:
+  - mandatory `M6` owns the first real screen path and the mandatory visible output
+  - cursor movement, newline behavior, scrolling, and richer console semantics do **not**
+    block base-epic closure here; they belong to `B1`
 
-Acceptance criteria:
-- The kernel prints visible characters reliably.
+#### Current repo truth
+- Status: exists now
+  - `src/kernel/types/screen.rs`
+  - `src/kernel/services/console.rs`
+  - `src/kernel/drivers/vga_text/mod.rs`
+  - `src/kernel/drivers/vga_text/writer.rs`
+  - `src/kernel/core/init.rs`
+- Status: exists now
+  - the repo already owns the screen-domain shared types:
+    - `ColorCode`
+    - `ScreenCell`
+    - `CursorPos`
+    - `VGA_TEXT_DIMENSIONS`
+- Status: exists now
+  - the current normal-flow screen path prints `42` from `src/kernel/core/init.rs`
+    through `services::console`
+- Status: exists now
+  - the current VGA leaf writes packed 16-bit text cells directly to `0xB8000`
+- Status: exists now
+  - source/boundary proof assets exist:
+    - `tests/host_kmain_logic.rs`
+    - `scripts/tests/unit/kmain-logic.sh`
+    - `scripts/boot-tests/vga-writer.sh`
+    - `scripts/architecture-tests/runtime-ownership.sh`
+    - `scripts/rejection-tests/runtime-ownership-rejections.sh`
+- Status: exists now
+  - current screen output is intentionally minimal:
+    - one linear cursor index
+    - one fixed color attribute
+    - no hardware cursor programming
+    - no scroll behavior
+- Status: exists now
+  - `services::console::write_bytes` reinitializes the VGA writer on each call, so the
+    current screen path is sufficient for the present one-shot `42` flow but is not yet a
+    general append-style console contract
+- Status: missing now
+  - headless VGA-memory proof via Infra `I2.1`
+- Status: missing now
+  - buffer-backed host tests for write progression, wrap behavior, and later
+    cursor/newline semantics
 
-Implementation scope:
-- `RUST` (VGA writer) (+ `ASM` only for early boot)
+#### Target end-state
+- Status: build now
+  - a real Rust-callable screen path owned by `services` and `drivers`, not by boot ASM and
+    not by direct core/MMIO bypasses
+  - a minimal VGA text writer that can emit a consecutive byte slice into VGA text memory
+    during the current call path
+  - mandatory output `42` on every boot through the `M6` path
+  - proof that the normal kernel flow reaches the current screen write site
+  - proof that `core` reaches screen output through `services::console` rather than through
+    direct VGA ABI or raw hardware usage
+- Status: define now, integrate later
+  - the screen-domain shared types that later screen work consumes:
+    - `ColorCode`
+    - `ScreenCell`
+    - `CursorPos`
+  - stronger proof channels:
+    - Infra `I1` serial assertions as an auxiliary smoke/debug channel
+    - Infra `I2` headless VGA-memory assertions as the preferred end-to-end VGA proof
+- Status: future only
+  - scroll support
+  - cursor movement and newline semantics
+  - hardware cursor programming
+  - richer color policy than the current fixed attribute
+  - formatted printing
+  - keyboard echo and multi-screen behavior
 
-Proof / tests (definition of done):
-- MANUAL-M6.1-1 (runtime): boot and visually confirm multiple characters are printed correctly via the Rust screen module. (Automation: prefer AUTO-M6.1-1)
-- UT-M6.1-1 (optional host test via buffer model): implement a buffer-backed VGA writer and test it with `rustc --test ...` (no hardware access)
-- AUTO-M6.1-1 (preferred for CI): assert the VGA buffer headlessly via **Infra I2.1** (read guest memory at `0xB8000`); if you don’t need VGA-accurate CI, assert serial markers via **Infra I1.1** instead
+#### Intent
+- Establish the first real screen path in the running kernel after `M4` and `M5`.
+- Keep mandatory `M6` small:
+  - the first screen-interface ownership contract
+  - the mandatory visible output path
+- Keep richer console behavior out of base scope so `B1`, `B2`, and `B3` can own it
+  cleanly without retroactively changing what the subject requires for base completion.
 
-### Feature M6.2: Newline handling (basic cursor movement)
-Implementation tasks:
-- Track row/col and implement `\n`.
+#### Architecture decision
+- Decision:
+  - Route normal screen output through `core::init -> services::console -> drivers::vga_text ->
+    drivers::vga_text::writer`.
+  - Why:
+    - this is the smallest layered structure that keeps boot sequencing out of the driver and
+      keeps raw VGA writes out of `core`
+  - Source:
+    - `docs/subject.pdf`
+    - `docs/kernel_architecture.md`
+    - OSDev Printing To Screen
+  - Immediate consumer:
+    - `src/kernel/core/init.rs`
+  - Future consumer:
+    - `B1`, `B2`, and later text/console code
+- Decision:
+  - Treat minimal visible byte emission as the mandatory `M6` deliverable and keep
+    cursor/newline/scroll behavior outside the base epic.
+  - Why:
+    - the subject explicitly requires screen output and `42`, but explicitly moves cursor
+      support into the bonus list
+  - Source:
+    - `docs/subject.pdf`
+    - OSDev Text Mode Cursor
+  - Immediate consumer:
+    - the current one-shot `42` boot output
+  - Future consumer:
+    - `B1`
+- Decision:
+  - Keep screen-domain data ownership in `types/screen.rs` and hardware-leaf VGA behavior in
+    `drivers/vga_text/*`.
+  - Why:
+    - later screen work needs shared screen-domain representations without moving raw MMIO or
+      device policy into the type layer
+  - Source:
+    - `docs/kernel_architecture.md`
+    - OSDev VGA Hardware
+    - OSDev Printing To Screen
+  - Immediate consumer:
+    - current VGA text writer
+  - Future consumer:
+    - cursor, color, formatting, and later display abstractions
+- Decision:
+  - Do not require Infra `I2` as a hard blocker for base `M6` completion, but define it now as
+    the preferred end-to-end VGA proof upgrade.
+  - Why:
+    - the current repo already has a real runtime screen path, but still lacks a headless
+      VGA-memory assertion harness
+  - Source:
+    - `docs/kfs1_epics_features.md`
+    - repo code and scripts
+  - Immediate consumer:
+    - current `M6` proof model
+  - Future consumer:
+    - CI-grade VGA regression coverage
 
-Acceptance criteria:
-- Multi-line output is readable and doesn't overwrite random positions.
+#### Implementation contract
+- Build now:
+  - `src/kernel/types/screen.rs`
+  - `src/kernel/services/console.rs`
+  - `src/kernel/drivers/vga_text/mod.rs`
+  - `src/kernel/drivers/vga_text/writer.rs`
+  - `src/kernel/core/init.rs` as the current mandatory-output caller
+  - `tests/host_kmain_logic.rs`
+  - `scripts/tests/unit/kmain-logic.sh`
+  - `scripts/boot-tests/vga-writer.sh`
+- Build now:
+  - shared/public surface already visible to host-linked tests:
+    - `ColorCode`
+    - `ScreenCell`
+    - `CursorPos`
+    - `VGA_TEXT_DIMENSIONS`
+    - `vga_text_cell`
+- Build now:
+  - crate-internal mandatory screen path:
+    - `services::console::write_bytes`
+    - `drivers::vga_text::write_bytes`
+    - `drivers::vga_text::writer`
+- Define now, integrate later:
+  - row/column and newline semantics owned by later bonus cursor work
+  - headless VGA-memory proof hook owned by Infra `I2`
+- Future only:
+  - hardware cursor programming
+  - scrolling
+  - formatting helpers
+  - richer interactive console behavior
 
-Implementation scope:
-- `RUST` (cursor state + newline logic; unit-testable with a buffer model)
+#### Data / ABI conventions
+- `VGA text buffer`:
+  - the memory-mapped text screen at `0xB8000`
+  - each cell is one packed `u16`
+  - low byte: character byte
+  - high byte: attribute/color byte
+- `screen interface` in `M6`:
+  - the Rust module path the kernel uses to request visible output
+  - in current repo truth that path is `services::console::write_bytes`
+- `cursor support`:
+  - row/column semantics, newline behavior, hardware cursor state, and scroll interaction
+  - this is **not** part of mandatory `M6`; it is bonus-owned by `B1`
+- ABI rule:
+  - `M6` does not introduce a new linker-visible Rust ABI export
+  - the screen path is currently an internal Rust module boundary, not an external ABI
 
-Proof / tests (definition of done):
-- UT-M6.2-1 (cursor math unit tests): create `tests/host_cursor.rs` and run `rustc --test -o build/ut_cursor tests/host_cursor.rs && ./build/ut_cursor`
-- MANUAL-M6.2-1 (runtime): boot and print two lines; confirm line 2 appears on the next row. (Automation: prefer AUTO-M6.2-1)
-- AUTO-M6.2-1 (preferred): the newline/cursor behavior should be locked by UT-M6.2-1; use **Infra I2.1** only if you want an end-to-end VGA assertion in CI
+#### Runtime / integration path
+- Current release-path flow:
+  - `start`
+  - `kmain`
+  - `kernel::core::init::run_early_init`
+  - `kernel::services::console::write_bytes(b"42")`
+  - `kernel::drivers::vga_text::write_bytes`
+  - `kernel::drivers::vga_text::writer::write_byte`
+- Current immediate consumer:
+  - the mandatory early-init visible output path
+- Next consumers:
+  - `B1` for cursor/scroll ownership
+  - `B2` for color policy
+  - `B3` for formatting helpers
 
-### Feature M6.3: Mandatory output: display `42`
-Implementation tasks:
-- Print `42` using your screen interface from `kmain` (preferred).
+#### Acceptance criteria
+- The repo contains a real Rust-owned screen path and not an ASM-only or direct-`core`
+  VGA write shortcut.
+- The running kernel reaches the current screen write site on the normal success path.
+- The mandatory visible output `42` is emitted through the `M6` path on every boot.
+- `M6` current repo truth is kept separate from later cursor/scroll/color work.
+- Base `M6` completion does not depend on bonus cursor support.
 
-Acceptance criteria:
-- On every boot, `42` is shown on screen.
+#### Proof matrix
+- `WP-M6-1`
+  - Assertion:
+    - the repo exposes the required screen-path files and screen-domain type ownership
+  - Evidence:
+    - `bash scripts/architecture-tests/type-contracts.sh i386 screen-types-exist`
+    - `bash scripts/architecture-tests/type-contracts.sh i386 future-screen-types-owner-and-repr`
+    - `bash scripts/boot-tests/vga-writer.sh i386 driver-vga-writer-exists`
+  - Failure caught:
+    - paper-only screen architecture or missing screen-domain type ownership
+  - Status:
+    - exists now
+- `UT-M6-2`
+  - Assertion:
+    - packed VGA text cells preserve the expected character/attribute encoding contract
+  - Evidence:
+    - `bash scripts/tests/unit/kmain-logic.sh i386 host-vga-cell-unit-tests-pass`
+  - Failure caught:
+    - wrong text-cell packing that would corrupt visible character or attribute bytes
+  - Status:
+    - exists now
+- `WP-M6-3`
+  - Assertion:
+    - `core` reaches the screen path through `services::console` and the driver facade instead
+      of bypassing those layers
+  - Evidence:
+    - `bash scripts/boot-tests/vga-writer.sh i386 services-console-uses-driver`
+    - `bash scripts/boot-tests/vga-writer.sh i386 core-init-uses-services-console`
+    - `bash scripts/architecture-tests/runtime-ownership.sh i386 core-init-calls-services-console`
+    - `bash scripts/architecture-tests/runtime-ownership.sh i386 services-console-calls-driver-facade`
+  - Failure caught:
+    - direct `core` to VGA coupling or service-layer bypasses that would rot later console work
+  - Status:
+    - exists now
+- `SM-M6-4`
+  - Assertion:
+    - the real runtime success path reaches the current normal-flow screen write site
+  - Evidence:
+    - `bash scripts/boot-tests/runtime-markers.sh i386 runtime-completes-early-init`
+    - `rg -n "console::write_bytes\\(b\"42\"\\)" -S src/kernel/core/init.rs`
+  - Failure caught:
+    - a screen path that still exists in source but is no longer reached by the running kernel
+  - Status:
+    - exists now
+- `AT-M6-5`
+  - Assertion:
+    - the release artifact and core entry path stay free of the removed legacy VGA ABI style
+      and direct driver-ABI shortcuts
+  - Evidence:
+    - `bash scripts/boot-tests/vga-writer.sh i386 release-kernel-omits-vga-abi-exports`
+    - `bash scripts/architecture-tests/runtime-ownership.sh i386 entry-no-direct-driver-abi-calls`
+  - Failure caught:
+    - architecture drift back toward direct `vga_*` coupling or ABI-shaped leakage from the
+      screen driver
+  - Status:
+    - exists now
+- `RT-M6-6`
+  - Assertion:
+    - the repo rejects direct-entry and layer-bypass regressions in the mandatory screen path
+  - Evidence:
+    - `bash scripts/rejection-tests/runtime-ownership-rejections.sh i386 kmain-calls-vga-directly-fails`
+    - `bash scripts/rejection-tests/runtime-ownership-rejections.sh i386 core-init-skips-services-fails`
+    - `bash scripts/rejection-tests/runtime-ownership-rejections.sh i386 services-console-skips-driver-facade-fails`
+  - Failure caught:
+    - "works for now" regressions that erase the intended screen-path ownership contract
+  - Status:
+    - exists now
+- `SM-M6-7`
+  - Assertion:
+    - the repo can prove the exact VGA memory bytes for `42` without relying on a GUI
+  - Evidence:
+    - Infra `I2.1`
+  - Failure caught:
+    - false greens where the kernel boots and reaches early init but the visible VGA bytes are
+      wrong or absent
+  - Status:
+    - to add
+- `UT-M6-8`
+  - Assertion:
+    - a buffer-backed writer model proves write progression, wrap semantics, and the later
+      cursor/newline contract without hardware access
+  - Evidence:
+    - host-side buffer-model unit tests for the VGA writer
+  - Failure caught:
+    - off-by-one, overwrite, and cursor/newline regressions that are difficult to debug only in QEMU
+  - Status:
+    - to add
 
-Implementation scope:
-- `RUST` (preferred) + `ASM` only as bootstrap
+#### Common bad implementations
+- Writing directly to `0xB8000` from `core` or from boot ASM instead of going through the
+  `services` and `drivers` path
+- Treating cursor/newline support as mandatory `M6` scope when the subject places it in bonus scope
+- Claiming "`42` is on screen" from source grep alone without a runtime-connected proof
+- Reintroducing public `vga_*`-style ABI exports instead of keeping the screen path as an
+  internal module contract
+- Treating current one-shot output behavior as if it already proved a full append-style console
 
-Proof / tests (definition of done):
-- MANUAL-M6.3-1 (runtime): boot and confirm the first visible output includes `42`. (Automation: prefer AUTO-M6.3-1)
-- WP-M6.3-2 (source proof): `rg -n "\"42\"|\\b42\\b" -S src`
-- AUTO-M6.3-1 (preferred for CI): use **Infra I2.1** to assert `42` is present in the VGA text buffer at `0xB8000` (serial-only is not equivalent to “on screen”, but is acceptable as a smoke check via Infra I1.1)
+#### Explicit exclusions
+- `M6` does not promise scroll support, newline handling, row/column cursor semantics, or
+  hardware cursor control yet; `B1` owns those concerns.
+- `M6` does not promise a color-selection API yet; `B2` owns that concern.
+- `M6` does not promise formatted printing or logging helpers yet; `B3` owns that concern.
+- `M6` does not promise keyboard-driven or multi-screen console behavior yet; later bonus epics
+  own those concerns.
+- `M6` does not promise that the current `services::console` behavior is already a fully general
+  append-style console contract.
 
-### Definition of Done (M6)
-- Screen I/O is an interface/module callable from the chosen language.
-- `42` is printed and kernel halts cleanly afterward.
+#### Source basis
+- `docs/subject.pdf`
+- `docs/kfs1_epics_features.md`
+- `docs/kernel_architecture.md`
+- `src/kernel/types/screen.rs`
+- `src/kernel/services/console.rs`
+- `src/kernel/drivers/vga_text/mod.rs`
+- `src/kernel/drivers/vga_text/writer.rs`
+- `src/kernel/core/init.rs`
+- `tests/host_kmain_logic.rs`
+- `scripts/tests/unit/kmain-logic.sh`
+- `scripts/boot-tests/vga-writer.sh`
+- `scripts/architecture-tests/runtime-ownership.sh`
+- `scripts/rejection-tests/runtime-ownership-rejections.sh`
+- OSDev Printing To Screen
+- OSDev VGA Hardware
+- OSDev Text Mode Cursor
 
 ---
 

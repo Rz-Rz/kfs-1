@@ -40,8 +40,8 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
   - Proof: `make test arch=i386` (includes release-kernel `kmain` export/callsite checks, ordered runtime markers, runtime rejection tests, and halt-path checks)
 - Base Epic M5 DoD: ✅ YES
   - Proof: `make test arch=i386` now proves `M5.1`, `M5.2`, and `M5.3` end to end (`Port`, `KernelRange`, string-helper ABI, memory-helper ABI, runtime integration, and rejection gates)
-- Base Epic M6 DoD: ❌ NO
-  - Proof: M6.1 + M6.3 are done (`vga_*` exists and `kmain` prints `42` through it), but M6.2 newline/cursor handling is still missing
+- Base Epic M6 DoD: ✅ YES
+  - Proof: the mandatory screen path exists, the normal success flow prints `42` through it, and cursor/scroll behavior remains bonus-owned follow-up work rather than a base-epic blocker
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
   - Proof: `make -n all arch=i386 | rg -n "\\brustc\\b"`
   - Proof: `make all arch=i386 && nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
@@ -78,7 +78,7 @@ Legend:
 - Base Epic M3 (custom linker script + layout): ✅
 - Base Epic M4 (kernel in chosen language): ✅
 - Base Epic M5 (kernel library helpers): ✅
-- Base Epic M6 (screen I/O interface + prints 42): ❌
+- Base Epic M6 (screen I/O interface + prints 42): ✅
 - Base Epic M7 (Makefile compiles ASM + language, links, image, run): ✅
 - Base Epic M8 (turn-in packaging): ⚠️
 
@@ -392,31 +392,31 @@ What’s left:
 
 ## Base Epic M6: Screen I/O Interface + Mandatory Output
 
-### Feature M6.1: VGA text mode writer (VGA memory at `0xB8000`)
-Status: ✅ Done
+Status: ✅ Done for mandatory scope
+
 Evidence:
-- Reusable VGA text writer modules exist in `src/kernel/drivers/vga_text/mod.rs` and `src/kernel/drivers/vga_text/writer.rs`
-- `src/kernel/services/console.rs` routes output through the VGA driver facade
-- `src/kernel/core/init.rs` uses the services console instead of direct VGA writes
+- `src/kernel/types/screen.rs` already owns the current screen-domain types
+- `src/kernel/services/console.rs` routes normal screen output through `src/kernel/drivers/vga_text`
+- `src/kernel/drivers/vga_text/writer.rs` writes packed text cells to VGA text memory at `0xB8000`
+- `src/kernel/core/init.rs` prints `42` through the service-owned screen path
+- The subject's cursor/scroll work is bonus-owned follow-up scope, not a blocker for base `M6`
+
+Gaps / follow-up:
+- Infra Epic `I2` (headless VGA-memory assertions) is still missing
+- The repo still lacks buffer-backed host tests for write progression and later cursor/newline behavior
+- `services::console::write_bytes` currently resets the VGA writer on each call, which is
+  sufficient for the current one-shot `42` flow but not yet a general append-style console
+  contract
+
 Proof:
-- `rg -n "\\bvga_(init|putc|puts)\\b" -S src/kernel`
+- `bash scripts/tests/unit/kmain-logic.sh i386 host-vga-cell-unit-tests-pass`
 - `bash scripts/boot-tests/vga-writer.sh i386 driver-vga-writer-exists`
 - `bash scripts/boot-tests/vga-writer.sh i386 services-console-uses-driver`
 - `bash scripts/boot-tests/vga-writer.sh i386 core-init-uses-services-console`
-
-### Feature M6.2: Newline handling (basic cursor movement)
-Status: ❌ Not started
-Evidence:
-- No cursor state or newline handling implementation yet
-Proof:
-- `rg -n "\\b(cursor|row|col|newline)\\b" -S src || echo "no cursor handling yet"`
-
-### Feature M6.3: Mandatory output: display `42`
-Status: ✅ Done
-Evidence:
-- `src/kernel/core/init.rs` prints `42` through `src/kernel/services/console.rs`
-Proof:
-- `rg -n "console::write_bytes|42" -S src/kernel/core/init.rs src/kernel/services/console.rs`
+- `bash scripts/architecture-tests/runtime-ownership.sh i386 core-init-calls-services-console`
+- `bash scripts/architecture-tests/runtime-ownership.sh i386 services-console-calls-driver-facade`
+- `bash scripts/boot-tests/runtime-markers.sh i386 runtime-completes-early-init`
+- `bash scripts/boot-tests/vga-writer.sh i386 release-kernel-omits-vga-abi-exports`
 
 ---
 
