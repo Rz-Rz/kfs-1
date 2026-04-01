@@ -1,6 +1,6 @@
 use super::{
-    vga_text_blit_viewport, vga_text_cell, VgaTerminalBank, VGA_TEXT_BLANK_BYTE,
-    VGA_TEXT_DEFAULT_COLOR,
+    build_terminal_label_cells, vga_text_blit_viewport, vga_text_cell, VgaTerminalBank,
+    VGA_TEXT_BLANK_BYTE, VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_TERMINAL_LABEL_WIDTH,
 };
 use crate::kernel::machine::port::Port;
 use crate::kernel::types::screen::{ColorCode, VGA_TEXT_DIMENSIONS};
@@ -56,7 +56,8 @@ unsafe fn vga_set_hardware_cursor(row: usize, col: usize) {
 }
 
 unsafe fn redraw_active_terminal() {
-    let terminal = unsafe { (&*core::ptr::addr_of!(VGA_TERMINALS)).active() };
+    let bank = unsafe { &*core::ptr::addr_of!(VGA_TERMINALS) };
+    let terminal = bank.active();
     let blank = vga_text_cell(terminal.color, VGA_TEXT_BLANK_BYTE);
     let mut shadow = [0u16; VGA_TEXT_CELL_COUNT];
 
@@ -68,6 +69,14 @@ unsafe fn redraw_active_terminal() {
         &mut shadow,
         blank,
     );
+
+    let label_cells = build_terminal_label_cells(bank.active_label_index(), terminal.color);
+    let label_start = VGA_TEXT_DIMENSIONS
+        .width()
+        .saturating_sub(VGA_TEXT_TERMINAL_LABEL_WIDTH);
+    for (offset, cell) in label_cells.iter().enumerate() {
+        shadow[label_start + offset] = *cell;
+    }
 
     for (index, cell) in shadow.iter().enumerate() {
         unsafe {
@@ -163,6 +172,29 @@ pub(super) fn set_active_terminal(index: usize) -> bool {
             redraw_active_terminal();
         }
         changed
+    }
+}
+
+pub(super) fn create_terminal() -> bool {
+    unsafe {
+        ensure_state_initialized();
+        let created = (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS)).create_terminal();
+        if created {
+            redraw_active_terminal();
+        }
+        created
+    }
+}
+
+pub(super) fn destroy_active_terminal() -> bool {
+    unsafe {
+        ensure_state_initialized();
+        let destroyed =
+            (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS)).destroy_active_terminal();
+        if destroyed {
+            redraw_active_terminal();
+        }
+        destroyed
     }
 }
 

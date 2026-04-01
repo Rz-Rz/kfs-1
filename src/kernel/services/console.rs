@@ -271,13 +271,19 @@ pub fn printk_args(format: *const u8, args: *const usize, arg_count: usize) {
 
 fn handle_shortcut(shortcut: KeyboardShortcut) {
     match shortcut {
-        KeyboardShortcut::AltFunction(index) => {
-            let args = [index as usize];
-            printk_args(
-                b"\n[shortcut] alt-f%u reserved for terminal switching\n\0".as_ptr(),
-                args.as_ptr(),
-                args.len(),
-            );
+        KeyboardShortcut::CreateTerminal => {
+            let _ = vga_text::vga_text_create_terminal();
+        }
+        KeyboardShortcut::DestroyTerminal => {
+            let _ = vga_text::vga_text_destroy_terminal();
+        }
+        KeyboardShortcut::SelectTerminal(index) => {
+            let _ = vga_text::vga_text_set_active_terminal(index);
+        }
+        other => {
+            if let Some(index) = keyboard::shortcut_terminal_index(other) {
+                let _ = vga_text::vga_text_set_active_terminal(index);
+            }
         }
     }
 }

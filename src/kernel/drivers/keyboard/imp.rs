@@ -12,6 +12,8 @@ pub enum KeyCode {
     Tab,
     ArrowUp,
     ArrowDown,
+    CtrlLeft,
+    CtrlRight,
     ShiftLeft,
     ShiftRight,
     AltLeft,
@@ -24,12 +26,14 @@ pub enum KeyCode {
 pub struct KeyEvent {
     pub code: KeyCode,
     pub pressed: bool,
+    pub ctrl: bool,
     pub shift: bool,
     pub alt: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct KeyboardState {
+    pub ctrl: bool,
     pub shift: bool,
     pub alt: bool,
     extended_prefix: bool,
@@ -38,6 +42,7 @@ pub struct KeyboardState {
 impl KeyboardState {
     pub const fn new() -> Self {
         Self {
+            ctrl: false,
             shift: false,
             alt: false,
             extended_prefix: false,
@@ -48,6 +53,114 @@ impl KeyboardState {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeyboardShortcut {
     AltFunction(u8),
+    CreateTerminal,
+    DestroyTerminal,
+    SelectTerminal(usize),
+}
+
+/// This maps one reserved keyboard shortcut to the target virtual terminal slot.
+///
+/// The mapping lives outside the raw scancode decoder so terminal policy can
+/// evolve without rewriting the low-level key translation tables.
+pub fn shortcut_terminal_index(shortcut: KeyboardShortcut) -> Option<usize> {
+    match shortcut {
+        KeyboardShortcut::AltFunction(index @ 1..=12) => Some((index - 1) as usize),
+        KeyboardShortcut::SelectTerminal(index) => Some(index),
+        KeyboardShortcut::CreateTerminal | KeyboardShortcut::DestroyTerminal => None,
+        KeyboardShortcut::AltFunction(_) => None,
+    }
+}
+
+/// This maps unmodified function keys onto terminal-management commands.
+///
+/// Bare `F1..F10` are reliable inside the QEMU GUI window because the host
+/// toolkit is much less likely to steal them than `Alt+letter` combos.
+pub fn direct_function_shortcut(index: u8) -> Option<KeyboardShortcut> {
+    match index {
+        1..=10 => Some(KeyboardShortcut::SelectTerminal((index - 1) as usize)),
+        11 => Some(KeyboardShortcut::CreateTerminal),
+        12 => Some(KeyboardShortcut::DestroyTerminal),
+        _ => None,
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct KeyboardShortcutState {
+    pub prefix_pending: bool,
+}
+
+impl KeyboardShortcutState {
+    /// This builds a fresh command-prefix tracker with no pending shortcut key.
+    pub const fn new() -> Self {
+        Self {
+            prefix_pending: false,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KeyboardShortcutDecision {
+    PassThrough,
+    Consume,
+    Shortcut(KeyboardShortcut),
+}
+
+#[inline(always)]
+fn is_modifier(code: KeyCode) -> bool {
+    matches!(
+        code,
+        KeyCode::CtrlLeft
+            | KeyCode::CtrlRight
+            | KeyCode::ShiftLeft
+            | KeyCode::ShiftRight
+            | KeyCode::AltLeft
+            | KeyCode::AltRight
+    )
+}
+
+/// This interprets the `Alt+A` prefix before normal text routing.
+///
+/// The decoder already produced a plain `KeyEvent`, so this helper only tracks
+/// the higher-level command-prefix state: first `Alt+A`, then one command key.
+pub fn process_shortcut_key(
+    state: &mut KeyboardShortcutState,
+    event: KeyEvent,
+) -> KeyboardShortcutDecision {
+    if state.prefix_pending {
+        // Holding `Alt+A` can generate repeated `A` make-codes before the
+        // command key arrives. Keep the prefix armed so those repeats do not
+        // accidentally cancel command mode and leak the next key as text.
+        if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
+            return KeyboardShortcutDecision::Consume;
+        }
+
+        if !event.pressed || is_modifier(event.code) {
+            return KeyboardShortcutDecision::Consume;
+        }
+
+        state.prefix_pending = false;
+        return match event.code {
+            KeyCode::Printable(b'c' | b'C') => {
+                KeyboardShortcutDecision::Shortcut(KeyboardShortcut::CreateTerminal)
+            }
+            KeyCode::Printable(b'x' | b'X') => {
+                KeyboardShortcutDecision::Shortcut(KeyboardShortcut::DestroyTerminal)
+            }
+            // Screen-style window selectors use the literal digit: `0` targets
+            // the first terminal, `1` the second, and so on.
+            KeyCode::Printable(byte @ b'0'..=b'9') => KeyboardShortcutDecision::Shortcut(
+                KeyboardShortcut::SelectTerminal((byte - b'0') as usize),
+            ),
+            _ => KeyboardShortcutDecision::Consume,
+        };
+    }
+
+    if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
+        state.prefix_pending = true;
+        return KeyboardShortcutDecision::Consume;
+    }
+
+    KeyboardShortcutDecision::PassThrough
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -199,6 +312,14 @@ pub fn decode_scancode(state: &mut KeyboardState, scancode: u8) -> Option<KeyEve
     let base = scancode & 0x7f;
 
     let code = match (extended, base) {
+        (false, 0x1D) => {
+            state.ctrl = pressed;
+            KeyCode::CtrlLeft
+        }
+        (true, 0x1D) => {
+            state.ctrl = pressed;
+            KeyCode::CtrlRight
+        }
         (false, 0x2A) => {
             state.shift = pressed;
             KeyCode::ShiftLeft
@@ -232,6 +353,7 @@ pub fn decode_scancode(state: &mut KeyboardState, scancode: u8) -> Option<KeyEve
     Some(KeyEvent {
         code,
         pressed,
+        ctrl: state.ctrl,
         shift: state.shift,
         alt: state.alt,
     })
@@ -243,12 +365,17 @@ pub fn route_key_event(event: KeyEvent) -> KeyboardRoute {
     }
 
     match event.code {
-        KeyCode::Printable(byte) if !event.alt => KeyboardRoute::PutByte(byte),
-        KeyCode::Enter if !event.alt => KeyboardRoute::PutByte(b'\n'),
-        KeyCode::Backspace if !event.alt => KeyboardRoute::Backspace,
-        KeyCode::ArrowUp if !event.alt => KeyboardRoute::ViewportUp,
-        KeyCode::ArrowDown if !event.alt => KeyboardRoute::ViewportDown,
-        KeyCode::Tab if !event.alt => KeyboardRoute::PutByte(b'\t'),
+        KeyCode::Printable(byte) if !event.alt && !event.ctrl => KeyboardRoute::PutByte(byte),
+        KeyCode::Enter if !event.alt && !event.ctrl => KeyboardRoute::PutByte(b'\n'),
+        KeyCode::Backspace if !event.alt && !event.ctrl => KeyboardRoute::Backspace,
+        KeyCode::ArrowUp if !event.alt && !event.ctrl => KeyboardRoute::ViewportUp,
+        KeyCode::ArrowDown if !event.alt && !event.ctrl => KeyboardRoute::ViewportDown,
+        KeyCode::Tab if !event.alt && !event.ctrl => KeyboardRoute::PutByte(b'\t'),
+        KeyCode::Function(index) if !event.alt && !event.ctrl && !event.shift => {
+            direct_function_shortcut(index)
+                .map(KeyboardRoute::Shortcut)
+                .unwrap_or(KeyboardRoute::None)
+        }
         KeyCode::Function(index) if event.alt => {
             KeyboardRoute::Shortcut(KeyboardShortcut::AltFunction(index))
         }

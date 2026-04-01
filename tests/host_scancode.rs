@@ -11,6 +11,7 @@ fn letter_key_press_maps_to_printable_ascii() {
         KeyEvent {
             code: KeyCode::Printable(b'a'),
             pressed: true,
+            ctrl: false,
             shift: false,
             alt: false,
         }
@@ -60,6 +61,26 @@ fn alt_function_key_is_distinguishable_for_shortcuts() {
     let function = decode_scancode(&mut state, 0x3b).expect("expected f1 press");
     assert_eq!(function.code, KeyCode::Function(1));
     assert!(function.alt);
+}
+
+#[test]
+fn control_modifier_tracks_press_and_release() {
+    let mut state = KeyboardState::new();
+
+    let ctrl_press = decode_scancode(&mut state, 0x1d).expect("expected ctrl press");
+    assert_eq!(ctrl_press.code, KeyCode::CtrlLeft);
+    assert!(ctrl_press.pressed);
+    assert!(ctrl_press.ctrl);
+    assert!(state.ctrl);
+
+    let controlled_a = decode_scancode(&mut state, 0x1e).expect("expected ctrl+a press");
+    assert_eq!(controlled_a.code, KeyCode::Printable(b'a'));
+    assert!(controlled_a.ctrl);
+
+    let ctrl_release = decode_scancode(&mut state, 0x9d).expect("expected ctrl release");
+    assert_eq!(ctrl_release.code, KeyCode::CtrlLeft);
+    assert!(!ctrl_release.pressed);
+    assert!(!state.ctrl);
 }
 
 #[test]

@@ -20,6 +20,7 @@ host-keyboard-input-letter-key-press-maps-to-printable-ascii
 host-keyboard-input-shift-changes-letter-case-until-release
 host-keyboard-input-enter-and-backspace-decode-as-control-keys
 host-keyboard-input-alt-function-key-is-distinguishable-for-shortcuts
+host-keyboard-input-control-modifier-tracks-press-and-release
 host-keyboard-input-extended-right-alt-updates-modifier-state
 host-keyboard-input-extended-up-arrow-decodes-as-a-navigation-key
 host-keyboard-input-extended-down-arrow-decodes-as-a-navigation-key
@@ -31,7 +32,19 @@ host-keyboard-input-up-arrow-routes-to-history-viewport-movement
 host-keyboard-input-down-arrow-routes-to-history-viewport-movement
 host-keyboard-input-key-release-events-do-not-echo
 host-keyboard-input-alt-function-shortcuts-are-intercepted-instead-of-echoed
+host-keyboard-input-bare-function-keys-select-terminals-without-echoing-text
+host-keyboard-input-f11-creates-a-terminal-without-a-prefix-key
+host-keyboard-input-f12-destroys-the-current-terminal-without-a-prefix-key
+host-keyboard-input-shortcut-terminal-indices-cover-alt-functions-and-command-selectors
+host-keyboard-input-direct-function-shortcuts-cover-select-create-and-destroy
 host-keyboard-input-alt-modified-printable-input-does-not-leave-garbage-text
+host-keyboard-input-ctrl-modified-printable-input-does-not-echo-text
+host-keyboard-input-alt-a-prefix-consumes-the-trigger-key-without-echoing
+host-keyboard-input-alt-a-prefix-followed-by-c-creates-a-terminal
+host-keyboard-input-alt-a-prefix-followed-by-x-destroys-the-current-terminal
+host-keyboard-input-alt-a-prefix-followed-by-a-digit-selects-that-terminal-number
+host-keyboard-input-alt-a-prefix-followed-by-zero-selects-the-first-terminal
+host-keyboard-input-alt-a-repeat-does-not-cancel-the-pending-terminal-command
 source-defines-keyboard-decoder
 source-defines-keyboard-polling-facade
 EOF
@@ -43,6 +56,7 @@ describe_case() {
     host-keyboard-input-shift-changes-letter-case-until-release) printf '%s\n' "host keyboard scancode decoding keeps shift state until release" ;;
     host-keyboard-input-enter-and-backspace-decode-as-control-keys) printf '%s\n' "host keyboard scancode decoding recognizes enter and backspace" ;;
     host-keyboard-input-alt-function-key-is-distinguishable-for-shortcuts) printf '%s\n' "host keyboard scancode decoding keeps alt-function shortcuts distinct" ;;
+    host-keyboard-input-control-modifier-tracks-press-and-release) printf '%s\n' "host keyboard scancode decoding tracks control press and release state" ;;
     host-keyboard-input-extended-right-alt-updates-modifier-state) printf '%s\n' "host keyboard scancode decoding updates right-alt modifier state" ;;
     host-keyboard-input-extended-up-arrow-decodes-as-a-navigation-key) printf '%s\n' "host keyboard scancode decoding recognizes the extended up arrow" ;;
     host-keyboard-input-extended-down-arrow-decodes-as-a-navigation-key) printf '%s\n' "host keyboard scancode decoding recognizes the extended down arrow" ;;
@@ -54,7 +68,19 @@ describe_case() {
     host-keyboard-input-down-arrow-routes-to-history-viewport-movement) printf '%s\n' "host keyboard routing sends down arrow to viewport-down" ;;
     host-keyboard-input-key-release-events-do-not-echo) printf '%s\n' "host keyboard routing suppresses release events" ;;
     host-keyboard-input-alt-function-shortcuts-are-intercepted-instead-of-echoed) printf '%s\n' "host keyboard routing intercepts alt-function shortcuts" ;;
+    host-keyboard-input-bare-function-keys-select-terminals-without-echoing-text) printf '%s\n' "host keyboard routing maps bare function keys onto terminal-selection commands" ;;
+    host-keyboard-input-f11-creates-a-terminal-without-a-prefix-key) printf '%s\n' "host keyboard routing maps F11 onto terminal creation" ;;
+    host-keyboard-input-f12-destroys-the-current-terminal-without-a-prefix-key) printf '%s\n' "host keyboard routing maps F12 onto terminal destruction" ;;
+    host-keyboard-input-shortcut-terminal-indices-cover-alt-functions-and-command-selectors) printf '%s\n' "host keyboard shortcut helpers map alt-function and selector commands to terminal indices" ;;
+    host-keyboard-input-direct-function-shortcuts-cover-select-create-and-destroy) printf '%s\n' "host keyboard shortcut helpers map direct function keys to select/create/destroy commands" ;;
     host-keyboard-input-alt-modified-printable-input-does-not-leave-garbage-text) printf '%s\n' "host keyboard routing suppresses alt-modified printable input" ;;
+    host-keyboard-input-ctrl-modified-printable-input-does-not-echo-text) printf '%s\n' "host keyboard routing suppresses ctrl-modified printable input" ;;
+    host-keyboard-input-alt-a-prefix-consumes-the-trigger-key-without-echoing) printf '%s\n' "host keyboard shortcut-prefix handling consumes Alt+A without echoing it" ;;
+    host-keyboard-input-alt-a-prefix-followed-by-c-creates-a-terminal) printf '%s\n' "host keyboard shortcut-prefix handling turns Alt+A then C into terminal creation" ;;
+    host-keyboard-input-alt-a-prefix-followed-by-x-destroys-the-current-terminal) printf '%s\n' "host keyboard shortcut-prefix handling turns Alt+A then X into terminal destruction" ;;
+    host-keyboard-input-alt-a-prefix-followed-by-a-digit-selects-that-terminal-number) printf '%s\n' "host keyboard shortcut-prefix handling turns Alt+A then a digit into terminal selection" ;;
+    host-keyboard-input-alt-a-prefix-followed-by-zero-selects-the-first-terminal) printf '%s\n' "host keyboard shortcut-prefix handling maps Alt+A then 0 to the first terminal" ;;
+    host-keyboard-input-alt-a-repeat-does-not-cancel-the-pending-terminal-command) printf '%s\n' "host keyboard shortcut-prefix handling ignores repeated Alt+A until the command key arrives" ;;
     source-defines-keyboard-decoder) printf '%s\n' "keyboard driver defines the decoder and routing helpers" ;;
     source-defines-keyboard-polling-facade) printf '%s\n' "keyboard driver defines the polling facade" ;;
     *) return 1 ;;
@@ -117,6 +143,9 @@ run_direct_case() {
     host-keyboard-input-alt-function-key-is-distinguishable-for-shortcuts)
       run_host_tests "${SCANCODE_TEST_SOURCE}" 'alt_function_key_is_distinguishable_for_shortcuts'
       ;;
+    host-keyboard-input-control-modifier-tracks-press-and-release)
+      run_host_tests "${SCANCODE_TEST_SOURCE}" 'control_modifier_tracks_press_and_release'
+      ;;
     host-keyboard-input-extended-right-alt-updates-modifier-state)
       run_host_tests "${SCANCODE_TEST_SOURCE}" 'extended_right_alt_updates_modifier_state'
       ;;
@@ -150,17 +179,53 @@ run_direct_case() {
     host-keyboard-input-alt-function-shortcuts-are-intercepted-instead-of-echoed)
       run_host_tests "${ECHO_TEST_SOURCE}" 'alt_function_shortcuts_are_intercepted_instead_of_echoed'
       ;;
+    host-keyboard-input-bare-function-keys-select-terminals-without-echoing-text)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'bare_function_keys_select_terminals_without_echoing_text'
+      ;;
+    host-keyboard-input-f11-creates-a-terminal-without-a-prefix-key)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'f11_creates_a_terminal_without_a_prefix_key'
+      ;;
+    host-keyboard-input-f12-destroys-the-current-terminal-without-a-prefix-key)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'f12_destroys_the_current_terminal_without_a_prefix_key'
+      ;;
+    host-keyboard-input-shortcut-terminal-indices-cover-alt-functions-and-command-selectors)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'shortcut_terminal_indices_cover_alt_functions_and_command_selectors'
+      ;;
+    host-keyboard-input-direct-function-shortcuts-cover-select-create-and-destroy)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'direct_function_shortcuts_cover_select_create_and_destroy'
+      ;;
     host-keyboard-input-alt-modified-printable-input-does-not-leave-garbage-text)
       run_host_tests "${ECHO_TEST_SOURCE}" 'alt_modified_printable_input_does_not_leave_garbage_text'
       ;;
+    host-keyboard-input-ctrl-modified-printable-input-does-not-echo-text)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'ctrl_modified_printable_input_does_not_echo_text'
+      ;;
+    host-keyboard-input-alt-a-prefix-consumes-the-trigger-key-without-echoing)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'alt_a_prefix_consumes_the_trigger_key_without_echoing'
+      ;;
+    host-keyboard-input-alt-a-prefix-followed-by-c-creates-a-terminal)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'alt_a_prefix_followed_by_c_creates_a_terminal'
+      ;;
+    host-keyboard-input-alt-a-prefix-followed-by-x-destroys-the-current-terminal)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'alt_a_prefix_followed_by_x_destroys_the_current_terminal'
+      ;;
+    host-keyboard-input-alt-a-prefix-followed-by-a-digit-selects-that-terminal-number)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'alt_a_prefix_followed_by_a_digit_selects_that_terminal_number'
+      ;;
+    host-keyboard-input-alt-a-prefix-followed-by-zero-selects-the-first-terminal)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'alt_a_prefix_followed_by_zero_selects_the_first_terminal'
+      ;;
+    host-keyboard-input-alt-a-repeat-does-not-cancel-the-pending-terminal-command)
+      run_host_tests "${ECHO_TEST_SOURCE}" 'alt_a_repeat_does_not_cancel_the_pending_terminal_command'
+      ;;
     source-defines-keyboard-decoder)
-      assert_pattern '\bdecode_scancode\b|\broute_key_event\b|\bKeyboardState\b|\bKeyboardRoute\b' 'keyboard decode and routing helpers' "${SOURCE_IMPL}"
+      assert_pattern '\bdecode_scancode\b|\broute_key_event\b|\bKeyboardState\b|\bKeyboardRoute\b|\bKeyboardShortcutState\b|\bprocess_shortcut_key\b|\bdirect_function_shortcut\b' 'keyboard decode and routing helpers' "${SOURCE_IMPL}"
       ;;
     source-defines-keyboard-polling-facade)
       assert_pattern '\bkeyboard_init\b|\bkeyboard_poll_route\b' 'keyboard polling facade' "${SOURCE_DRIVER}"
       ;;
     *)
-      die "usage: $0 <arch> {host-keyboard-input-letter-key-press-maps-to-printable-ascii|host-keyboard-input-shift-changes-letter-case-until-release|host-keyboard-input-enter-and-backspace-decode-as-control-keys|host-keyboard-input-alt-function-key-is-distinguishable-for-shortcuts|host-keyboard-input-extended-right-alt-updates-modifier-state|host-keyboard-input-extended-up-arrow-decodes-as-a-navigation-key|host-keyboard-input-extended-down-arrow-decodes-as-a-navigation-key|host-keyboard-input-break-codes-become-release-events|host-keyboard-input-printable-input-routes-to-screen-byte-output|host-keyboard-input-enter-routes-to-the-shared-newline-path|host-keyboard-input-backspace-routes-to-the-erase-operation|host-keyboard-input-up-arrow-routes-to-history-viewport-movement|host-keyboard-input-down-arrow-routes-to-history-viewport-movement|host-keyboard-input-key-release-events-do-not-echo|host-keyboard-input-alt-function-shortcuts-are-intercepted-instead-of-echoed|host-keyboard-input-alt-modified-printable-input-does-not-leave-garbage-text|source-defines-keyboard-decoder|source-defines-keyboard-polling-facade}"
+      die "usage: $0 <arch> {host-keyboard-input-letter-key-press-maps-to-printable-ascii|host-keyboard-input-shift-changes-letter-case-until-release|host-keyboard-input-enter-and-backspace-decode-as-control-keys|host-keyboard-input-alt-function-key-is-distinguishable-for-shortcuts|host-keyboard-input-control-modifier-tracks-press-and-release|host-keyboard-input-extended-right-alt-updates-modifier-state|host-keyboard-input-extended-up-arrow-decodes-as-a-navigation-key|host-keyboard-input-extended-down-arrow-decodes-as-a-navigation-key|host-keyboard-input-break-codes-become-release-events|host-keyboard-input-printable-input-routes-to-screen-byte-output|host-keyboard-input-enter-routes-to-the-shared-newline-path|host-keyboard-input-backspace-routes-to-the-erase-operation|host-keyboard-input-up-arrow-routes-to-history-viewport-movement|host-keyboard-input-down-arrow-routes-to-history-viewport-movement|host-keyboard-input-key-release-events-do-not-echo|host-keyboard-input-alt-function-shortcuts-are-intercepted-instead-of-echoed|host-keyboard-input-bare-function-keys-select-terminals-without-echoing-text|host-keyboard-input-f11-creates-a-terminal-without-a-prefix-key|host-keyboard-input-f12-destroys-the-current-terminal-without-a-prefix-key|host-keyboard-input-shortcut-terminal-indices-cover-alt-functions-and-command-selectors|host-keyboard-input-direct-function-shortcuts-cover-select-create-and-destroy|host-keyboard-input-alt-modified-printable-input-does-not-leave-garbage-text|host-keyboard-input-ctrl-modified-printable-input-does-not-echo-text|host-keyboard-input-alt-a-prefix-consumes-the-trigger-key-without-echoing|host-keyboard-input-alt-a-prefix-followed-by-c-creates-a-terminal|host-keyboard-input-alt-a-prefix-followed-by-x-destroys-the-current-terminal|host-keyboard-input-alt-a-prefix-followed-by-a-digit-selects-that-terminal-number|host-keyboard-input-alt-a-prefix-followed-by-zero-selects-the-first-terminal|host-keyboard-input-alt-a-repeat-does-not-cancel-the-pending-terminal-command|source-defines-keyboard-decoder|source-defines-keyboard-polling-facade}"
       ;;
   esac
 }

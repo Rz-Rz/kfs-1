@@ -8,6 +8,21 @@ pub const VGA_TEXT_BLANK_BYTE: u8 = b' ';
 pub const VGA_TEXT_HISTORY_ROWS: usize = 256;
 pub const VGA_TEXT_HISTORY_CELL_COUNT: usize = VGA_TEXT_HISTORY_ROWS * VGA_TEXT_DIMENSIONS.width();
 pub const VGA_TEXT_TERMINAL_COUNT: usize = 12;
+pub const VGA_TEXT_TERMINAL_LABEL_WIDTH: usize = 7;
+pub const VGA_TEXT_TERMINAL_LABELS: [&[u8]; VGA_TEXT_TERMINAL_COUNT] = [
+    b"alpha",
+    b"beta",
+    b"gamma",
+    b"delta",
+    b"epsilon",
+    b"zeta",
+    b"eta",
+    b"theta",
+    b"iota",
+    b"kappa",
+    b"lambda",
+    b"mu",
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VgaPutResult {
@@ -159,6 +174,8 @@ impl VgaTerminal {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VgaTerminalBank {
     pub active_index: usize,
+    pub active_count: usize,
+    pub active_slots: [usize; VGA_TEXT_TERMINAL_COUNT],
     pub terminals: [VgaTerminal; VGA_TEXT_TERMINAL_COUNT],
 }
 
@@ -167,25 +184,30 @@ impl VgaTerminalBank {
         const EMPTY_TERMINAL: VgaTerminal = VgaTerminal::new();
         Self {
             active_index: 0,
+            active_count: 1,
+            active_slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
             terminals: [EMPTY_TERMINAL; VGA_TEXT_TERMINAL_COUNT],
         }
     }
 
     pub fn reset(&mut self) {
         self.active_index = 0;
+        self.active_count = 1;
         let mut idx = 0;
         while idx < VGA_TEXT_TERMINAL_COUNT {
+            self.active_slots[idx] = idx;
             self.terminals[idx].reset();
             idx += 1;
         }
     }
 
     pub fn active(&self) -> &VgaTerminal {
-        &self.terminals[self.active_index]
+        &self.terminals[self.active_slot()]
     }
 
     pub fn active_mut(&mut self) -> &mut VgaTerminal {
-        &mut self.terminals[self.active_index]
+        let slot = self.active_slot();
+        &mut self.terminals[slot]
     }
 
     pub fn terminal(&self, index: usize) -> Option<&VgaTerminal> {
@@ -197,13 +219,104 @@ impl VgaTerminalBank {
     }
 
     pub fn set_active(&mut self, index: usize) -> bool {
-        if index >= VGA_TEXT_TERMINAL_COUNT {
+        if index >= self.active_count {
             return false;
         }
 
         self.active_index = index;
         true
     }
+
+    pub fn create_terminal(&mut self) -> bool {
+        if self.active_count >= VGA_TEXT_TERMINAL_COUNT {
+            return false;
+        }
+
+        let Some(slot) = self.first_free_slot() else {
+            return false;
+        };
+
+        self.terminals[slot].reset();
+        self.active_slots[self.active_count] = slot;
+        self.active_index = self.active_count;
+        self.active_count += 1;
+        true
+    }
+
+    pub fn destroy_active_terminal(&mut self) -> bool {
+        if self.active_count <= 1 {
+            return false;
+        }
+
+        let freed_slot = self.active_slot();
+        self.terminals[freed_slot].reset();
+
+        let mut idx = self.active_index;
+        while idx + 1 < self.active_count {
+            self.active_slots[idx] = self.active_slots[idx + 1];
+            idx += 1;
+        }
+
+        self.active_count -= 1;
+        self.active_slots[self.active_count] = freed_slot;
+        if self.active_index >= self.active_count {
+            self.active_index = self.active_count - 1;
+        }
+        true
+    }
+
+    pub fn active_label_index(&self) -> usize {
+        self.active_index
+    }
+
+    pub fn active_count(&self) -> usize {
+        self.active_count
+    }
+
+    pub fn active_slot(&self) -> usize {
+        self.active_slots[self.active_index]
+    }
+
+    fn first_free_slot(&self) -> Option<usize> {
+        let mut slot = 0;
+        while slot < VGA_TEXT_TERMINAL_COUNT {
+            if !self.is_slot_active(slot) {
+                return Some(slot);
+            }
+            slot += 1;
+        }
+        None
+    }
+
+    fn is_slot_active(&self, slot: usize) -> bool {
+        let mut idx = 0;
+        while idx < self.active_count {
+            if self.active_slots[idx] == slot {
+                return true;
+            }
+            idx += 1;
+        }
+        false
+    }
+}
+
+pub fn terminal_label(index: usize) -> &'static [u8] {
+    VGA_TEXT_TERMINAL_LABELS[index.min(VGA_TEXT_TERMINAL_COUNT - 1)]
+}
+
+pub fn build_terminal_label_cells(label_index: usize, color: ColorCode) -> [u16; VGA_TEXT_TERMINAL_LABEL_WIDTH] {
+    let blank = vga_text_cell(color, VGA_TEXT_BLANK_BYTE);
+    let mut cells = [blank; VGA_TEXT_TERMINAL_LABEL_WIDTH];
+    let label = terminal_label(label_index);
+    let start = VGA_TEXT_TERMINAL_LABEL_WIDTH.saturating_sub(label.len());
+    let mut idx = 0;
+
+    while idx < label.len() && start + idx < VGA_TEXT_TERMINAL_LABEL_WIDTH {
+        cells[start + idx] = vga_text_cell(color, label[idx]);
+        idx += 1;
+    }
+
+    cells
 }
 
 pub const fn vga_text_tail_viewport_top(cursor_row: usize) -> usize {
@@ -438,4 +551,12 @@ pub fn vga_text_get_color() -> ColorCode {
 
 pub fn vga_text_set_active_terminal(index: usize) -> bool {
     writer::set_active_terminal(index)
+}
+
+pub fn vga_text_create_terminal() -> bool {
+    writer::create_terminal()
+}
+
+pub fn vga_text_destroy_terminal() -> bool {
+    writer::destroy_active_terminal()
 }
