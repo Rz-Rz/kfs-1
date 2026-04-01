@@ -464,3 +464,77 @@ Evidence:
 - Infra Epic **I2** (VGA memory assertions): ✅ Done
   - Proof: `make test arch=i386` includes headless VGA-memory checks for the first `42` screen cells plus repeated monitor snapshots for buffer stability
   - Proof: `make test-vga arch=i386`
+
+---
+
+## Deferred Bonus / Extension Status (B1–B6)
+
+These items are not required for the base KFS_1 subject, but this branch now carries them on top of `main`'s architecture.
+
+High-level status:
+- Bonus Epic B1 (scroll + cursor support): ✅ Done
+- Bonus Epic B2 (color support in the screen I/O interface): ✅ Done
+- Bonus Epic B3 (`printk` / formatted printing): ✅ Done
+- Bonus Epic B4 (keyboard input + echo): ✅ Done
+- Bonus Epic B5 (multiple screens + keyboard shortcuts): ✅ Done
+- Bonus Epic B6 (screen geometry / different screen sizes): ✅ Done
+
+### Bonus Epic B1: Scroll + Cursor Support
+
+Status: ✅ Done
+Evidence:
+- Cursor state, scroll behavior, and hardware cursor programming now live in `src/kernel/drivers/vga_text/writer.rs`.
+- Host coverage for cursor and scroll behavior lives in `tests/host_cursor.rs` and `tests/host_scroll.rs`.
+Proof:
+- `bash scripts/check-b1.3-hw-cursor.sh i386`
+- `bash scripts/tests/unit/vga-history.sh i386`
+
+### Bonus Epic B2: Color Support in the Screen I/O Interface
+
+Status: ✅ Done
+Evidence:
+- Screen color types live in `src/kernel/types/screen.rs`.
+- VGA color state is applied by `src/kernel/drivers/vga_text/mod.rs` and `src/kernel/drivers/vga_text/writer.rs`.
+Proof:
+- `bash scripts/tests/unit/vga-color.sh i386`
+
+### Bonus Epic B3: `printk` / Formatted Printing
+
+Status: ✅ Done
+Evidence:
+- Allocation-free formatting and screen printing now flow through `src/kernel/services/console.rs`.
+- Host formatting coverage lives in `tests/host_vga_format.rs`.
+Proof:
+- `bash scripts/tests/unit/console-format.sh i386`
+
+### Bonus Epic B4: Keyboard Input + Echo
+
+Status: ✅ Done
+Evidence:
+- Keyboard decode and shortcut routing now live under `src/kernel/drivers/keyboard/`.
+- The service layer echoes printable input and editing actions through `src/kernel/services/console.rs`.
+Proof:
+- `bash scripts/tests/unit/keyboard-input.sh i386`
+
+### Bonus Epic B5: Multiple Screens + Keyboard Shortcuts
+
+Status: ✅ Done
+Evidence:
+- Per-terminal history, redraw, and active-terminal state now live in `src/kernel/drivers/vga_text/mod.rs`.
+- Keyboard shortcut routing for terminal selection and lifecycle now lives in `src/kernel/drivers/keyboard/mod.rs` and `src/kernel/drivers/keyboard/imp.rs`.
+Proof:
+- `bash scripts/tests/unit/vga-vt.sh i386`
+- `bash scripts/tests/unit/keyboard-input.sh i386`
+
+### Bonus Epic B6: Screen Geometry / Different Screen Sizes
+
+Status: ✅ Done
+Evidence:
+- Geometry types and preset selection now live in `src/kernel/types/screen.rs`.
+- The VGA text driver renders the logical viewport into the fixed `80x25` hardware buffer through `src/kernel/drivers/vga_text/mod.rs` and `src/kernel/drivers/vga_text/writer.rs`.
+- Build-time preset selection is exposed through `KFS_SCREEN_GEOMETRY_PRESET` in `Makefile`.
+Proof:
+- `bash scripts/tests/unit/vga-geometry.sh i386`
+- `bash scripts/tests/unit/vga-geometry-writer.sh i386`
+- `bash scripts/tests/unit/vga-geometry-preset.sh i386`
+- `KFS_SCREEN_GEOMETRY_PRESET=compact40x10 make -B all arch=i386`

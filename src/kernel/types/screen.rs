@@ -58,6 +58,45 @@ impl ScreenDimensions {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ScreenGeometryPreset {
+    Vga80x25,
+    Compact40x10,
+}
+
+impl ScreenGeometryPreset {
+    pub const fn geometry(self) -> ScreenDimensions {
+        match self {
+            ScreenGeometryPreset::Vga80x25 => ScreenDimensions::new(80, 25),
+            ScreenGeometryPreset::Compact40x10 => ScreenDimensions::new(40, 10),
+        }
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub const fn name(self) -> &'static str {
+        match self {
+            ScreenGeometryPreset::Vga80x25 => "vga80x25",
+            ScreenGeometryPreset::Compact40x10 => "compact40x10",
+        }
+    }
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn select_geometry_preset_from_name(name: Option<&str>) -> ScreenGeometryPreset {
+    match name {
+        Some("compact40x10") => ScreenGeometryPreset::Compact40x10,
+        Some("vga80x25") | Some(_) | None => ScreenGeometryPreset::Vga80x25,
+    }
+}
+
+pub const fn history_dimensions_for_visible(
+    visible_dimensions: ScreenDimensions,
+    history_rows: usize,
+) -> ScreenDimensions {
+    ScreenDimensions::new(visible_dimensions.width(), history_rows)
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ScreenPosition {
     row: usize,
@@ -180,4 +219,13 @@ impl CursorPos {
     }
 }
 
-pub const VGA_TEXT_DIMENSIONS: ScreenDimensions = ScreenDimensions::new(80, 25);
+#[cfg(kfs_geometry_preset_compact40x10)]
+pub const DEFAULT_SCREEN_GEOMETRY_PRESET: ScreenGeometryPreset =
+    ScreenGeometryPreset::Compact40x10;
+#[cfg(not(kfs_geometry_preset_compact40x10))]
+pub const DEFAULT_SCREEN_GEOMETRY_PRESET: ScreenGeometryPreset =
+    ScreenGeometryPreset::Vga80x25;
+
+// The hardware stays in the fixed VGA text mode even when we render a smaller logical viewport.
+pub const VGA_TEXT_PHYSICAL_DIMENSIONS: ScreenDimensions = ScreenDimensions::new(80, 25);
+pub const VGA_TEXT_DIMENSIONS: ScreenDimensions = DEFAULT_SCREEN_GEOMETRY_PRESET.geometry();

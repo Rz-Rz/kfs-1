@@ -1,98 +1,65 @@
-include!("../src/kernel/vga/vga_impl.rs");
+use kfs::kernel::drivers::vga_text::{
+    render_logical_screen_to_physical, screen_render_origin, vga_text_cell, VGA_TEXT_BLANK_BYTE,
+    VGA_TEXT_DEFAULT_COLOR,
+};
+use kfs::kernel::types::screen::{ScreenDimensions, VGA_TEXT_PHYSICAL_DIMENSIONS};
 
-fn render_terminal(
-    terminal: &VgaTerminal,
-    visible_geometry: ScreenGeometry,
-    history_geometry: ScreenGeometry,
-) -> Vec<u16> {
-    let blank = vga_text_cell(VGA_BLANK_BYTE, terminal.attribute);
-    let mut screen = vec![blank; visible_geometry.cell_count()];
-    blit_viewport(
+#[test]
+fn renderer_centers_compact_rows_without_duplicate_cells() {
+    let visible_geometry = ScreenDimensions::new(4, 2);
+    let physical_geometry = ScreenDimensions::new(8, 4);
+    let top_row = vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'A');
+    let second_row = vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'B');
+    let blank = vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE);
+    let logical = [
+        top_row, top_row, top_row, top_row, second_row, second_row, second_row, second_row,
+    ];
+    let mut physical = vec![blank; physical_geometry.cell_count()];
+
+    render_logical_screen_to_physical(
         visible_geometry,
-        &terminal.history[..history_geometry.cell_count()],
-        terminal.viewport_top,
-        &mut screen,
+        physical_geometry,
+        &logical,
+        &mut physical,
         blank,
     );
-    screen
-}
 
-#[test]
-// This checks that wrap, newline, and backspace all obey the same geometry rules on two screen sizes.
-fn writer_wraps_newlines_and_backspaces_under_default_and_alternate_geometries() {
-    for visible_geometry in [VGA_GEOMETRY, ScreenGeometry::new(4, 3)] {
-        let history_geometry = ScreenGeometry::new(visible_geometry.width, visible_geometry.height + 2);
-        let mut terminal = VgaTerminal::new();
-        terminal.reset_with_geometry(history_geometry);
+    let origin = screen_render_origin(visible_geometry, physical_geometry);
+    let mut idx: usize = 0;
+    while idx < physical_geometry.width() {
+        assert_eq!(physical[idx], blank);
+        idx += 1;
+    }
 
-        let mut written: usize = 0;
-        while written < visible_geometry.width {
-            terminal.put_byte_with_geometry(visible_geometry, history_geometry, b'A');
-            written += 1;
-        }
-        assert_eq!(terminal.cursor.row, 1);
-        assert_eq!(terminal.cursor.col, 0);
+    let row_one_start = physical_geometry.cell_index(origin.row(), 0);
+    assert_eq!(physical[row_one_start], blank);
+    assert_eq!(physical[row_one_start + 1], blank);
+    assert_eq!(physical[row_one_start + 2], top_row);
+    assert_eq!(physical[row_one_start + 5], top_row);
+    assert_eq!(physical[row_one_start + 6], blank);
+    assert_eq!(physical[row_one_start + 7], blank);
 
-        terminal.put_byte_with_geometry(visible_geometry, history_geometry, b'\n');
-        assert_eq!(terminal.cursor.row, 2.min(history_geometry.last_row()));
-        assert_eq!(terminal.cursor.col, 0);
+    let row_two_start = physical_geometry.cell_index(origin.row() + 1, 0);
+    assert_eq!(physical[row_two_start], blank);
+    assert_eq!(physical[row_two_start + 1], blank);
+    assert_eq!(physical[row_two_start + 2], second_row);
+    assert_eq!(physical[row_two_start + 5], second_row);
+    assert_eq!(physical[row_two_start + 6], blank);
+    assert_eq!(physical[row_two_start + 7], blank);
 
-        terminal.put_byte_with_geometry(visible_geometry, history_geometry, b'B');
-        terminal.backspace_with_geometry(visible_geometry, history_geometry);
-        assert_eq!(terminal.cursor.col, 0);
-        assert_eq!(
-            terminal.history[history_geometry.cell_index(terminal.cursor.row, 0)],
-            vga_text_cell(VGA_BLANK_BYTE, VGA_DEFAULT_ATTRIBUTE)
-        );
+    let bottom_row_start = physical_geometry.cell_index(physical_geometry.last_row(), 0);
+    idx = bottom_row_start;
+    while idx < physical_geometry.cell_count() {
+        assert_eq!(physical[idx], blank);
+        idx += 1;
     }
 }
 
 #[test]
-// This checks that resetting a terminal clears the active history region on both geometries.
-fn terminal_reset_clears_the_active_history_for_default_and_alternate_geometries() {
-    for visible_geometry in [VGA_GEOMETRY, ScreenGeometry::new(4, 3)] {
-        let history_geometry = ScreenGeometry::new(visible_geometry.width, visible_geometry.height + 2);
-        let blank = vga_text_cell(VGA_BLANK_BYTE, VGA_DEFAULT_ATTRIBUTE);
-        let mut terminal = VgaTerminal::new();
+fn screen_render_origin_centers_logical_geometry_inside_physical_vga() {
+    let compact = ScreenDimensions::new(40, 10);
+    let origin = screen_render_origin(compact, VGA_TEXT_PHYSICAL_DIMENSIONS);
 
-        terminal.put_byte_with_geometry(visible_geometry, history_geometry, b'X');
-        terminal.put_byte_with_geometry(visible_geometry, history_geometry, b'Y');
-        terminal.reset_with_geometry(history_geometry);
-
-        let screen = render_terminal(&terminal, visible_geometry, history_geometry);
-        assert!(screen.iter().all(|cell| *cell == blank));
-        assert_eq!(terminal.cursor, VgaHistoryCursor::new());
-        assert_eq!(terminal.viewport_top, 0);
-    }
-}
-
-#[test]
-// This checks that scrolling and viewport restores use the same geometry rules on two screen sizes.
-fn scroll_and_restore_follow_the_same_geometry_rules_for_two_geometries() {
-    for visible_geometry in [VGA_GEOMETRY, ScreenGeometry::new(4, 3)] {
-        let history_geometry = ScreenGeometry::new(visible_geometry.width, visible_geometry.height + 2);
-        let mut terminal = VgaTerminal::new();
-        terminal.reset_with_geometry(history_geometry);
-
-        let mut row: usize = 0;
-        while row < visible_geometry.height + 1 {
-            terminal.put_byte_with_geometry(
-                visible_geometry,
-                history_geometry,
-                b'A' + (row as u8),
-            );
-            if row + 1 < visible_geometry.height + 1 {
-                terminal.put_byte_with_geometry(visible_geometry, history_geometry, b'\n');
-            }
-            row += 1;
-        }
-
-        let screen = render_terminal(&terminal, visible_geometry, history_geometry);
-        assert_eq!(screen[0], vga_text_cell(b'B', VGA_DEFAULT_ATTRIBUTE));
-        assert_eq!(
-            screen[visible_geometry.cell_index(visible_geometry.last_row(), 0)],
-            vga_text_cell(b'A' + (visible_geometry.height as u8), VGA_DEFAULT_ATTRIBUTE)
-        );
-        assert_eq!(terminal.viewport_top, 1);
-    }
+    assert_eq!(origin.row(), 7);
+    assert_eq!(origin.col(), 20);
 }

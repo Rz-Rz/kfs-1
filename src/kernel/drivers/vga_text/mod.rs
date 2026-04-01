@@ -1,6 +1,8 @@
 mod writer;
 
-use crate::kernel::types::screen::{ColorCode, CursorPos, ScreenDimensions, VgaColor, VGA_TEXT_DIMENSIONS};
+use crate::kernel::types::screen::{
+    ColorCode, CursorPos, ScreenDimensions, ScreenPosition, VgaColor, VGA_TEXT_DIMENSIONS,
+};
 
 pub const VGA_TEXT_DEFAULT_COLOR: ColorCode =
     ColorCode::vga(VgaColor::Green.code(), VgaColor::Black.code());
@@ -321,6 +323,23 @@ pub fn build_terminal_label_cells(label_index: usize, color: ColorCode) -> [u16;
     cells
 }
 
+// Alternate logical layouts are centered inside the fixed VGA framebuffer so rows stay readable.
+pub const fn screen_render_origin(
+    logical_dimensions: ScreenDimensions,
+    physical_dimensions: ScreenDimensions,
+) -> ScreenPosition {
+    ScreenPosition::new(
+        physical_dimensions
+            .height()
+            .saturating_sub(logical_dimensions.height())
+            / 2,
+        physical_dimensions
+            .width()
+            .saturating_sub(logical_dimensions.width())
+            / 2,
+    )
+}
+
 pub const fn vga_text_tail_viewport_top(cursor_row: usize) -> usize {
     VGA_TEXT_DIMENSIONS.tail_viewport_top(cursor_row)
 }
@@ -478,6 +497,45 @@ pub fn vga_text_blit_viewport<T: Copy>(
         }
 
         screen_row += 1;
+    }
+}
+
+pub fn render_logical_screen_to_physical<T: Copy>(
+    logical_dimensions: ScreenDimensions,
+    physical_dimensions: ScreenDimensions,
+    logical_screen: &[T],
+    physical_screen: &mut [T],
+    blank: T,
+) {
+    let physical_cells = physical_dimensions.cell_count();
+    if physical_screen.len() < physical_cells {
+        return;
+    }
+
+    let logical_cells = logical_dimensions.cell_count();
+    if logical_screen.len() < logical_cells {
+        return;
+    }
+
+    let origin = screen_render_origin(logical_dimensions, physical_dimensions);
+    let copy_width = logical_dimensions.width().min(physical_dimensions.width());
+    let copy_height = logical_dimensions.height().min(physical_dimensions.height());
+    let mut idx = 0;
+    while idx < physical_cells {
+        physical_screen[idx] = blank;
+        idx += 1;
+    }
+
+    let mut row = 0;
+    while row < copy_height {
+        let logical_row_start = row * logical_dimensions.width();
+        let physical_row_start = physical_dimensions.cell_index(origin.row() + row, origin.col());
+        let mut col = 0;
+        while col < copy_width {
+            physical_screen[physical_row_start + col] = logical_screen[logical_row_start + col];
+            col += 1;
+        }
+        row += 1;
     }
 }
 

@@ -3529,4 +3529,64 @@ Proof / tests (definition of done):
 - AUTO-B5.3-1 (preferred): UT-B5.3-1 should lock the state logic; optionally add VGA memory end-to-end assertions via **Infra I2.1** if you want CI coverage
 
 Definition of Done (B5):
-- Switching terminals is reliable and does not corrupt screen state.
+- Switching terminals via keyboard shortcuts is reliable and does not corrupt screen state.
+
+---
+
+## Bonus Epic B6: Screen Geometry / Different Screen Sizes
+
+Current repo behavior:
+- The live kernel still defaults to a subject-safe logical `80x25` screen.
+- You can build an alternate logical preset with `KFS_SCREEN_GEOMETRY_PRESET=compact40x10`.
+- Alternate logical geometries are rendered as a centered viewport inside the fixed VGA `80x25` hardware buffer.
+- This is geometry-aware rendering, not a true hardware VGA mode switch.
+
+### ✅ Feature B6.1: Introduce a geometry abstraction for the screen layer
+Implementation tasks:
+- Define a screen geometry type that owns width, height, cell counts, and index math.
+- Move viewport and bounds calculations to that geometry layer instead of open-coded dimensions.
+
+Acceptance criteria:
+- Screen logic no longer hardcodes the active logical size outside the default preset definition.
+
+Implementation scope:
+- `RUST` (screen types plus geometry-aware helpers)
+
+Proof / tests (definition of done):
+- UT-B6.1-1 (geometry unit tests): `bash scripts/tests/unit/vga-geometry.sh i386`
+- WP-B6.1-2 (hard-coded dimensions minimized): `rg -n "\\b80\\b|\\b25\\b" -S src/kernel tests | rg -v "tests?/.*fixtures|docs/"`
+
+### ✅ Feature B6.2: Make wrapping, clearing, and scrolling geometry-aware
+Implementation tasks:
+- Make newline, wrap, backspace, clear, and scroll logic derive limits from the active logical geometry.
+- Keep redraw behavior readable by projecting the logical viewport into the fixed hardware framebuffer.
+
+Acceptance criteria:
+- The same writer logic behaves correctly for at least two geometries in host tests.
+- Alternate logical geometries stay readable in VGA text mode instead of interleaving or duplicating rows.
+
+Implementation scope:
+- `RUST` (screen/buffer model plus physical render step)
+
+Proof / tests (definition of done):
+- UT-B6.2-1 (geometry-aware writer tests): `bash scripts/tests/unit/vga-geometry-writer.sh i386`
+- MANUAL-B6.2-1 (runtime): boot with the default geometry and confirm no regressions in line wrapping, scroll, and screen restore paths.
+
+### ✅ Feature B6.3: Provide a configurable geometry preset or build-time selection
+Implementation tasks:
+- Expose one place to select the default logical geometry preset.
+- Keep the default runtime preset subject-compatible (`80x25`) unless explicit VGA mode switching is implemented.
+
+Acceptance criteria:
+- The kernel can be built with at least one non-default geometry without rewriting core screen logic.
+- The selected preset changes the logical writer geometry while the hardware framebuffer remains `80x25`.
+
+Implementation scope:
+- `RUST` (configuration) and `MAKE`
+
+Proof / tests (definition of done):
+- UT-B6.3-1 (preset tests): `bash scripts/tests/unit/vga-geometry-preset.sh i386`
+- MANUAL-B6.3-1 (compact build): `KFS_SCREEN_GEOMETRY_PRESET=compact40x10 make -B all arch=i386`
+
+Definition of Done (B6):
+- Screen code is geometry-aware, tested against more than one logical size, and still defaults to a subject-safe visible mode unless explicit mode switching is added.

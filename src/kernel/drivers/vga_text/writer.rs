@@ -1,12 +1,14 @@
 use super::{
-    build_terminal_label_cells, vga_text_blit_viewport, vga_text_cell, VgaTerminalBank,
-    VGA_TEXT_BLANK_BYTE, VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_TERMINAL_LABEL_WIDTH,
+    build_terminal_label_cells, render_logical_screen_to_physical, screen_render_origin,
+    vga_text_blit_viewport, vga_text_cell, VgaTerminalBank, VGA_TEXT_BLANK_BYTE,
+    VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_TERMINAL_LABEL_WIDTH,
 };
 use crate::kernel::machine::port::Port;
-use crate::kernel::types::screen::{ColorCode, VGA_TEXT_DIMENSIONS};
+use crate::kernel::types::screen::{ColorCode, VGA_TEXT_DIMENSIONS, VGA_TEXT_PHYSICAL_DIMENSIONS};
 
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
-const VGA_TEXT_CELL_COUNT: usize = VGA_TEXT_DIMENSIONS.cell_count();
+const VGA_TEXT_LOGICAL_CELL_COUNT: usize = VGA_TEXT_DIMENSIONS.cell_count();
+const VGA_TEXT_PHYSICAL_CELL_COUNT: usize = VGA_TEXT_PHYSICAL_DIMENSIONS.cell_count();
 const VGA_CRTC_ADDR_PORT: Port = Port::new(0x3D4);
 const VGA_CRTC_DATA_PORT: Port = Port::new(0x3D5);
 const VGA_CURSOR_START_REGISTER: u8 = 0x0A;
@@ -21,7 +23,7 @@ static mut VGA_HARDWARE_CURSOR_ENABLED: bool = false;
 static mut VGA_STATE_INITIALIZED: bool = false;
 
 fn vga_cursor_position(row: usize, col: usize) -> u16 {
-    ((row * VGA_TEXT_DIMENSIONS.width()) + col) as u16
+    ((row * VGA_TEXT_PHYSICAL_DIMENSIONS.width()) + col) as u16
 }
 
 unsafe fn vga_write_cursor_register(register: u8, value: u8) {
@@ -59,19 +61,30 @@ unsafe fn redraw_active_terminal() {
     let bank = unsafe { &*core::ptr::addr_of!(VGA_TERMINALS) };
     let terminal = bank.active();
     let blank = vga_text_cell(terminal.color, VGA_TEXT_BLANK_BYTE);
-    let mut shadow = [0u16; VGA_TEXT_CELL_COUNT];
+    let mut logical = [0u16; VGA_TEXT_LOGICAL_CELL_COUNT];
+    let mut shadow = [0u16; VGA_TEXT_PHYSICAL_CELL_COUNT];
 
+    // First render the active terminal into its logical viewport, then center that viewport into
+    // the fixed 80x25 VGA buffer that the hardware actually exposes.
     vga_text_blit_viewport(
         &terminal.history,
         VGA_TEXT_DIMENSIONS.width(),
         VGA_TEXT_DIMENSIONS.height(),
         terminal.viewport_top,
+        &mut logical,
+        blank,
+    );
+
+    render_logical_screen_to_physical(
+        VGA_TEXT_DIMENSIONS,
+        VGA_TEXT_PHYSICAL_DIMENSIONS,
+        &logical,
         &mut shadow,
         blank,
     );
 
     let label_cells = build_terminal_label_cells(bank.active_label_index(), terminal.color);
-    let label_start = VGA_TEXT_DIMENSIONS
+    let label_start = VGA_TEXT_PHYSICAL_DIMENSIONS
         .width()
         .saturating_sub(VGA_TEXT_TERMINAL_LABEL_WIDTH);
     for (offset, cell) in label_cells.iter().enumerate() {
@@ -89,8 +102,9 @@ unsafe fn redraw_active_terminal() {
         .row
         .saturating_sub(terminal.viewport_top)
         .min(VGA_TEXT_DIMENSIONS.height() - 1);
+    let origin = screen_render_origin(VGA_TEXT_DIMENSIONS, VGA_TEXT_PHYSICAL_DIMENSIONS);
     unsafe {
-        vga_set_hardware_cursor(cursor_row, terminal.cursor.col);
+        vga_set_hardware_cursor(origin.row() + cursor_row, origin.col() + terminal.cursor.col);
     }
 }
 

@@ -27,6 +27,12 @@ KFS_TEST_DIRTY_BSS ?= 0
 KFS_TEST_BAD_LAYOUT ?= 0
 KFS_TEST_BAD_STRING ?= 0
 KFS_TEST_BAD_MEMORY ?= 0
+KFS_SCREEN_GEOMETRY_PRESET ?= vga80x25
+
+RUST_CFG_FLAGS :=
+ifeq ($(KFS_SCREEN_GEOMETRY_PRESET),compact40x10)
+RUST_CFG_FLAGS += --cfg kfs_geometry_preset_compact40x10
+endif
 
 TEST_ASM_DEFS := -DKFS_TEST=1
 ifeq ($(KFS_TEST_FORCE_FAIL),1)
@@ -124,6 +130,7 @@ $(rust_output_dir):
 
 build/arch/$(arch)/rust/kernel.o: src/main.rs | $(rust_output_dir)
 	@rustc \
+		$(RUST_CFG_FLAGS) \
 		--crate-type lib \
 		--target $(rust_target) \
 		--emit=obj \
