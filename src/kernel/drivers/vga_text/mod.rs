@@ -6,6 +6,8 @@ pub const VGA_TEXT_DEFAULT_COLOR: ColorCode =
     ColorCode::vga(VgaColor::Green.code(), VgaColor::Black.code());
 pub const VGA_TEXT_BLANK_BYTE: u8 = b' ';
 pub const VGA_TEXT_HISTORY_ROWS: usize = 256;
+pub const VGA_TEXT_HISTORY_DIMENSIONS: ScreenDimensions =
+    ScreenDimensions::new(VGA_TEXT_DIMENSIONS.width(), VGA_TEXT_HISTORY_ROWS);
 pub const VGA_TEXT_HISTORY_CELL_COUNT: usize = VGA_TEXT_HISTORY_ROWS * VGA_TEXT_DIMENSIONS.width();
 pub const VGA_TEXT_TERMINAL_COUNT: usize = 12;
 pub const VGA_TEXT_TERMINAL_LABEL_WIDTH: usize = 7;
@@ -42,8 +44,8 @@ impl VgaHistoryCursor {
     }
 
     pub fn move_to(&mut self, row: usize, col: usize) {
-        self.row = row.min(VGA_TEXT_HISTORY_ROWS - 1);
-        self.col = col.min(VGA_TEXT_DIMENSIONS.width() - 1);
+        self.row = VGA_TEXT_HISTORY_DIMENSIONS.clamp_row(row);
+        self.col = VGA_TEXT_HISTORY_DIMENSIONS.clamp_col(col);
     }
 
     pub fn put_byte(&mut self, byte: u8) -> VgaPutResult {
@@ -57,7 +59,7 @@ impl VgaHistoryCursor {
         let cell_index = Some(self.cell_index());
         self.col += 1;
 
-        let scrolled = if self.col >= VGA_TEXT_DIMENSIONS.width() {
+        let scrolled = if self.col >= VGA_TEXT_HISTORY_DIMENSIONS.width() {
             self.advance_row()
         } else {
             false
@@ -76,13 +78,13 @@ impl VgaHistoryCursor {
     }
 
     fn cell_index(&self) -> usize {
-        (self.row * VGA_TEXT_DIMENSIONS.width()) + self.col
+        VGA_TEXT_HISTORY_DIMENSIONS.cell_index(self.row, self.col)
     }
 
     fn advance_row(&mut self) -> bool {
         self.col = 0;
-        if self.row + 1 >= VGA_TEXT_HISTORY_ROWS {
-            self.row = VGA_TEXT_HISTORY_ROWS - 1;
+        if self.row + 1 >= VGA_TEXT_HISTORY_DIMENSIONS.height() {
+            self.row = VGA_TEXT_HISTORY_DIMENSIONS.last_row();
             return true;
         }
         self.row += 1;
@@ -320,7 +322,7 @@ pub fn build_terminal_label_cells(label_index: usize, color: ColorCode) -> [u16;
 }
 
 pub const fn vga_text_tail_viewport_top(cursor_row: usize) -> usize {
-    cursor_row.saturating_sub(VGA_TEXT_DIMENSIONS.height() - 1)
+    VGA_TEXT_DIMENSIONS.tail_viewport_top(cursor_row)
 }
 
 pub fn vga_text_cell(color: ColorCode, byte: u8) -> u16 {

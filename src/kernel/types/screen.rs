@@ -20,6 +20,42 @@ impl ScreenDimensions {
     pub const fn cell_count(self) -> usize {
         self.width * self.height
     }
+
+    pub const fn row_cells(self, row_count: usize) -> usize {
+        self.width.saturating_mul(row_count)
+    }
+
+    pub const fn clamp_row(self, row: usize) -> usize {
+        if row > self.last_row() {
+            self.last_row()
+        } else {
+            row
+        }
+    }
+
+    pub const fn clamp_col(self, col: usize) -> usize {
+        if col > self.last_col() {
+            self.last_col()
+        } else {
+            col
+        }
+    }
+
+    pub const fn cell_index(self, row: usize, col: usize) -> usize {
+        row.saturating_mul(self.width).saturating_add(col)
+    }
+
+    pub const fn last_row(self) -> usize {
+        self.height.saturating_sub(1)
+    }
+
+    pub const fn last_col(self) -> usize {
+        self.width.saturating_sub(1)
+    }
+
+    pub const fn tail_viewport_top(self, cursor_row: usize) -> usize {
+        cursor_row.saturating_sub(self.height.saturating_sub(1))
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
