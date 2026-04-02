@@ -1,5 +1,5 @@
 use super::{
-    build_terminal_label_cells, render_logical_screen_to_physical, screen_render_origin,
+    render_logical_screen_to_physical, screen_render_origin, terminal_label_overlay,
     vga_text_blit_viewport, vga_text_cell, VgaTerminalBank, VGA_TEXT_BLANK_BYTE,
     VGA_TEXT_TERMINAL_LABEL_WIDTH,
 };
@@ -87,14 +87,17 @@ unsafe fn redraw_active_terminal() {
         blank,
     );
 
-    let label_cells = build_terminal_label_cells(bank.active_label_index(), terminal.color);
+    let label = terminal_label_overlay(bank.active_label_index());
     let label_start = VGA_TEXT_PHYSICAL_DIMENSIONS
         .width()
         .saturating_sub(VGA_TEXT_TERMINAL_LABEL_WIDTH);
-    for (offset, cell) in label_cells.iter().enumerate() {
+    let mut offset = 0;
+    while offset < VGA_TEXT_TERMINAL_LABEL_WIDTH {
         unsafe {
-            *shadow.get_unchecked_mut(label_start + offset) = *cell;
+            *shadow.get_unchecked_mut(label_start + offset) =
+                vga_text_cell(terminal.color, *label.get_unchecked(offset));
         }
+        offset += 1;
     }
 
     for (index, cell) in shadow.iter().enumerate() {

@@ -325,20 +325,20 @@ pub fn terminal_label(index: usize) -> &'static [u8] {
     }
 }
 
-fn terminal_label_overlay(index: usize) -> [u8; VGA_TEXT_TERMINAL_LABEL_WIDTH] {
+fn terminal_label_overlay(index: usize) -> &'static [u8; VGA_TEXT_TERMINAL_LABEL_WIDTH] {
     match index.min(VGA_TEXT_TERMINAL_COUNT - 1) {
-        0 => *b"  alpha",
-        1 => *b"   beta",
-        2 => *b"  gamma",
-        3 => *b"  delta",
-        4 => *b"epsilon",
-        5 => *b"   zeta",
-        6 => *b"    eta",
-        7 => *b"  theta",
-        8 => *b"   iota",
-        9 => *b"  kappa",
-        10 => *b" lambda",
-        _ => *b"     mu",
+        0 => b"  alpha",
+        1 => b"   beta",
+        2 => b"  gamma",
+        3 => b"  delta",
+        4 => b"epsilon",
+        5 => b"   zeta",
+        6 => b"    eta",
+        7 => b"  theta",
+        8 => b"   iota",
+        9 => b"  kappa",
+        10 => b" lambda",
+        _ => b"     mu",
     }
 }
 
@@ -348,7 +348,9 @@ pub fn build_terminal_label_cells(label_index: usize, color: ColorCode) -> [u16;
     let mut idx = 0;
 
     while idx < VGA_TEXT_TERMINAL_LABEL_WIDTH {
-        cells[idx] = vga_text_cell(color, label[idx]);
+        unsafe {
+            *cells.get_unchecked_mut(idx) = vga_text_cell(color, *label.get_unchecked(idx));
+        }
         idx += 1;
     }
 
