@@ -13,20 +13,6 @@ pub const VGA_TEXT_HISTORY_DIMENSIONS: ScreenDimensions =
 pub const VGA_TEXT_HISTORY_CELL_COUNT: usize = VGA_TEXT_HISTORY_ROWS * VGA_TEXT_DIMENSIONS.width();
 pub const VGA_TEXT_TERMINAL_COUNT: usize = 12;
 pub const VGA_TEXT_TERMINAL_LABEL_WIDTH: usize = 7;
-pub const VGA_TEXT_TERMINAL_LABELS: [&[u8]; VGA_TEXT_TERMINAL_COUNT] = [
-    b"alpha",
-    b"beta",
-    b"gamma",
-    b"delta",
-    b"epsilon",
-    b"zeta",
-    b"eta",
-    b"theta",
-    b"iota",
-    b"kappa",
-    b"lambda",
-    b"mu",
-];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VgaPutResult {
@@ -323,22 +309,46 @@ impl VgaTerminalBank {
 }
 
 pub fn terminal_label(index: usize) -> &'static [u8] {
-    let safe_index = index.min(VGA_TEXT_TERMINAL_COUNT - 1);
-    unsafe { *VGA_TEXT_TERMINAL_LABELS.get_unchecked(safe_index) }
+    match index.min(VGA_TEXT_TERMINAL_COUNT - 1) {
+        0 => b"alpha",
+        1 => b"beta",
+        2 => b"gamma",
+        3 => b"delta",
+        4 => b"epsilon",
+        5 => b"zeta",
+        6 => b"eta",
+        7 => b"theta",
+        8 => b"iota",
+        9 => b"kappa",
+        10 => b"lambda",
+        _ => b"mu",
+    }
+}
+
+fn terminal_label_overlay(index: usize) -> [u8; VGA_TEXT_TERMINAL_LABEL_WIDTH] {
+    match index.min(VGA_TEXT_TERMINAL_COUNT - 1) {
+        0 => *b"  alpha",
+        1 => *b"   beta",
+        2 => *b"  gamma",
+        3 => *b"  delta",
+        4 => *b"epsilon",
+        5 => *b"   zeta",
+        6 => *b"    eta",
+        7 => *b"  theta",
+        8 => *b"   iota",
+        9 => *b"  kappa",
+        10 => *b" lambda",
+        _ => *b"     mu",
+    }
 }
 
 pub fn build_terminal_label_cells(label_index: usize, color: ColorCode) -> [u16; VGA_TEXT_TERMINAL_LABEL_WIDTH] {
-    let blank = vga_text_cell(color, VGA_TEXT_BLANK_BYTE);
-    let mut cells = [blank; VGA_TEXT_TERMINAL_LABEL_WIDTH];
-    let label = terminal_label(label_index);
-    let start = VGA_TEXT_TERMINAL_LABEL_WIDTH.saturating_sub(label.len());
+    let label = terminal_label_overlay(label_index);
+    let mut cells = [0u16; VGA_TEXT_TERMINAL_LABEL_WIDTH];
     let mut idx = 0;
 
-    while idx < label.len() && start + idx < VGA_TEXT_TERMINAL_LABEL_WIDTH {
-        unsafe {
-            *cells.get_unchecked_mut(start + idx) =
-                vga_text_cell(color, *label.get_unchecked(idx));
-        }
+    while idx < VGA_TEXT_TERMINAL_LABEL_WIDTH {
+        cells[idx] = vga_text_cell(color, label[idx]);
         idx += 1;
     }
 
