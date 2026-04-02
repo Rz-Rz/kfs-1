@@ -19,6 +19,9 @@ const VGA_CURSOR_START_SCANLINE: u8 = 0x00;
 const VGA_CURSOR_END_SCANLINE: u8 = 0x0F;
 
 static mut VGA_TERMINALS: VgaTerminalBank = VgaTerminalBank::new();
+// The freestanding kernel stack is small, so redraw scratch buffers cannot live on the stack.
+static mut VGA_LOGICAL_SHADOW: [u16; VGA_TEXT_LOGICAL_CELL_COUNT] = [0; VGA_TEXT_LOGICAL_CELL_COUNT];
+static mut VGA_PHYSICAL_SHADOW: [u16; VGA_TEXT_PHYSICAL_CELL_COUNT] = [0; VGA_TEXT_PHYSICAL_CELL_COUNT];
 static mut VGA_HARDWARE_CURSOR_ENABLED: bool = false;
 static mut VGA_LOGICAL_STATE_INITIALIZED: bool = false;
 static mut VGA_STATE_INITIALIZED: bool = false;
@@ -62,8 +65,8 @@ unsafe fn redraw_active_terminal() {
     let bank = unsafe { &*core::ptr::addr_of!(VGA_TERMINALS) };
     let terminal = bank.active();
     let blank = vga_text_cell(terminal.color, VGA_TEXT_BLANK_BYTE);
-    let mut logical = [0u16; VGA_TEXT_LOGICAL_CELL_COUNT];
-    let mut shadow = [0u16; VGA_TEXT_PHYSICAL_CELL_COUNT];
+    let logical = unsafe { &mut *core::ptr::addr_of_mut!(VGA_LOGICAL_SHADOW) };
+    let shadow = unsafe { &mut *core::ptr::addr_of_mut!(VGA_PHYSICAL_SHADOW) };
 
     // First render the active terminal into its logical viewport, then center that viewport into
     // the fixed 80x25 VGA buffer that the hardware actually exposes.
@@ -72,15 +75,15 @@ unsafe fn redraw_active_terminal() {
         VGA_TEXT_DIMENSIONS.width(),
         VGA_TEXT_DIMENSIONS.height(),
         terminal.viewport_top,
-        &mut logical,
+        logical,
         blank,
     );
 
     render_logical_screen_to_physical(
         VGA_TEXT_DIMENSIONS,
         VGA_TEXT_PHYSICAL_DIMENSIONS,
-        &logical,
-        &mut shadow,
+        logical,
+        shadow,
         blank,
     );
 
