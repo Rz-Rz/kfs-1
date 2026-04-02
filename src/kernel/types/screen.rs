@@ -85,9 +85,31 @@ impl ScreenGeometryPreset {
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn select_geometry_preset_from_name(name: Option<&str>) -> ScreenGeometryPreset {
     match name {
-        Some("compact40x10") => ScreenGeometryPreset::Compact40x10,
-        Some("vga80x25") | Some(_) | None => ScreenGeometryPreset::Vga80x25,
+        Some(value) if geometry_preset_name_matches(value, b"compact40x10") => {
+            ScreenGeometryPreset::Compact40x10
+        }
+        Some(value) if geometry_preset_name_matches(value, b"vga80x25") => {
+            ScreenGeometryPreset::Vga80x25
+        }
+        Some(_) | None => ScreenGeometryPreset::Vga80x25,
     }
+}
+
+fn geometry_preset_name_matches(name: &str, expected: &[u8]) -> bool {
+    let bytes = name.as_bytes();
+    if bytes.len() != expected.len() {
+        return false;
+    }
+
+    let mut idx = 0;
+    while idx < expected.len() {
+        if bytes[idx] != expected[idx] {
+            return false;
+        }
+        idx += 1;
+    }
+
+    true
 }
 
 pub const fn history_dimensions_for_visible(
@@ -132,6 +154,12 @@ impl ColorCode {
 
     pub const fn as_u8(self) -> u8 {
         self.0
+    }
+}
+
+impl From<u8> for ColorCode {
+    fn from(value: u8) -> Self {
+        Self::new(value)
     }
 }
 

@@ -140,7 +140,9 @@ impl VgaTerminal {
     pub fn put_byte(&mut self, byte: u8) {
         let result = self.cursor.put_byte(byte);
         if let Some(cell_index) = result.cell_index {
-            self.history[cell_index] = vga_text_cell(self.color, byte);
+            unsafe {
+                *self.history.get_unchecked_mut(cell_index) = vga_text_cell(self.color, byte);
+            }
         }
         if result.scrolled {
             vga_text_scroll_rows_up(
@@ -161,7 +163,10 @@ impl VgaTerminal {
 
     pub fn backspace(&mut self) {
         if let Some(cell_index) = self.cursor.backspace_cell() {
-            self.history[cell_index] = vga_text_cell(self.color, VGA_TEXT_BLANK_BYTE);
+            unsafe {
+                *self.history.get_unchecked_mut(cell_index) =
+                    vga_text_cell(self.color, VGA_TEXT_BLANK_BYTE);
+            }
         }
         self.viewport_top = vga_text_tail_viewport_top(self.cursor.row);
     }
@@ -169,7 +174,9 @@ impl VgaTerminal {
     fn fill_history(&mut self, value: u16) {
         let mut idx = 0;
         while idx < self.history.len() {
-            self.history[idx] = value;
+            unsafe {
+                *self.history.get_unchecked_mut(idx) = value;
+            }
             idx += 1;
         }
     }
@@ -199,19 +206,21 @@ impl VgaTerminalBank {
         self.active_count = 1;
         let mut idx = 0;
         while idx < VGA_TEXT_TERMINAL_COUNT {
-            self.active_slots[idx] = idx;
-            self.terminals[idx].reset();
+            unsafe {
+                *self.active_slots.get_unchecked_mut(idx) = idx;
+                self.terminals.get_unchecked_mut(idx).reset();
+            }
             idx += 1;
         }
     }
 
     pub fn active(&self) -> &VgaTerminal {
-        &self.terminals[self.active_slot()]
+        unsafe { self.terminals.get_unchecked(self.active_slot()) }
     }
 
     pub fn active_mut(&mut self) -> &mut VgaTerminal {
         let slot = self.active_slot();
-        &mut self.terminals[slot]
+        unsafe { self.terminals.get_unchecked_mut(slot) }
     }
 
     pub fn terminal(&self, index: usize) -> Option<&VgaTerminal> {
@@ -240,8 +249,10 @@ impl VgaTerminalBank {
             return false;
         };
 
-        self.terminals[slot].reset();
-        self.active_slots[self.active_count] = slot;
+        unsafe {
+            self.terminals.get_unchecked_mut(slot).reset();
+            *self.active_slots.get_unchecked_mut(self.active_count) = slot;
+        }
         self.active_index = self.active_count;
         self.active_count += 1;
         true
@@ -253,16 +264,23 @@ impl VgaTerminalBank {
         }
 
         let freed_slot = self.active_slot();
-        self.terminals[freed_slot].reset();
+        unsafe {
+            self.terminals.get_unchecked_mut(freed_slot).reset();
+        }
 
         let mut idx = self.active_index;
         while idx + 1 < self.active_count {
-            self.active_slots[idx] = self.active_slots[idx + 1];
+            unsafe {
+                *self.active_slots.get_unchecked_mut(idx) =
+                    *self.active_slots.get_unchecked(idx + 1);
+            }
             idx += 1;
         }
 
         self.active_count -= 1;
-        self.active_slots[self.active_count] = freed_slot;
+        unsafe {
+            *self.active_slots.get_unchecked_mut(self.active_count) = freed_slot;
+        }
         if self.active_index >= self.active_count {
             self.active_index = self.active_count - 1;
         }
@@ -278,7 +296,7 @@ impl VgaTerminalBank {
     }
 
     pub fn active_slot(&self) -> usize {
-        self.active_slots[self.active_index]
+        unsafe { *self.active_slots.get_unchecked(self.active_index) }
     }
 
     fn first_free_slot(&self) -> Option<usize> {
@@ -295,7 +313,7 @@ impl VgaTerminalBank {
     fn is_slot_active(&self, slot: usize) -> bool {
         let mut idx = 0;
         while idx < self.active_count {
-            if self.active_slots[idx] == slot {
+            if unsafe { *self.active_slots.get_unchecked(idx) } == slot {
                 return true;
             }
             idx += 1;
@@ -305,7 +323,8 @@ impl VgaTerminalBank {
 }
 
 pub fn terminal_label(index: usize) -> &'static [u8] {
-    VGA_TEXT_TERMINAL_LABELS[index.min(VGA_TEXT_TERMINAL_COUNT - 1)]
+    let safe_index = index.min(VGA_TEXT_TERMINAL_COUNT - 1);
+    unsafe { *VGA_TEXT_TERMINAL_LABELS.get_unchecked(safe_index) }
 }
 
 pub fn build_terminal_label_cells(label_index: usize, color: ColorCode) -> [u16; VGA_TEXT_TERMINAL_LABEL_WIDTH] {
@@ -316,7 +335,10 @@ pub fn build_terminal_label_cells(label_index: usize, color: ColorCode) -> [u16;
     let mut idx = 0;
 
     while idx < label.len() && start + idx < VGA_TEXT_TERMINAL_LABEL_WIDTH {
-        cells[start + idx] = vga_text_cell(color, label[idx]);
+        unsafe {
+            *cells.get_unchecked_mut(start + idx) =
+                vga_text_cell(color, *label.get_unchecked(idx));
+        }
         idx += 1;
     }
 
@@ -344,7 +366,8 @@ pub const fn vga_text_tail_viewport_top(cursor_row: usize) -> usize {
     VGA_TEXT_DIMENSIONS.tail_viewport_top(cursor_row)
 }
 
-pub fn vga_text_cell(color: ColorCode, byte: u8) -> u16 {
+pub fn vga_text_cell<C: Into<ColorCode>>(color: C, byte: u8) -> u16 {
+    let color = color.into();
     ((color.as_u8() as u16) << 8) | (byte as u16)
 }
 
@@ -369,7 +392,9 @@ pub fn vga_text_write_cells(
     let mut cursor = vga_text_normalize_cursor(cursor, buffer.len());
 
     for &byte in bytes {
-        buffer[cursor] = vga_text_cell(color, byte);
+        unsafe {
+            *buffer.get_unchecked_mut(cursor) = vga_text_cell(color, byte);
+        }
         cursor += 1;
         if cursor >= buffer.len() {
             cursor = 0;
@@ -452,12 +477,16 @@ pub fn vga_text_scroll_rows_up<T: Copy>(
 
     let mut idx = 0;
     while idx + row_width < total_cells {
-        buffer[idx] = buffer[idx + row_width];
+        unsafe {
+            *buffer.get_unchecked_mut(idx) = *buffer.get_unchecked(idx + row_width);
+        }
         idx += 1;
     }
 
     while idx < total_cells {
-        buffer[idx] = blank;
+        unsafe {
+            *buffer.get_unchecked_mut(idx) = blank;
+        }
         idx += 1;
     }
 }
@@ -486,12 +515,17 @@ pub fn vga_text_blit_viewport<T: Copy>(
         if history_row < history_rows {
             let history_start = history_row * row_width;
             while col < row_width {
-                screen[screen_start + col] = history[history_start + col];
+                unsafe {
+                    *screen.get_unchecked_mut(screen_start + col) =
+                        *history.get_unchecked(history_start + col);
+                }
                 col += 1;
             }
         } else {
             while col < row_width {
-                screen[screen_start + col] = blank;
+                unsafe {
+                    *screen.get_unchecked_mut(screen_start + col) = blank;
+                }
                 col += 1;
             }
         }
@@ -522,7 +556,9 @@ pub fn render_logical_screen_to_physical<T: Copy>(
     let copy_height = logical_dimensions.height().min(physical_dimensions.height());
     let mut idx = 0;
     while idx < physical_cells {
-        physical_screen[idx] = blank;
+        unsafe {
+            *physical_screen.get_unchecked_mut(idx) = blank;
+        }
         idx += 1;
     }
 
@@ -532,7 +568,10 @@ pub fn render_logical_screen_to_physical<T: Copy>(
         let physical_row_start = physical_dimensions.cell_index(origin.row() + row, origin.col());
         let mut col = 0;
         while col < copy_width {
-            physical_screen[physical_row_start + col] = logical_screen[logical_row_start + col];
+            unsafe {
+                *physical_screen.get_unchecked_mut(physical_row_start + col) =
+                    *logical_screen.get_unchecked(logical_row_start + col);
+            }
             col += 1;
         }
         row += 1;

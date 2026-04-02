@@ -1,12 +1,12 @@
 mod imp;
 
-pub use imp::{
+pub use self::imp::{
     decode_scancode, direct_function_shortcut, process_shortcut_key, route_key_event,
     shortcut_terminal_index, KeyCode, KeyEvent, KeyboardRoute, KeyboardShortcut,
     KeyboardShortcutDecision, KeyboardShortcutState, KeyboardState,
 };
 
-use imp::poll_scancode;
+use self::imp::poll_scancode;
 
 static mut KEYBOARD_STATE: KeyboardState = KeyboardState::new();
 static mut KEYBOARD_SHORTCUT_STATE: KeyboardShortcutState = KeyboardShortcutState::new();

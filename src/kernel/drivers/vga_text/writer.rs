@@ -1,7 +1,7 @@
 use super::{
     build_terminal_label_cells, render_logical_screen_to_physical, screen_render_origin,
     vga_text_blit_viewport, vga_text_cell, VgaTerminalBank, VGA_TEXT_BLANK_BYTE,
-    VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_TERMINAL_LABEL_WIDTH,
+    VGA_TEXT_TERMINAL_LABEL_WIDTH,
 };
 use crate::kernel::machine::port::Port;
 use crate::kernel::types::screen::{ColorCode, VGA_TEXT_DIMENSIONS, VGA_TEXT_PHYSICAL_DIMENSIONS};
@@ -20,6 +20,7 @@ const VGA_CURSOR_END_SCANLINE: u8 = 0x0F;
 
 static mut VGA_TERMINALS: VgaTerminalBank = VgaTerminalBank::new();
 static mut VGA_HARDWARE_CURSOR_ENABLED: bool = false;
+static mut VGA_LOGICAL_STATE_INITIALIZED: bool = false;
 static mut VGA_STATE_INITIALIZED: bool = false;
 
 fn vga_cursor_position(row: usize, col: usize) -> u16 {
@@ -88,7 +89,9 @@ unsafe fn redraw_active_terminal() {
         .width()
         .saturating_sub(VGA_TEXT_TERMINAL_LABEL_WIDTH);
     for (offset, cell) in label_cells.iter().enumerate() {
-        shadow[label_start + offset] = *cell;
+        unsafe {
+            *shadow.get_unchecked_mut(label_start + offset) = *cell;
+        }
     }
 
     for (index, cell) in shadow.iter().enumerate() {
@@ -108,9 +111,24 @@ unsafe fn redraw_active_terminal() {
     }
 }
 
-unsafe fn initialize_state() {
+unsafe fn initialize_logical_state() {
     unsafe {
         (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS)).reset();
+        VGA_LOGICAL_STATE_INITIALIZED = true;
+    }
+}
+
+unsafe fn ensure_logical_state_initialized() {
+    unsafe {
+        if !VGA_LOGICAL_STATE_INITIALIZED {
+            initialize_logical_state();
+        }
+    }
+}
+
+unsafe fn initialize_state() {
+    unsafe {
+        ensure_logical_state_initialized();
         ensure_hardware_cursor_enabled();
         redraw_active_terminal();
         VGA_STATE_INITIALIZED = true;
@@ -119,6 +137,7 @@ unsafe fn initialize_state() {
 
 unsafe fn ensure_state_initialized() {
     unsafe {
+        ensure_logical_state_initialized();
         if !VGA_STATE_INITIALIZED {
             initialize_state();
             return;
@@ -214,18 +233,17 @@ pub(super) fn destroy_active_terminal() -> bool {
 
 pub(super) fn set_color(color: ColorCode) {
     unsafe {
-        ensure_state_initialized();
-        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS))
-            .active_mut()
-            .color = color;
+        ensure_logical_state_initialized();
+        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS)).active_mut().color = color;
+        if VGA_STATE_INITIALIZED {
+            redraw_active_terminal();
+        }
     }
 }
 
 pub(super) fn color() -> ColorCode {
     unsafe {
-        if !VGA_STATE_INITIALIZED {
-            return VGA_TEXT_DEFAULT_COLOR;
-        }
+        ensure_logical_state_initialized();
         (&*core::ptr::addr_of!(VGA_TERMINALS)).active().color
     }
 }
