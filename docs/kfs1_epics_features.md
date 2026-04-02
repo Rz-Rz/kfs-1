@@ -343,7 +343,7 @@ Technical rationale:
 - See `docs/m0_2_freestanding_proofs.md` for why the ELF inspection checks are meaningful proofs of “no host libs”.
 
 Repo enforcement note:
-- The hard gate is `make test arch=i386`, which runs `scripts/boot-tests/freestanding-kernel.sh` on the freshly built
+- The hard gate is `make test`, which runs `scripts/boot-tests/freestanding-kernel.sh` on the freshly built
   test kernel (`build/kernel-i386-test.bin`).
 - The script requires the symbol `kfs_rust_marker` so the checks are enforced on an **ASM + Rust** linked kernel
   artifact (not ASM-only).

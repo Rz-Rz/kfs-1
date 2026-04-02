@@ -20,9 +20,9 @@ These checks do **not** guarantee:
 
 ### Where the checks run
 - Script: `scripts/boot-tests/freestanding-kernel.sh`
-- Hard gate: `make test arch=i386`
+- Hard gate: `make test`
 
-The hard gate (`make test arch=i386`) checks:
+The hard gate (`make test`) checks:
 - `build/kernel-i386-test.bin` (fresh test kernel built by `make iso-test`)
 
 Optional (manual) check for the release kernel:

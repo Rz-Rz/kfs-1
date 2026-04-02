@@ -25,21 +25,21 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 
 - Base Epic M0 DoD: ✅ YES (i386 target + freestanding/no-host-libs enforced in `make test` on a Rust-linked kernel)
   - Proof: `readelf -h build/kernel-i386.bin` -> `Class: ELF32`, `Machine: Intel 80386`
-  - Proof: `make test arch=i386` (builds a Rust-linked test kernel and enforces the M0.2 checks on it)
+  - Proof: `make test` (builds a Rust-linked test kernel and enforces the M0.2 checks on it)
 - Base Epic M1 DoD: ✅ YES (ISO + disk-image artifacts + automated boot checks)
   - Proof: `file build/os-i386.iso` -> ISO 9660 (bootable)
   - Proof: `file build/os-i386.img` -> ISO 9660 (bootable)
   - Proof: `test $(wc -c < build/os-i386.iso) -le 10485760` (<= 10 MB)
   - Proof: `test $(wc -c < build/os-i386.img) -le 10485760` (<= 10 MB)
-  - Proof: `make test arch=i386` (checks the tracked release ISO/IMG size/type and boots both test ISO and test IMG headlessly)
+  - Proof: `make test` (checks the tracked release ISO/IMG size/type and boots both test ISO and test IMG headlessly)
 - Base Epic M2 DoD: ✅ YES (header is placed early, ASM sets a stack, and control reaches `kmain`)
-  - Proof: `make test arch=i386` (includes the ASM entry, stack, and `call kmain` path in the release kernel build + boot flow)
+  - Proof: `make test` (includes the ASM entry, stack, and `call kmain` path in the release kernel build + boot flow)
 - Base Epic M3 DoD: ✅ YES (custom linker script, standard sections, exported layout symbols)
-  - Proof: `make test arch=i386` (includes M3.2 + M3.3 checks)
+  - Proof: `make test` (includes M3.2 + M3.3 checks)
 - Base Epic M4 DoD: ✅ YES (Rust entry, early-init/runtime assumptions, and halt behavior are all proven)
-  - Proof: `make test arch=i386` (includes release-kernel `kmain` export/callsite checks, ordered runtime markers, runtime rejection tests, and halt-path checks)
+  - Proof: `make test` (includes release-kernel `kmain` export/callsite checks, ordered runtime markers, runtime rejection tests, and halt-path checks)
 - Base Epic M5 DoD: ✅ YES
-  - Proof: `make test arch=i386` now proves `M5.1`, `M5.2`, and `M5.3` end to end (`Port`, `KernelRange`, string-helper ABI, memory-helper ABI, runtime integration, and rejection gates)
+  - Proof: `make test` now proves `M5.1`, `M5.2`, and `M5.3` end to end (`Port`, `KernelRange`, string-helper ABI, memory-helper ABI, runtime integration, and rejection gates)
 - Base Epic M6 DoD: ✅ YES
   - Proof: the mandatory screen path exists, the normal success flow prints `42` through it, and cursor/scroll behavior remains bonus-owned follow-up work rather than a base-epic blocker
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
@@ -110,7 +110,7 @@ Evidence:
 - M0.2 is enforced by inspecting the linked ELF (no dynamic loader/sections, no undefined symbols, no libc/loader markers).
 - Dedicated rejection tests now contaminate a real kernel build with hosted-runtime metadata and prove the gate fails.
 Proof:
-- `make test arch=i386` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
+- `make test` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
 - `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
 - `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"` (release kernel also links Rust)
 - `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/freestanding-kernel.sh i386 all` (checks both test + release kernels)
@@ -144,7 +144,7 @@ Proof:
 - `file build/os-i386.iso`
 - `test $(wc -c < build/os-i386.iso) -le 10485760 && echo "ISO <= 10MB"`
 Automated proof:
-- `make test arch=i386` (includes ISO build + size/type checks and a headless GRUB boot gate)
+- `make test` (includes ISO build + size/type checks and a headless GRUB boot gate)
 
 ### Feature M1.2: "Install GRUB on a virtual image" (alternate path: tiny disk image)
 Status: ✅ Done (repo implementation: ISO-content disk image, booted via `-drive`)
@@ -154,7 +154,7 @@ Evidence:
 Proof:
 - `make img arch=i386` (produces `build/os-i386.img`)
 - `test $(wc -c < build/os-i386.img) -le 10485760 && echo "IMG <= 10MB"`
-- `make test arch=i386` (includes build + checks + `scripts/boot-tests/qemu-boot.sh i386 drive`)
+- `make test` (includes build + checks + `scripts/boot-tests/qemu-boot.sh i386 drive`)
 
 ### Feature M1.3: GRUB config uses a consistent Multiboot version
 Status: ✅ Done (Multiboot2 consistently used)
@@ -384,7 +384,7 @@ Proof:
 - `bash scripts/rejection-tests/string-rejections.sh i386 bad-string-stops-before-normal-flow`
 - `rg -n "kfs_strlen|kfs_strcmp|strlen|strcmp" -S src/kernel/klib/string src/kernel/core/init.rs`
 - `rg -n "kfs_memcpy|kfs_memset|memcpy|memset" -S src/kernel/klib/memory src/kernel/core/init.rs`
-- `make test arch=i386`
+- `make test`
 What’s left:
 - No open `M5` gaps remain on this branch; the next unfinished base work is still `M6`
 
@@ -451,18 +451,18 @@ What’s left:
 Status: ⚠️ Partial
 Evidence:
 - Infra Epic **I0** (Deterministic QEMU PASS/FAIL): ✅ Done
-  - Proof: `make test arch=i386` exits deterministically (PASS) and never hangs
-  - Proof: `make test arch=i386 KFS_TEST_FORCE_FAIL=1` fails deterministically
+  - Proof: `make test` exits deterministically (PASS) and never hangs
+  - Proof: `make test KFS_TEST_FORCE_FAIL=1` fails deterministically
 - Infra Epic **I3** (Reproducible Dev Environment): ✅ Done
   - Proof: `make container-env-check`
 - Infra Epic **I4** (Linker / ELF Hygiene Gates): ⚠️ Partial
-  - Proof: `make test arch=i386` includes visible subsection / COMMON / allocatable-section hygiene checks
+  - Proof: `make test` includes visible subsection / COMMON / allocatable-section hygiene checks
   - Gap: no linker map file generation/check yet
   - Gap: no `--orphan-handling=error` gate yet
   - Gap: no explicit per-section denylist step yet (current allowlist already caught `.eh_frame`)
 - Infra Epic **I1** (Serial console assertions): ❌ Not done
 - Infra Epic **I2** (VGA memory assertions): ✅ Done
-  - Proof: `make test arch=i386` includes headless VGA-memory checks for the first `42` screen cells plus repeated monitor snapshots for buffer stability
+  - Proof: `make test` includes headless VGA-memory checks for the first `42` screen cells plus repeated monitor snapshots for buffer stability
   - Proof: `make test-vga arch=i386`
 
 ---

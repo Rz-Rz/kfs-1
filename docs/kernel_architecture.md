@@ -235,7 +235,7 @@ Relevant suites:
 - [`scripts/tests/unit/`](/home/motero/Code/kfs-1/scripts/tests/unit)
 
 The hard gate is:
-- `make test arch=i386`
+- `make test`
 
 ## 11. Placement rules
 
