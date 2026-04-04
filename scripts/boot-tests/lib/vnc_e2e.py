@@ -626,6 +626,26 @@ def _capture_until_foreground(
     return None
 
 
+def _capture_until_blank(
+    client: VNCClient,
+    region: str,
+    timeout_secs: float,
+    poll_interval_secs: float,
+) -> CaptureSample | None:
+    end = time.time() + timeout_secs
+    while time.time() < end:
+        candidate = capture_region(
+            client,
+            region=region,
+            wait_boot=False,
+            timeout_secs=1.0,
+        )
+        if not _has_foreground(candidate.payload, candidate.background, len(candidate.background)):
+            return candidate
+        time.sleep(poll_interval_secs)
+    return None
+
+
 def _capture_until_stable(
     client: VNCClient,
     region: str,
@@ -765,6 +785,18 @@ def _execute_steps(
             )
             if sample is None:
                 fail(step.get("message", f"timeout waiting for foreground in {step['name']}"))
+            samples[step["name"]] = sample
+            continue
+
+        if op == "capture_wait_blank":
+            sample = _capture_until_blank(
+                client=client,
+                region=step["region"],
+                timeout_secs=float(step.get("timeout_secs", 2.5)),
+                poll_interval_secs=0.08,
+            )
+            if sample is None:
+                fail(step.get("message", f"timeout waiting for blank region in {step['name']}"))
             samples[step["name"]] = sample
             continue
 
@@ -1145,6 +1177,95 @@ SCENARIOS["alt-function-key-selection-matrix"] = _selection_matrix_steps(
     12,
     True,
 )
+SCENARIOS["destroying-last-terminal-keeps-alpha-active"] = [
+    {"op": "capture_wait_foreground", "name": "label_alpha", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {"op": "tap", "key": "F12", "after": 0.35},
+    {
+        "op": "capture_wait_match",
+        "target": "label_alpha",
+        "name": "label_after_destroy",
+        "region": "top_right_label",
+        "message": "destroying the last terminal changed the active label",
+        "timeout_secs": 2.0,
+    },
+    {"op": "assert_eq", "left": "label_alpha", "right": "label_after_destroy", "message": "destroying the last terminal changed the active label"},
+]
+SCENARIOS["terminal-create-capacity-limit-is-a-no-op"] = [
+    *_create_terminal_label_steps(12),
+    {"op": "tap", "key": "F11", "after": 0.35},
+    {
+        "op": "capture_wait_match",
+        "target": "label_mu",
+        "name": "label_after_capacity",
+        "region": "top_right_label",
+        "message": "creating beyond terminal capacity changed the active label",
+        "timeout_secs": 3.0,
+    },
+    {"op": "assert_eq", "left": "label_mu", "right": "label_after_capacity", "message": "creating beyond terminal capacity changed the active label"},
+]
+SCENARIOS["switching-to-an-untouched-terminal-shows-a-blank-screen"] = [
+    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {"op": "type_text", "text": "d", "after": 0.35},
+    {
+        "op": "capture_wait_change",
+        "from": "alpha_label",
+        "name": "dirty_alpha",
+        "region": "top_left_text",
+        "message": "alpha terminal did not become visibly dirty",
+        "timeout_secs": 2.5,
+    },
+    {"op": "tap", "key": "F11", "after": 0.45},
+    {
+        "op": "capture_wait_blank",
+        "name": "untouched_beta",
+        "region": "top_left_text",
+        "message": "untouched terminal did not render blank after switching",
+        "timeout_secs": 3.0,
+    },
+]
+SCENARIOS["switching-back-from-an-untouched-terminal-restores-the-dirty-terminal"] = [
+    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {"op": "type_text", "text": "d", "after": 0.35},
+    {
+        "op": "capture_wait_change",
+        "from": "alpha_label",
+        "name": "dirty_alpha",
+        "region": "top_left_text",
+        "message": "alpha terminal did not become visibly dirty",
+        "timeout_secs": 2.5,
+    },
+    {"op": "tap", "key": "F11", "after": 0.45},
+    {
+        "op": "capture_wait_blank",
+        "name": "untouched_beta",
+        "region": "top_left_text",
+        "message": "untouched terminal did not render blank after switching",
+        "timeout_secs": 3.0,
+    },
+    {"op": "tap", "key": "F1", "after": 0.45},
+    {
+        "op": "capture_wait_match",
+        "target": "dirty_alpha",
+        "name": "restored_alpha",
+        "region": "top_left_text",
+        "message": "switching back from an untouched terminal did not restore the dirty terminal",
+        "timeout_secs": 3.0,
+    },
+    {"op": "assert_eq", "left": "dirty_alpha", "right": "restored_alpha", "message": "switching back from an untouched terminal did not restore the dirty terminal"},
+]
+SCENARIOS["destroying-from-a-high-slot-focuses-a-valid-survivor"] = [
+    *_create_terminal_label_steps(12),
+    {"op": "tap", "key": "F12", "after": 0.35},
+    {
+        "op": "capture_wait_match",
+        "target": "label_lambda",
+        "name": "label_survivor",
+        "region": "top_right_label",
+        "message": "destroying the highest active slot did not focus a surviving terminal",
+        "timeout_secs": 3.0,
+    },
+    {"op": "assert_eq", "left": "label_lambda", "right": "label_survivor", "message": "destroying the highest active slot did not focus a surviving terminal"},
+]
 
 
 def _parse_args() -> argparse.Namespace:

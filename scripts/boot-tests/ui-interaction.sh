@@ -20,6 +20,11 @@ alt-a-x-destroys-terminal-and-label-returns-alpha
 alt-a-digit-selects-target-terminal
 bare-function-key-selection-matrix
 alt-function-key-selection-matrix
+destroying-last-terminal-keeps-alpha-active
+terminal-create-capacity-limit-is-a-no-op
+switching-to-an-untouched-terminal-shows-a-blank-screen
+switching-back-from-an-untouched-terminal-restores-the-dirty-terminal
+destroying-from-a-high-slot-focuses-a-valid-survivor
 EOF
 }
 
@@ -33,6 +38,11 @@ describe_case() {
     alt-a-digit-selects-target-terminal) printf '%s\n' "host-driven VNC E2E maps Alt+A then a digit onto terminal selection" ;;
     bare-function-key-selection-matrix) printf '%s\n' "host-driven VNC E2E maps bare F1 through F10 onto visible terminal selection" ;;
     alt-function-key-selection-matrix) printf '%s\n' "host-driven VNC E2E maps Alt+F1 through Alt+F12 onto visible terminal selection" ;;
+    destroying-last-terminal-keeps-alpha-active) printf '%s\n' "host-driven VNC E2E keeps alpha active when destroying the last remaining terminal" ;;
+    terminal-create-capacity-limit-is-a-no-op) printf '%s\n' "host-driven VNC E2E keeps the active label unchanged when creating beyond terminal capacity" ;;
+    switching-to-an-untouched-terminal-shows-a-blank-screen) printf '%s\n' "host-driven VNC E2E shows a blank screen on an untouched terminal" ;;
+    switching-back-from-an-untouched-terminal-restores-the-dirty-terminal) printf '%s\n' "host-driven VNC E2E restores the dirty terminal after switching back from an untouched one" ;;
+    destroying-from-a-high-slot-focuses-a-valid-survivor) printf '%s\n' "host-driven VNC E2E focuses a surviving terminal after destroying the highest active slot" ;;
     *) return 1 ;;
   esac
 }
