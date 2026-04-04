@@ -116,3 +116,60 @@ fn terminal_backspace_blanks_the_previous_character_cell() {
         vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE)
     );
 }
+
+#[test]
+fn terminal_backspace_at_line_wrap_deletes_last_character_of_previous_row() {
+    let mut terminal = VgaTerminal::new();
+    terminal.reset();
+
+    let width = VGA_TEXT_DIMENSIONS.width();
+    for idx in 0..width {
+        terminal.put_byte((b'A' + (idx as u8 % 26)) as u8);
+    }
+
+    assert_eq!(terminal.cursor.row, 1);
+    assert_eq!(terminal.cursor.col, 0);
+    terminal.backspace();
+
+    assert_eq!(
+        terminal.cursor.row,
+        0,
+        "backspace should move to previous row when wrapping"
+    );
+    assert_eq!(terminal.cursor.col, width - 1);
+    assert_eq!(
+        terminal.history[(width * 1) - 1],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE)
+    );
+}
+
+#[test]
+fn terminal_backspace_at_newline_boundary_deletes_previous_line_last_character() {
+    let mut terminal = VgaTerminal::new();
+    terminal.reset();
+
+    terminal.put_byte(b'A');
+    terminal.put_byte(b'B');
+    terminal.put_byte(b'C');
+    terminal.put_byte(b'\n');
+
+    assert_eq!(terminal.cursor.row, 1);
+    assert_eq!(terminal.cursor.col, 0);
+    terminal.backspace();
+
+    assert_eq!(terminal.cursor.row, 0);
+    assert_eq!(terminal.cursor.col, 2);
+
+    assert_eq!(
+        terminal.history[2],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE)
+    );
+    assert_eq!(
+        terminal.history[0],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'A')
+    );
+    assert_eq!(
+        terminal.history[1],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'B')
+    );
+}

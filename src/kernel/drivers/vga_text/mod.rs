@@ -151,13 +151,44 @@ impl VgaTerminal {
     }
 
     pub fn backspace(&mut self) {
-        if let Some(cell_index) = self.cursor.backspace_cell() {
+        let width = VGA_TEXT_DIMENSIONS.width();
+        let mut cell_index: Option<usize> = self.cursor.backspace_cell();
+
+        if cell_index.is_none() {
+            cell_index = self.backspace_previous_line_last_non_blank(width);
+        }
+
+        if let Some(index) = cell_index {
             unsafe {
-                *self.history.get_unchecked_mut(cell_index) =
+                *self.history.get_unchecked_mut(index) =
                     vga_text_cell(self.color, VGA_TEXT_BLANK_BYTE);
             }
         }
         self.viewport_top = vga_text_tail_viewport_top(self.cursor.row);
+    }
+
+    fn backspace_previous_line_last_non_blank(&mut self, width: usize) -> Option<usize> {
+        if self.cursor.row == 0 || width == 0 {
+            return None;
+        }
+
+        let previous_row = self.cursor.row - 1;
+        let row_start = previous_row * width;
+
+        let mut col = width;
+        while col > 0 {
+            col -= 1;
+
+            let index = row_start + col;
+            let cell = unsafe { *self.history.get_unchecked(index) };
+            if (cell & 0x00ff) != (VGA_TEXT_BLANK_BYTE as u16) {
+                self.cursor.row = previous_row;
+                self.cursor.col = col;
+                return Some(index);
+            }
+        }
+
+        None
     }
 
     fn fill_history(&mut self, value: u16) {
