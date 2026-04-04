@@ -163,6 +163,42 @@ pub fn process_shortcut_key(
     KeyboardShortcutDecision::PassThrough
 }
 
+pub fn route_key_event_with_prefix(
+    state: &mut KeyboardShortcutState,
+    event: KeyEvent,
+) -> KeyboardRoute {
+    if state.prefix_pending {
+        if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
+            return KeyboardRoute::None;
+        }
+
+        if !event.pressed || is_modifier(event.code) {
+            return KeyboardRoute::None;
+        }
+
+        state.prefix_pending = false;
+        return match event.code {
+            KeyCode::Printable(b'c' | b'C') => {
+                KeyboardRoute::Shortcut(KeyboardShortcut::CreateTerminal)
+            }
+            KeyCode::Printable(b'x' | b'X') => {
+                KeyboardRoute::Shortcut(KeyboardShortcut::DestroyTerminal)
+            }
+            KeyCode::Printable(byte @ b'0'..=b'9') => {
+                KeyboardRoute::Shortcut(KeyboardShortcut::SelectTerminal((byte - b'0') as usize))
+            }
+            _ => KeyboardRoute::None,
+        };
+    }
+
+    if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
+        state.prefix_pending = true;
+        return KeyboardRoute::None;
+    }
+
+    route_key_event(event)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeyboardRoute {
     PutByte(u8),

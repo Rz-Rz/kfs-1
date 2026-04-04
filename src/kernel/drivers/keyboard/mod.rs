@@ -2,6 +2,7 @@ mod imp;
 
 pub use self::imp::{
     decode_scancode, direct_function_shortcut, process_shortcut_key, route_key_event,
+    route_key_event_with_prefix,
     shortcut_terminal_index, KeyCode, KeyEvent, KeyboardRoute, KeyboardShortcut,
     KeyboardShortcutDecision, KeyboardShortcutState, KeyboardState,
 };
@@ -25,10 +26,6 @@ pub fn keyboard_poll_route() -> Option<KeyboardRoute> {
         let state = &mut *core::ptr::addr_of_mut!(KEYBOARD_STATE);
         let shortcut_state = &mut *core::ptr::addr_of_mut!(KEYBOARD_SHORTCUT_STATE);
 
-        decode_scancode(state, scancode).map(|event| match process_shortcut_key(shortcut_state, event) {
-            KeyboardShortcutDecision::PassThrough => route_key_event(event),
-            KeyboardShortcutDecision::Consume => KeyboardRoute::None,
-            KeyboardShortcutDecision::Shortcut(shortcut) => KeyboardRoute::Shortcut(shortcut),
-        })
+        decode_scancode(state, scancode).map(|event| route_key_event_with_prefix(shortcut_state, event))
     }
 }

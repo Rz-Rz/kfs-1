@@ -1,6 +1,7 @@
 use kfs::kernel::drivers::keyboard::{
     decode_scancode, direct_function_shortcut, process_shortcut_key, route_key_event,
-    shortcut_terminal_index, KeyCode, KeyEvent, KeyboardRoute, KeyboardShortcut,
+    route_key_event_with_prefix, shortcut_terminal_index, KeyCode, KeyEvent, KeyboardRoute,
+    KeyboardShortcut,
     KeyboardShortcutDecision, KeyboardShortcutState, KeyboardState,
 };
 
@@ -377,4 +378,56 @@ fn alt_a_repeat_does_not_cancel_the_pending_terminal_command() {
 
     assert!(log.iter().all(|entry| entry != "put:99"));
     assert!(log.contains(&"command:CreateTerminal".to_string()));
+}
+
+#[test]
+fn runtime_prefix_router_maps_alt_a_then_c_to_create_terminal() {
+    let mut state = KeyboardShortcutState::new();
+
+    assert_eq!(
+        route_key_event_with_prefix(
+            &mut state,
+            KeyEvent {
+                code: KeyCode::Printable(b'a'),
+                pressed: true,
+                ctrl: false,
+                shift: false,
+                alt: true,
+            },
+        ),
+        KeyboardRoute::None
+    );
+
+    assert_eq!(
+        route_key_event_with_prefix(
+            &mut state,
+            KeyEvent {
+                code: KeyCode::Printable(b'c'),
+                pressed: true,
+                ctrl: false,
+                shift: false,
+                alt: false,
+            },
+        ),
+        KeyboardRoute::Shortcut(KeyboardShortcut::CreateTerminal)
+    );
+}
+
+#[test]
+fn runtime_prefix_router_leaves_bare_f11_on_direct_shortcut_path() {
+    let mut state = KeyboardShortcutState::new();
+
+    assert_eq!(
+        route_key_event_with_prefix(
+            &mut state,
+            KeyEvent {
+                code: KeyCode::Function(11),
+                pressed: true,
+                ctrl: false,
+                shift: false,
+                alt: false,
+            },
+        ),
+        KeyboardRoute::Shortcut(KeyboardShortcut::CreateTerminal)
+    );
 }
