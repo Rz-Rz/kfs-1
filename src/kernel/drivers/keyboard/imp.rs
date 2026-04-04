@@ -118,6 +118,58 @@ fn is_modifier(code: KeyCode) -> bool {
     )
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ShortcutPrefixAction {
+    PassThrough,
+    Consume,
+    Shortcut(KeyboardShortcut),
+}
+
+fn shortcut_from_prefixed_event(event: KeyEvent) -> ShortcutPrefixAction {
+    match event.code {
+        KeyCode::Printable(b'c' | b'C') => {
+            ShortcutPrefixAction::Shortcut(KeyboardShortcut::CreateTerminal)
+        }
+        KeyCode::Printable(b'x' | b'X') => {
+            ShortcutPrefixAction::Shortcut(KeyboardShortcut::DestroyTerminal)
+        }
+        // Screen-style window selectors use the literal digit: `0` targets
+        // the first terminal, `1` the second, and so on.
+        KeyCode::Printable(byte @ b'0'..=b'9') => {
+            ShortcutPrefixAction::Shortcut(KeyboardShortcut::SelectTerminal((byte - b'0') as usize))
+        }
+        _ => ShortcutPrefixAction::Consume,
+    }
+}
+
+fn route_prefix_shortcut(
+    state: &mut KeyboardShortcutState,
+    event: KeyEvent,
+) -> ShortcutPrefixAction {
+    if state.prefix_pending {
+        // Holding `Alt+A` can generate repeated `A` make-codes before the
+        // command key arrives. Keep the prefix armed so those repeats do not
+        // accidentally cancel command mode and leak the next key as text.
+        if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
+            return ShortcutPrefixAction::Consume;
+        }
+
+        if !event.pressed || is_modifier(event.code) {
+            return ShortcutPrefixAction::Consume;
+        }
+
+        state.prefix_pending = false;
+        return shortcut_from_prefixed_event(event);
+    }
+
+    if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
+        state.prefix_pending = true;
+        return ShortcutPrefixAction::Consume;
+    }
+
+    ShortcutPrefixAction::PassThrough
+}
+
 /// This interprets the `Alt+A` prefix before normal text routing.
 ///
 /// The decoder already produced a plain `KeyEvent`, so this helper only tracks
@@ -126,77 +178,22 @@ pub fn process_shortcut_key(
     state: &mut KeyboardShortcutState,
     event: KeyEvent,
 ) -> KeyboardShortcutDecision {
-    if state.prefix_pending {
-        // Holding `Alt+A` can generate repeated `A` make-codes before the
-        // command key arrives. Keep the prefix armed so those repeats do not
-        // accidentally cancel command mode and leak the next key as text.
-        if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
-            return KeyboardShortcutDecision::Consume;
-        }
-
-        if !event.pressed || is_modifier(event.code) {
-            return KeyboardShortcutDecision::Consume;
-        }
-
-        state.prefix_pending = false;
-        return match event.code {
-            KeyCode::Printable(b'c' | b'C') => {
-                KeyboardShortcutDecision::Shortcut(KeyboardShortcut::CreateTerminal)
-            }
-            KeyCode::Printable(b'x' | b'X') => {
-                KeyboardShortcutDecision::Shortcut(KeyboardShortcut::DestroyTerminal)
-            }
-            // Screen-style window selectors use the literal digit: `0` targets
-            // the first terminal, `1` the second, and so on.
-            KeyCode::Printable(byte @ b'0'..=b'9') => KeyboardShortcutDecision::Shortcut(
-                KeyboardShortcut::SelectTerminal((byte - b'0') as usize),
-            ),
-            _ => KeyboardShortcutDecision::Consume,
-        };
+    match route_prefix_shortcut(state, event) {
+        ShortcutPrefixAction::PassThrough => KeyboardShortcutDecision::PassThrough,
+        ShortcutPrefixAction::Consume => KeyboardShortcutDecision::Consume,
+        ShortcutPrefixAction::Shortcut(shortcut) => KeyboardShortcutDecision::Shortcut(shortcut),
     }
-
-    if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
-        state.prefix_pending = true;
-        return KeyboardShortcutDecision::Consume;
-    }
-
-    KeyboardShortcutDecision::PassThrough
 }
 
 pub fn route_key_event_with_prefix(
     state: &mut KeyboardShortcutState,
     event: KeyEvent,
 ) -> KeyboardRoute {
-    if state.prefix_pending {
-        if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
-            return KeyboardRoute::None;
-        }
-
-        if !event.pressed || is_modifier(event.code) {
-            return KeyboardRoute::None;
-        }
-
-        state.prefix_pending = false;
-        return match event.code {
-            KeyCode::Printable(b'c' | b'C') => {
-                KeyboardRoute::Shortcut(KeyboardShortcut::CreateTerminal)
-            }
-            KeyCode::Printable(b'x' | b'X') => {
-                KeyboardRoute::Shortcut(KeyboardShortcut::DestroyTerminal)
-            }
-            KeyCode::Printable(byte @ b'0'..=b'9') => {
-                KeyboardRoute::Shortcut(KeyboardShortcut::SelectTerminal((byte - b'0') as usize))
-            }
-            _ => KeyboardRoute::None,
-        };
+    match route_prefix_shortcut(state, event) {
+        ShortcutPrefixAction::PassThrough => route_key_event(event),
+        ShortcutPrefixAction::Consume => KeyboardRoute::None,
+        ShortcutPrefixAction::Shortcut(shortcut) => KeyboardRoute::Shortcut(shortcut),
     }
-
-    if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
-        state.prefix_pending = true;
-        return KeyboardRoute::None;
-    }
-
-    route_key_event(event)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
