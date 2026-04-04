@@ -7,7 +7,6 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 
 from kfs_metrics import (
     RunCase,
@@ -19,7 +18,6 @@ from kfs_metrics import (
     save_run,
     sync_branch_lifecycle,
 )
-
 
 EVENT_PREFIX = "KFS_EVENT|"
 

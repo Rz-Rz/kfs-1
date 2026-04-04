@@ -223,7 +223,14 @@ Screen {{
 
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 EVENT_PREFIX = "KFS_EVENT|"
-KNOWN_SECTIONS = {"SETUP", "TESTS", "ARCHITECTURE TESTS", "STABILITY TESTS", "REJECTION TESTS", "BOOT TESTS"}
+KNOWN_SECTIONS = {
+    "SETUP",
+    "TESTS",
+    "ARCHITECTURE TESTS",
+    "STABILITY TESTS",
+    "REJECTION TESTS",
+    "BOOT TESTS",
+}
 SECTION_TO_PANEL = {
     "SETUP": 0,
     "TESTS": 1,
@@ -724,7 +731,9 @@ class MetricsBar(Vertical):
         for index, color in enumerate(colors):
             scale_parts.append(f"[{color}]■[/]")
         pointer_prefix = " " * max(marker_index, 0)
-        pointer_line = f"{pointer_prefix}[{colors[max(marker_index, 0)]}]▲[/]" if marker_index >= 0 else ""
+        pointer_line = (
+            f"{pointer_prefix}[{colors[max(marker_index, 0)]}]▲[/]" if marker_index >= 0 else ""
+        )
         return "".join(scale_parts), pointer_line
 
     def _delta_label(self, card) -> str:
@@ -763,7 +772,12 @@ class MetricsBar(Vertical):
 
         for index in range(4):
             widget = self.query_one(f"#metric_card_{index}", MetricCardWidget)
-            for class_name in ("metric-card-good", "metric-card-warn", "metric-card-bad", "metric-card-idle"):
+            for class_name in (
+                "metric-card-good",
+                "metric-card-warn",
+                "metric-card-bad",
+                "metric-card-idle",
+            ):
                 widget.remove_class(class_name)
 
             if index < len(snapshot.cards):
@@ -840,15 +854,20 @@ class KFSApp(App):
         yield BootOverlay(id="boot_overlay")
 
     def on_mount(self) -> None:
-        self.active_cells = [self.query_one(f"#active_cell_{index}", Static) for index in range(MAX_ACTIVE_CELLS)]
-        self.current_branch = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=self.repo_root,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            check=False,
-        ).stdout.strip() or "HEAD"
+        self.active_cells = [
+            self.query_one(f"#active_cell_{index}", Static) for index in range(MAX_ACTIVE_CELLS)
+        ]
+        self.current_branch = (
+            subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=self.repo_root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            ).stdout.strip()
+            or "HEAD"
+        )
         self.run_started_at = time.monotonic()
         self._update_top_status()
         self._update_rerun_button()
@@ -937,7 +956,12 @@ class KFSApp(App):
         self._flush_pending_item()
 
         stripped = line.strip()
-        if not stripped or stripped.startswith("=") or stripped == "KFS TESTS" or stripped.startswith("arch:"):
+        if (
+            not stripped
+            or stripped.startswith("=")
+            or stripped == "KFS TESTS"
+            or stripped.startswith("arch:")
+        ):
             return
 
         if self.seen_protocol_event and (stripped.endswith(" PASS") or stripped.endswith(" FAIL")):
@@ -950,7 +974,9 @@ class KFSApp(App):
             subgroup = "-"
             panel_index = SECTION_TO_PANEL.get(self.current_section or "SETUP", 0)
             if passed:
-                self.call_from_thread(self._complete_item, panel_index, section, subgroup, name, True, [])
+                self.call_from_thread(
+                    self._complete_item, panel_index, section, subgroup, name, True, []
+                )
             else:
                 self.last_failed_item = (panel_index, section, subgroup, name)
                 self.pending_error_log = []
@@ -1239,7 +1265,11 @@ class KFSApp(App):
     def _update_top_status(self) -> None:
         total = max(self.suite_total or self.discovered_total, self.passed + self.failed, 1)
         done = self.passed + self.failed
-        active_label = "FAILED" if self.done and self.failed else "DONE" if self.done else (self.current_section or "WAITING")
+        active_label = (
+            "FAILED"
+            if self.done and self.failed
+            else "DONE" if self.done else (self.current_section or "WAITING")
+        )
         elapsed = self._elapsed_seconds()
         branch_label = self.current_branch
         if len(branch_label) > 28:
@@ -1263,7 +1293,9 @@ class KFSApp(App):
             label = f"[bold {RED_BRIGHT}]RERUN LAST FAIL (R)[/]\n[{RED_BRIGHT}]{name[:22]}[/]"
         else:
             label = f"[{AMBER_DIM}]RERUN LAST FAIL (R)[/]"
-        self.query_one("#rerun_button", RerunButton).set_state(enabled, self.rerun_in_progress, label)
+        self.query_one("#rerun_button", RerunButton).set_state(
+            enabled, self.rerun_in_progress, label
+        )
 
     def _elapsed_seconds(self) -> float:
         if self.run_started_at is None:
@@ -1272,7 +1304,9 @@ class KFSApp(App):
 
     def _refresh_metrics_display(self, reload_snapshot: bool = False) -> None:
         if reload_snapshot:
-            self.metrics_snapshot = load_dashboard(self.db_path, self.repo_root, self.current_branch)
+            self.metrics_snapshot = load_dashboard(
+                self.db_path, self.repo_root, self.current_branch
+            )
         self.query_one("#metrics_bar", MetricsBar).update_metrics(
             snapshot=self.metrics_snapshot,
             arch=self.arch,
@@ -1307,9 +1341,13 @@ class KFSApp(App):
                 total = self.section_totals.get(section, 0)
                 done = self.section_done.get(section, 0)
                 pct = int((done / total) * 100) if total else 0
-                summary_lines.append(f"{SECTION_LABELS.get(section, section)} {done}/{total} {pct}%")
+                summary_lines.append(
+                    f"{SECTION_LABELS.get(section, section)} {done}/{total} {pct}%"
+                )
 
-            self.query_one(f"#panel_{panel_index}", TestPanel).update_stats(heading, summary_lines, state)
+            self.query_one(f"#panel_{panel_index}", TestPanel).update_stats(
+                heading, summary_lines, state
+            )
 
     def _finish(self, passed: bool) -> None:
         self.done = True
@@ -1328,7 +1366,6 @@ class KFSApp(App):
             self._sync_active_runner()
 
     def toggle_panel(self, panel_id: int) -> None:
-        grid = self.query_one("#grid", Grid)
         if self.expanded_panel == panel_id:
             self.expanded_panel = None
             for index in range(4):

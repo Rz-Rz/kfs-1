@@ -4,8 +4,8 @@ set -euo pipefail
 LOCK_FILE="${KFS_BUILD_LOCK_FILE:-.git/kfs-build.lock}"
 
 if [[ "$#" -eq 0 ]]; then
-  echo "error: usage: $0 <command> [args...]" >&2
-  exit 2
+	echo "error: usage: $0 <command> [args...]" >&2
+	exit 2
 fi
 
 mkdir -p "$(dirname "${LOCK_FILE}")"

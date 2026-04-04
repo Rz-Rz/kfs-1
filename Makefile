@@ -28,11 +28,13 @@ KFS_TEST_BAD_LAYOUT ?= 0
 KFS_TEST_BAD_STRING ?= 0
 KFS_TEST_BAD_MEMORY ?= 0
 KFS_SCREEN_GEOMETRY_PRESET ?= vga80x25
+KFS_SKIP_LINT ?= 0
 
 RUST_CFG_FLAGS :=
 ifeq ($(KFS_SCREEN_GEOMETRY_PRESET),compact40x10)
 RUST_CFG_FLAGS += --cfg kfs_geometry_preset_compact40x10
 endif
+RUST_CODEGEN_FLAGS := -C target-feature=-sse,-sse2
 
 TEST_ASM_DEFS := -DKFS_TEST=1
 ifeq ($(KFS_TEST_FORCE_FAIL),1)
@@ -56,13 +58,14 @@ TEST_PASS_RC ?= 33
 TEST_FAIL_RC ?= 35
 test_ui_venv := .venv-test-ui
 test_ui_python := $(if $(wildcard $(test_ui_venv)/bin/python),$(test_ui_venv)/bin/python,$(PYTHON))
+lint_script := scripts/lint.sh
 
 .PHONY: all clean run iso \
 	container-image container-image-force container-shell container-env-check \
 	container-all container-iso container-run container-qemu-smoke \
 	container-bootstrap container-smoke \
 	metrics-sync \
-	test test-plain test-ui test-ui-demo test-ui-bootstrap \
+	lint test test-plain test-ui test-ui-demo test-ui-bootstrap \
 	dev iso-in-container run-in-container \
 	run-ui run-ui-compact \
 	iso-test test-qemu test-vga \
@@ -147,6 +150,7 @@ build/arch/$(arch)/rust/kernel.o: src/main.rs | $(rust_output_dir)
 		--crate-type lib \
 		--target $(rust_target) \
 		--emit=obj \
+		$(RUST_CODEGEN_FLAGS) \
 		-C panic=abort \
 		-C force-unwind-tables=no \
 		-C opt-level=z \
@@ -202,6 +206,9 @@ test-vga: container-image-force
 		bash scripts/boot-tests/vga-memory.sh $(arch)
 
 test:
+	@if [ "$(KFS_SKIP_LINT)" != "1" ]; then \
+		"$(MAKE)" --no-print-directory lint; \
+	fi
 	@bash -lc 'set -euo pipefail; \
 		mode="$${KFS_TEST_UI:-auto}"; \
 		if [[ "$${mode}" == "0" ]] || [[ -n "$${CI:-}" ]] || [[ -n "$${GITHUB_ACTIONS:-}" ]] || [[ ! -t 1 ]]; then \
@@ -216,6 +223,9 @@ test:
 		fi; \
 		echo "warn: Textual UI dependencies missing; falling back to plain test output. Run '\''make test-ui-bootstrap'\'' to enable the TUI." >&2; \
 		exec bash scripts/test-host.sh $(arch)'
+
+lint:
+	@bash $(lint_script)
 
 test-plain:
 	@$(PYTHON) scripts/kfs_test_runner.py --arch $(arch) --make-target test-plain

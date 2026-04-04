@@ -53,7 +53,10 @@ impl VgaHistoryCursor {
             false
         };
 
-        VgaPutResult { cell_index, scrolled }
+        VgaPutResult {
+            cell_index,
+            scrolled,
+        }
     }
 
     pub fn backspace_cell(&mut self) -> Option<usize> {
@@ -342,11 +345,13 @@ fn terminal_label_overlay(index: usize) -> &'static [u8; VGA_TEXT_TERMINAL_LABEL
     }
 }
 
-pub fn build_terminal_label_cells(label_index: usize, color: ColorCode) -> [u16; VGA_TEXT_TERMINAL_LABEL_WIDTH] {
+pub fn build_terminal_label_cells(
+    label_index: usize,
+    color: ColorCode,
+) -> [u16; VGA_TEXT_TERMINAL_LABEL_WIDTH] {
     let label = terminal_label_overlay(label_index);
     let mut cells = [0u16; VGA_TEXT_TERMINAL_LABEL_WIDTH];
     let mut idx = 0;
-
     while idx < VGA_TEXT_TERMINAL_LABEL_WIDTH {
         unsafe {
             *cells.get_unchecked_mut(idx) = vga_text_cell(color, *label.get_unchecked(idx));
@@ -565,7 +570,9 @@ pub fn render_logical_screen_to_physical<T: Copy>(
 
     let origin = screen_render_origin(logical_dimensions, physical_dimensions);
     let copy_width = logical_dimensions.width().min(physical_dimensions.width());
-    let copy_height = logical_dimensions.height().min(physical_dimensions.height());
+    let copy_height = logical_dimensions
+        .height()
+        .min(physical_dimensions.height());
     let mut idx = 0;
     while idx < physical_cells {
         unsafe {

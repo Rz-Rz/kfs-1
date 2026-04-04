@@ -10,7 +10,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-
 PROTECTED_BRANCH = "main"
 RUNS_ROOT = Path("metrics") / "runs"
 DEBUG_ROOT = Path("metrics") / "debug"
@@ -111,7 +110,9 @@ def build_run_id(when: datetime, arch: str, head_sha: str) -> str:
     return f"{stamp}_{short_sha}_{host}_{arch}"
 
 
-def capture_git_context(repo_root: str | Path, protected_branch: str = PROTECTED_BRANCH) -> GitContext:
+def capture_git_context(
+    repo_root: str | Path, protected_branch: str = PROTECTED_BRANCH
+) -> GitContext:
     root = Path(repo_root)
     branch = _git(root, ["rev-parse", "--abbrev-ref", "HEAD"]) or "HEAD"
     head_sha = _git(root, ["rev-parse", "HEAD"]) or "UNKNOWN"
@@ -123,9 +124,13 @@ def capture_git_context(repo_root: str | Path, protected_branch: str = PROTECTED
 
     if protected_sha:
         merge_base_sha = _git(root, ["merge-base", "HEAD", protected_branch])
-        first_unique_commit_sha = _first_line(_git(root, ["rev-list", "--reverse", f"{protected_branch}..HEAD"]))
+        first_unique_commit_sha = _first_line(
+            _git(root, ["rev-list", "--reverse", f"{protected_branch}..HEAD"])
+        )
         if first_unique_commit_sha:
-            first_unique_commit_at = _git(root, ["show", "-s", "--format=%cI", first_unique_commit_sha])
+            first_unique_commit_at = _git(
+                root, ["show", "-s", "--format=%cI", first_unique_commit_sha]
+            )
 
     dirty_worktree = bool(_git(root, ["status", "--porcelain"]))
     return GitContext(
@@ -145,7 +150,9 @@ def save_run(repo_root: str | Path, run: RunRecord) -> Path:
     root = Path(repo_root)
     store = runs_root(root)
     finished_at = _parse_dt(run.finished_at)
-    day_dir = store / finished_at.strftime("%Y") / finished_at.strftime("%m") / finished_at.strftime("%d")
+    day_dir = (
+        store / finished_at.strftime("%Y") / finished_at.strftime("%m") / finished_at.strftime("%d")
+    )
     day_dir.mkdir(parents=True, exist_ok=True)
 
     if not run.run_id:
@@ -173,7 +180,9 @@ def sync_branch_lifecycle(
     _ = _branch_states(load_runs(root), root, protected_branch)
 
 
-def load_dashboard(_store_path: str | Path, repo_root: str | Path, current_branch: str) -> DashboardSnapshot:
+def load_dashboard(
+    _store_path: str | Path, repo_root: str | Path, current_branch: str
+) -> DashboardSnapshot:
     root = Path(repo_root)
     records = load_runs(root)
     branch_states = _branch_states(records, root, PROTECTED_BRANCH)
@@ -205,9 +214,13 @@ def load_dashboard(_store_path: str | Path, repo_root: str | Path, current_branc
         baseline_mttr = _previous_window_average(branch_mttr)
     elif comparison_scope[0] == "all-other-branches":
         excluded_branch = comparison_scope[1]
-        baseline_df = _current_window_average(_deployment_frequency_points(records, None, excluded_branch))
+        baseline_df = _current_window_average(
+            _deployment_frequency_points(records, None, excluded_branch)
+        )
         baseline_lt = _current_window_average(_lead_time_points(records, None, excluded_branch))
-        baseline_cfr = _current_window_average(_change_failure_rate_points(records, None, excluded_branch))
+        baseline_cfr = _current_window_average(
+            _change_failure_rate_points(records, None, excluded_branch)
+        )
         baseline_mttr = _current_window_average(_mttr_points(records, None, excluded_branch))
 
         baseline_df = _fallback_baseline(baseline_df, branch_df)
@@ -371,7 +384,9 @@ def _record_from_payload(payload: dict, default_run_id: str) -> RunRecord:
     )
 
 
-def _branch_states(records: list[RunRecord], repo_root: Path, protected_branch: str) -> dict[str, str]:
+def _branch_states(
+    records: list[RunRecord], repo_root: Path, protected_branch: str
+) -> dict[str, str]:
     local_branches = _list_refs(repo_root, "refs/heads", "refname:short")
     remote_branches = _list_refs(repo_root, "refs/remotes/origin", "refname:lstrip=3")
     remote_branches.pop("HEAD", None)
@@ -383,7 +398,9 @@ def _branch_states(records: list[RunRecord], repo_root: Path, protected_branch: 
 
     states: dict[str, str] = {}
     for branch, record in latest_by_branch.items():
-        tracked_sha = local_branches.get(branch) or remote_branches.get(branch) or record.git.head_sha
+        tracked_sha = (
+            local_branches.get(branch) or remote_branches.get(branch) or record.git.head_sha
+        )
         if branch == protected_branch:
             states[branch] = "protected"
         elif tracked_sha and protected_sha and _is_ancestor(repo_root, tracked_sha, protected_sha):
@@ -440,7 +457,11 @@ def _lead_time_points(
     branch: Optional[str],
     excluded_branch: Optional[str] = None,
 ) -> list[tuple[datetime, float]]:
-    rows = [record for record in records if record.exit_code == 0 and _branch_match(record.git.branch, branch, excluded_branch)]
+    rows = [
+        record
+        for record in records
+        if record.exit_code == 0 and _branch_match(record.git.branch, branch, excluded_branch)
+    ]
     if not rows:
         return []
 
@@ -455,7 +476,9 @@ def _lead_time_points(
             fallback_head_commit=record.git.head_commit_at,
         )
         if earliest_commit is not None:
-            points.append((finished_at, max((finished_at - earliest_commit).total_seconds() / 3600.0, 0.0)))
+            points.append(
+                (finished_at, max((finished_at - earliest_commit).total_seconds() / 3600.0, 0.0))
+            )
         previous_sha = record.git.head_sha
     return points
 
@@ -478,7 +501,9 @@ def _mttr_points(
     branch: Optional[str],
     excluded_branch: Optional[str] = None,
 ) -> list[tuple[datetime, float]]:
-    rows = [record for record in records if _branch_match(record.git.branch, branch, excluded_branch)]
+    rows = [
+        record for record in records if _branch_match(record.git.branch, branch, excluded_branch)
+    ]
     if rows and not any(record.exit_code != 0 for record in rows):
         return [(_parse_dt(record.finished_at), 0.0) for record in rows]
 
@@ -491,7 +516,9 @@ def _mttr_points(
                 incident_start = finished_at
             continue
         if incident_start is not None:
-            points.append((finished_at, max((finished_at - incident_start).total_seconds() / 3600.0, 0.0)))
+            points.append(
+                (finished_at, max((finished_at - incident_start).total_seconds() / 3600.0, 0.0))
+            )
             incident_start = None
     return points
 
@@ -546,14 +573,18 @@ def _weekly_ratios(samples: list[tuple[datetime, float]]) -> list[tuple[datetime
     return points
 
 
-def _current_window_average(points: list[tuple[datetime, float]], days: int = 30) -> Optional[float]:
+def _current_window_average(
+    points: list[tuple[datetime, float]], days: int = 30
+) -> Optional[float]:
     now = utc_now()
     cutoff = now - timedelta(days=days)
     values = [value for when, value in points if cutoff <= when <= now]
     return statistics.fmean(values) if values else None
 
 
-def _previous_window_average(points: list[tuple[datetime, float]], days: int = 30) -> Optional[float]:
+def _previous_window_average(
+    points: list[tuple[datetime, float]], days: int = 30
+) -> Optional[float]:
     now = utc_now()
     prev_end = now - timedelta(days=days)
     prev_start = now - timedelta(days=days * 2)
@@ -567,7 +598,9 @@ def _all_time_average_excluding_latest(points: list[tuple[datetime, float]]) -> 
     return statistics.fmean([value for _when, value in points[:-1]])
 
 
-def _fallback_baseline(primary: Optional[float], branch_points: list[tuple[datetime, float]]) -> Optional[float]:
+def _fallback_baseline(
+    primary: Optional[float], branch_points: list[tuple[datetime, float]]
+) -> Optional[float]:
     if primary is not None:
         return primary
     previous_window = _previous_window_average(branch_points)
@@ -635,17 +668,41 @@ def _format_delta(
 
 def _metric_visuals(key: str, value: Optional[float]) -> tuple[str, str, str]:
     if key == "DF":
-        return _visual_from_thresholds(value, (0.25, 1.0, 7.0), ("LOW", "MED", "HIGH", "ELITE"), True, 14.0,
-                                      "Deployment frequency tiers: <0.25/wk low, >=0.25 med, >=1 high, >=7 elite")
+        return _visual_from_thresholds(
+            value,
+            (0.25, 1.0, 7.0),
+            ("LOW", "MED", "HIGH", "ELITE"),
+            True,
+            14.0,
+            "Deployment frequency tiers: <0.25/wk low, >=0.25 med, >=1 high, >=7 elite",
+        )
     if key == "LT":
-        return _visual_from_thresholds(value, (720.0, 168.0, 24.0), ("LOW", "MED", "HIGH", "ELITE"), False, 1440.0,
-                                      "Lead time tiers: >30d low, <=30d med, <=7d high, <=1d elite")
+        return _visual_from_thresholds(
+            value,
+            (720.0, 168.0, 24.0),
+            ("LOW", "MED", "HIGH", "ELITE"),
+            False,
+            1440.0,
+            "Lead time tiers: >30d low, <=30d med, <=7d high, <=1d elite",
+        )
     if key == "CFR":
-        return _visual_from_thresholds(value, (45.0, 30.0, 15.0), ("LOW", "MED", "HIGH", "ELITE"), False, 100.0,
-                                      "Change failure rate tiers: >45% low, <=45% med, <=30% high, <=15% elite")
+        return _visual_from_thresholds(
+            value,
+            (45.0, 30.0, 15.0),
+            ("LOW", "MED", "HIGH", "ELITE"),
+            False,
+            100.0,
+            "Change failure rate tiers: >45% low, <=45% med, <=30% high, <=15% elite",
+        )
     if key == "MTTR":
-        return _visual_from_thresholds(value, (168.0, 24.0, 1.0), ("LOW", "MED", "HIGH", "ELITE"), False, 336.0,
-                                      "MTTR tiers: >7d low, <=7d med, <=24h high, <=1h elite")
+        return _visual_from_thresholds(
+            value,
+            (168.0, 24.0, 1.0),
+            ("LOW", "MED", "HIGH", "ELITE"),
+            False,
+            336.0,
+            "MTTR tiers: >7d low, <=7d med, <=24h high, <=1h elite",
+        )
     return ("NO DATA", "░░░░░░░░░░░░", "No thresholds available")
 
 
@@ -740,7 +797,9 @@ def _maybe_fetch_origin(repo_root: Path, fetch_remote: bool) -> None:
 
 
 def _list_refs(repo_root: Path, ref_prefix: str, format_field: str) -> dict[str, str]:
-    output = _git(repo_root, ["for-each-ref", "--format", f"%({format_field})\t%(objectname)", ref_prefix])
+    output = _git(
+        repo_root, ["for-each-ref", "--format", f"%({format_field})\t%(objectname)", ref_prefix]
+    )
     refs: dict[str, str] = {}
     if not output:
         return refs

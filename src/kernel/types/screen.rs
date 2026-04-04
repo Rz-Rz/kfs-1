@@ -248,11 +248,9 @@ impl CursorPos {
 }
 
 #[cfg(kfs_geometry_preset_compact40x10)]
-pub const DEFAULT_SCREEN_GEOMETRY_PRESET: ScreenGeometryPreset =
-    ScreenGeometryPreset::Compact40x10;
+pub const DEFAULT_SCREEN_GEOMETRY_PRESET: ScreenGeometryPreset = ScreenGeometryPreset::Compact40x10;
 #[cfg(not(kfs_geometry_preset_compact40x10))]
-pub const DEFAULT_SCREEN_GEOMETRY_PRESET: ScreenGeometryPreset =
-    ScreenGeometryPreset::Vga80x25;
+pub const DEFAULT_SCREEN_GEOMETRY_PRESET: ScreenGeometryPreset = ScreenGeometryPreset::Vga80x25;
 
 // The hardware stays in the fixed VGA text mode even when we render a smaller logical viewport.
 pub const VGA_TEXT_PHYSICAL_DIMENSIONS: ScreenDimensions = ScreenDimensions::new(80, 25);
