@@ -29,6 +29,10 @@ pub const MAX_USIZE_DECIMAL_DIGITS: usize = 20;
 pub const MAX_USIZE_HEX_DIGITS: usize = core::mem::size_of::<usize>() * 2;
 pub const MAX_ISIZE_DECIMAL_DIGITS: usize = MAX_USIZE_DECIMAL_DIGITS + 1;
 
+unsafe fn tail_from_buffer<'a>(ptr: *const u8, idx: usize, len: usize) -> &'a [u8] {
+    unsafe { core::slice::from_raw_parts(ptr.add(idx), len - idx) }
+}
+
 pub fn format_usize_decimal(
     mut value: usize,
     buffer: &mut [u8; MAX_USIZE_DECIMAL_DIGITS],
@@ -39,7 +43,7 @@ pub fn format_usize_decimal(
         idx -= 1;
         unsafe {
             core::ptr::write(buffer.as_mut_ptr().add(idx), b'0');
-            return core::slice::from_raw_parts(buffer.as_ptr().add(idx), 1);
+            return tail_from_buffer(buffer.as_ptr(), idx, idx + 1);
         }
     }
 
@@ -51,7 +55,7 @@ pub fn format_usize_decimal(
         value /= 10;
     }
 
-    unsafe { core::slice::from_raw_parts(buffer.as_ptr().add(idx), MAX_USIZE_DECIMAL_DIGITS - idx) }
+    unsafe { tail_from_buffer(buffer.as_ptr(), idx, MAX_USIZE_DECIMAL_DIGITS) }
 }
 
 pub fn format_usize_hex(mut value: usize, buffer: &mut [u8; MAX_USIZE_HEX_DIGITS]) -> &[u8] {
@@ -61,7 +65,7 @@ pub fn format_usize_hex(mut value: usize, buffer: &mut [u8; MAX_USIZE_HEX_DIGITS
         idx -= 1;
         unsafe {
             core::ptr::write(buffer.as_mut_ptr().add(idx), b'0');
-            return core::slice::from_raw_parts(buffer.as_ptr().add(idx), 1);
+            return tail_from_buffer(buffer.as_ptr(), idx, idx + 1);
         }
     }
 
@@ -79,7 +83,7 @@ pub fn format_usize_hex(mut value: usize, buffer: &mut [u8; MAX_USIZE_HEX_DIGITS
         value >>= 4;
     }
 
-    unsafe { core::slice::from_raw_parts(buffer.as_ptr().add(idx), MAX_USIZE_HEX_DIGITS - idx) }
+    unsafe { tail_from_buffer(buffer.as_ptr(), idx, MAX_USIZE_HEX_DIGITS) }
 }
 
 pub fn format_isize_decimal(value: isize, buffer: &mut [u8; MAX_ISIZE_DECIMAL_DIGITS]) -> &[u8] {
@@ -100,7 +104,10 @@ pub fn format_isize_decimal(value: isize, buffer: &mut [u8; MAX_ISIZE_DECIMAL_DI
         while magnitude > 0 {
             idx -= 1;
             unsafe {
-                core::ptr::write(buffer.as_mut_ptr().add(idx), b'0' + ((magnitude % 10) as u8));
+                core::ptr::write(
+                    buffer.as_mut_ptr().add(idx),
+                    b'0' + ((magnitude % 10) as u8),
+                );
             }
             magnitude /= 10;
         }
@@ -113,18 +120,15 @@ pub fn format_isize_decimal(value: isize, buffer: &mut [u8; MAX_ISIZE_DECIMAL_DI
         }
     }
 
-    unsafe { core::slice::from_raw_parts(buffer.as_ptr().add(idx), MAX_ISIZE_DECIMAL_DIGITS - idx) }
+    unsafe { tail_from_buffer(buffer.as_ptr(), idx, MAX_ISIZE_DECIMAL_DIGITS) }
 }
 
 fn emit_slice<F>(text: &[u8], emit: &mut F)
 where
     F: FnMut(u8),
 {
-    let mut idx: usize = 0;
-    while idx < text.len() {
-        let byte = unsafe { core::ptr::read(text.as_ptr().add(idx)) };
+    for &byte in text {
         emit(byte);
-        idx += 1;
     }
 }
 
@@ -154,20 +158,24 @@ fn next_arg(args: *const usize, arg_count: usize, arg_index: &mut usize) -> Opti
     if *arg_index >= arg_count {
         return None;
     }
-    let value = unsafe { core::ptr::read(args.add(*arg_index)) };
+    let value = unsafe { *args.add(*arg_index) };
     *arg_index += 1;
     Some(value)
 }
 
-pub fn render_printf_with_args<F>(format: *const u8, args: *const usize, arg_count: usize, mut emit: F)
-where
+pub fn render_printf_with_args<F>(
+    format: *const u8,
+    args: *const usize,
+    arg_count: usize,
+    mut emit: F,
+) where
     F: FnMut(u8),
 {
     let mut idx: usize = 0;
     let mut arg_index: usize = 0;
 
     loop {
-        let byte = unsafe { core::ptr::read(format.add(idx)) };
+        let byte = unsafe { *format.add(idx) };
         if byte == 0 {
             return;
         }
@@ -179,7 +187,7 @@ where
         }
 
         idx += 1;
-        let specifier = unsafe { core::ptr::read(format.add(idx)) };
+        let specifier = unsafe { *format.add(idx) };
         if specifier == 0 {
             emit(b'%');
             return;
@@ -189,30 +197,24 @@ where
             b'%' => emit(b'%'),
             b'u' => {
                 if let Some(value) = next_arg(args, arg_count, &mut arg_index) {
-                    let mut digits_uninit =
-                        core::mem::MaybeUninit::<[u8; MAX_USIZE_DECIMAL_DIGITS]>::uninit();
-                    let digits = unsafe { &mut *digits_uninit.as_mut_ptr() };
-                    emit_slice(format_usize_decimal(value, digits), &mut emit);
+                    let mut digits = [0u8; MAX_USIZE_DECIMAL_DIGITS];
+                    emit_slice(format_usize_decimal(value, &mut digits), &mut emit);
                 } else {
                     emit_missing_arg(&mut emit);
                 }
             }
             b'd' => {
                 if let Some(value) = next_arg(args, arg_count, &mut arg_index) {
-                    let mut digits_uninit =
-                        core::mem::MaybeUninit::<[u8; MAX_ISIZE_DECIMAL_DIGITS]>::uninit();
-                    let digits = unsafe { &mut *digits_uninit.as_mut_ptr() };
-                    emit_slice(format_isize_decimal(value as isize, digits), &mut emit);
+                    let mut digits = [0u8; MAX_ISIZE_DECIMAL_DIGITS];
+                    emit_slice(format_isize_decimal(value as isize, &mut digits), &mut emit);
                 } else {
                     emit_missing_arg(&mut emit);
                 }
             }
             b'x' => {
                 if let Some(value) = next_arg(args, arg_count, &mut arg_index) {
-                    let mut digits_uninit =
-                        core::mem::MaybeUninit::<[u8; MAX_USIZE_HEX_DIGITS]>::uninit();
-                    let digits = unsafe { &mut *digits_uninit.as_mut_ptr() };
-                    emit_slice(format_usize_hex(value, digits), &mut emit);
+                    let mut digits = [0u8; MAX_USIZE_HEX_DIGITS];
+                    emit_slice(format_usize_hex(value, &mut digits), &mut emit);
                 } else {
                     emit_missing_arg(&mut emit);
                 }
@@ -247,9 +249,8 @@ where
 }
 
 pub fn write_usize(value: usize) {
-    let mut digits_uninit = core::mem::MaybeUninit::<[u8; MAX_USIZE_DECIMAL_DIGITS]>::uninit();
-    let digits = unsafe { &mut *digits_uninit.as_mut_ptr() };
-    let rendered = format_usize_decimal(value, digits);
+    let mut digits = [0u8; MAX_USIZE_DECIMAL_DIGITS];
+    let rendered = format_usize_decimal(value, &mut digits);
     emit_slice(rendered, &mut write_byte);
 }
 

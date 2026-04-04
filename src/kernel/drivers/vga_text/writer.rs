@@ -1,5 +1,5 @@
 use super::{
-    render_logical_screen_to_physical, screen_render_origin, terminal_label_overlay,
+    build_terminal_label_cells, render_logical_screen_to_physical, screen_render_origin,
     vga_text_blit_viewport, vga_text_cell, VgaTerminalBank, VGA_TEXT_BLANK_BYTE,
     VGA_TEXT_TERMINAL_LABEL_WIDTH,
 };
@@ -20,8 +20,10 @@ const VGA_CURSOR_END_SCANLINE: u8 = 0x0F;
 
 static mut VGA_TERMINALS: VgaTerminalBank = VgaTerminalBank::new();
 // The freestanding kernel stack is small, so redraw scratch buffers cannot live on the stack.
-static mut VGA_LOGICAL_SHADOW: [u16; VGA_TEXT_LOGICAL_CELL_COUNT] = [0; VGA_TEXT_LOGICAL_CELL_COUNT];
-static mut VGA_PHYSICAL_SHADOW: [u16; VGA_TEXT_PHYSICAL_CELL_COUNT] = [0; VGA_TEXT_PHYSICAL_CELL_COUNT];
+static mut VGA_LOGICAL_SHADOW: [u16; VGA_TEXT_LOGICAL_CELL_COUNT] =
+    [0; VGA_TEXT_LOGICAL_CELL_COUNT];
+static mut VGA_PHYSICAL_SHADOW: [u16; VGA_TEXT_PHYSICAL_CELL_COUNT] =
+    [0; VGA_TEXT_PHYSICAL_CELL_COUNT];
 static mut VGA_HARDWARE_CURSOR_ENABLED: bool = false;
 static mut VGA_LOGICAL_STATE_INITIALIZED: bool = false;
 static mut VGA_STATE_INITIALIZED: bool = false;
@@ -87,15 +89,14 @@ unsafe fn redraw_active_terminal() {
         blank,
     );
 
-    let label = terminal_label_overlay(bank.active_label_index());
+    let label = build_terminal_label_cells(bank.active_label_index(), terminal.color);
     let label_start = VGA_TEXT_PHYSICAL_DIMENSIONS
         .width()
         .saturating_sub(VGA_TEXT_TERMINAL_LABEL_WIDTH);
     let mut offset = 0;
     while offset < VGA_TEXT_TERMINAL_LABEL_WIDTH {
         unsafe {
-            *shadow.get_unchecked_mut(label_start + offset) =
-                vga_text_cell(terminal.color, *label.get_unchecked(offset));
+            *shadow.get_unchecked_mut(label_start + offset) = *label.get_unchecked(offset);
         }
         offset += 1;
     }
@@ -113,7 +114,10 @@ unsafe fn redraw_active_terminal() {
         .min(VGA_TEXT_DIMENSIONS.height() - 1);
     let origin = screen_render_origin(VGA_TEXT_DIMENSIONS, VGA_TEXT_PHYSICAL_DIMENSIONS);
     unsafe {
-        vga_set_hardware_cursor(origin.row() + cursor_row, origin.col() + terminal.cursor.col);
+        vga_set_hardware_cursor(
+            origin.row() + cursor_row,
+            origin.col() + terminal.cursor.col,
+        );
     }
 }
 
@@ -228,8 +232,7 @@ pub(super) fn create_terminal() -> bool {
 pub(super) fn destroy_active_terminal() -> bool {
     unsafe {
         ensure_state_initialized();
-        let destroyed =
-            (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS)).destroy_active_terminal();
+        let destroyed = (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS)).destroy_active_terminal();
         if destroyed {
             redraw_active_terminal();
         }
@@ -240,7 +243,9 @@ pub(super) fn destroy_active_terminal() -> bool {
 pub(super) fn set_color(color: ColorCode) {
     unsafe {
         ensure_logical_state_initialized();
-        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS)).active_mut().color = color;
+        (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS))
+            .active_mut()
+            .color = color;
         if VGA_STATE_INITIALIZED {
             redraw_active_terminal();
         }
