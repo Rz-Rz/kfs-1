@@ -7,25 +7,25 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
 list_cases() {
-  cat <<'EOF'
+	cat <<'EOF'
 future-architecture-tree-artifacts-exist
 EOF
 }
 
 describe_case() {
-  case "$1" in
-    future-architecture-tree-artifacts-exist) printf '%s\n' "all required future-architecture tree artifacts exist" ;;
-    *) return 1 ;;
-  esac
+	case "$1" in
+	future-architecture-tree-artifacts-exist) printf '%s\n' "all required future-architecture tree artifacts exist" ;;
+	*) return 1 ;;
+	esac
 }
 
 die() {
-  echo "error: $*" >&2
-  exit 2
+	echo "error: $*" >&2
+	exit 2
 }
 
 required_tree_artifacts() {
-  cat <<'EOF'
+	cat <<'EOF'
 src/main.rs
 src/freestanding/mod.rs
 src/freestanding/panic.rs
@@ -49,42 +49,42 @@ EOF
 }
 
 assert_tree_artifacts_exist() {
-  local missing=()
-  local path
+	local missing=()
+	local path
 
-  while IFS= read -r path; do
-    [[ -f "${REPO_ROOT}/${path}" ]] || missing+=("${path}")
-  done < <(required_tree_artifacts)
+	while IFS= read -r path; do
+		[[ -f "${REPO_ROOT}/${path}" ]] || missing+=("${path}")
+	done < <(required_tree_artifacts)
 
-  if [[ "${#missing[@]}" -gt 0 ]]; then
-    echo "FAIL ${CASE}: missing required future tree artifacts"
-    printf '%s\n' "${missing[@]}"
-    return 1
-  fi
+	if [[ "${#missing[@]}" -gt 0 ]]; then
+		echo "FAIL ${CASE}: missing required future tree artifacts"
+		printf '%s\n' "${missing[@]}"
+		return 1
+	fi
 
-  echo "PASS ${CASE}: all required future tree artifacts exist"
+	echo "PASS ${CASE}: all required future tree artifacts exist"
 }
 run_case() {
-  case "${CASE}" in
-    future-architecture-tree-artifacts-exist) assert_tree_artifacts_exist ;;
-    *) die "unknown case: ${CASE}" ;;
-  esac
+	case "${CASE}" in
+	future-architecture-tree-artifacts-exist) assert_tree_artifacts_exist ;;
+	*) die "unknown case: ${CASE}" ;;
+	esac
 }
 
 main() {
-  if [[ "${ARCH}" == "--list" ]]; then
-    list_cases
-    return 0
-  fi
+	if [[ "${ARCH}" == "--list" ]]; then
+		list_cases
+		return 0
+	fi
 
-  if [[ "${ARCH}" == "--description" ]]; then
-    describe_case "${CASE}"
-    return 0
-  fi
+	if [[ "${ARCH}" == "--description" ]]; then
+		describe_case "${CASE}"
+		return 0
+	fi
 
-  [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
-  describe_case "${CASE}" >/dev/null 2>&1 || die "unknown case: ${CASE}"
-  run_case
+	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
+	describe_case "${CASE}" >/dev/null 2>&1 || die "unknown case: ${CASE}"
+	run_case
 }
 
 main "$@"

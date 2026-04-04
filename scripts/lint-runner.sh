@@ -13,19 +13,6 @@ REQUIRED_TOOLS=(
 	black
 	ruff
 )
-SHELL_QUALITY_FILES=(
-	"${ROOT_DIR}/scripts/lint.sh"
-	"${ROOT_DIR}/scripts/lint-runner.sh"
-	"${ROOT_DIR}/scripts/container.sh"
-	"${ROOT_DIR}/scripts/dev-env.sh"
-	"${ROOT_DIR}/scripts/run-ui.sh"
-	"${ROOT_DIR}/scripts/test-host.sh"
-	"${ROOT_DIR}/scripts/with-build-lock.sh"
-	"${ROOT_DIR}/scripts/boot-tests/ui-interaction.sh"
-	"${ROOT_DIR}/scripts/boot-tests/compact-geometry.sh"
-	"${ROOT_DIR}/scripts/boot-tests/vga-memory.sh"
-	"${ROOT_DIR}/scripts/boot-tests/lib/qemu-vnc.bash"
-)
 
 say() {
 	local kind="$1"
@@ -58,9 +45,7 @@ require_tools() {
 
 run_shell_checks() {
 	local -a scripts
-	local -a shell_quality_files
-	mapfile -t scripts < <(rg --files "${ROOT_DIR}/scripts" -g '*.sh')
-	shell_quality_files=("${SHELL_QUALITY_FILES[@]}")
+	mapfile -t scripts < <(rg --files "${ROOT_DIR}/scripts" -g '*.sh' | sort)
 
 	if ((${#scripts[@]} == 0)); then
 		warn "no shell scripts found under scripts/"
@@ -76,14 +61,14 @@ run_shell_checks() {
 
 	pass "shell syntax"
 
-	if ! shellcheck -S warning -e SC2046 -x "${shell_quality_files[@]}"; then
+	if ! shellcheck -S warning -e SC2046 -x "${scripts[@]}"; then
 		fail "shellcheck reported issues in scripts/**/*.sh"
 	else
 		pass "shellcheck"
 	fi
 
-	if ! shfmt -d "${shell_quality_files[@]}"; then
-		fail "shfmt reported formatting issues in curated shell infrastructure"
+	if ! shfmt -d "${scripts[@]}"; then
+		fail "shfmt reported formatting issues in scripts/**/*.sh"
 	else
 		pass "shell formatting"
 	fi
