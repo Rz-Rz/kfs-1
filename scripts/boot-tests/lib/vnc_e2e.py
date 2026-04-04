@@ -503,6 +503,34 @@ def top_right_label_region(client: VNCClient, frame: bytes) -> bytes:
     )
 
 
+def label_overlay_exact_region(client: VNCClient, frame: bytes) -> bytes:
+    cell_w, cell_h = cell_metrics(client.width, client.height)
+    return crop(
+        frame,
+        client.width,
+        client.height,
+        client.bytes_per_pixel,
+        client.width - (7 * cell_w),
+        0,
+        7 * cell_w,
+        cell_h,
+    )
+
+
+def label_overlay_padding_region(client: VNCClient, frame: bytes) -> bytes:
+    cell_w, cell_h = cell_metrics(client.width, client.height)
+    return crop(
+        frame,
+        client.width,
+        client.height,
+        client.bytes_per_pixel,
+        client.width - (7 * cell_w),
+        0,
+        4 * cell_w,
+        cell_h,
+    )
+
+
 def boot_text_region(client: VNCClient, frame: bytes) -> bytes:
     cell_w, cell_h = cell_metrics(client.width, client.height)
     return crop(
@@ -525,6 +553,8 @@ REGIONS: dict[str, RegionFn] = {
     "top_left_cell": top_left_cell_region,
     "compact_origin": compact_origin_region,
     "top_right_label": top_right_label_region,
+    "label_overlay_exact": label_overlay_exact_region,
+    "label_overlay_padding": label_overlay_padding_region,
     "boot_text": boot_text_region,
 }
 
@@ -1517,6 +1547,62 @@ SCENARIOS["switching-back-to-a-scrolled-terminal-restores-its-viewport"] = [
         "timeout_secs": 4.0,
     },
     {"op": "assert_eq", "left": "scrolled_alpha", "right": "restored_scrolled_alpha", "message": "switching back to a scrolled terminal did not restore its viewport"},
+]
+SCENARIOS["label-overlay-right-aligns-short-labels"] = [
+    *_create_terminal_label_steps(12),
+    {
+        "op": "capture_wait_blank",
+        "name": "mu_padding_blank",
+        "region": "label_overlay_padding",
+        "message": "mu label did not keep its left padding blank",
+        "timeout_secs": 3.0,
+    },
+    {"op": "chord", "keys": ["Alt", "F11"], "after": 0.45},
+    {
+        "op": "capture_wait_foreground",
+        "name": "lambda_padding_foreground",
+        "region": "label_overlay_padding",
+        "message": "lambda label did not render into the left padding region",
+        "timeout_secs": 3.0,
+    },
+    {"op": "assert_ne", "left": "mu_padding_blank", "right": "lambda_padding_foreground", "message": "short and long labels rendered the same left padding region"},
+]
+SCENARIOS["label-overlay-clears-stale-cells-when-shortening"] = [
+    *_create_terminal_label_steps(12),
+    {"op": "capture", "name": "mu_exact", "region": "label_overlay_exact", "wait_boot": False},
+    {
+        "op": "capture_wait_blank",
+        "name": "mu_padding_blank",
+        "region": "label_overlay_padding",
+        "message": "mu label did not keep its left padding blank",
+        "timeout_secs": 3.0,
+    },
+    {"op": "chord", "keys": ["Alt", "F11"], "after": 0.45},
+    {
+        "op": "capture_wait_foreground",
+        "name": "lambda_padding_foreground",
+        "region": "label_overlay_padding",
+        "message": "lambda label did not render into the left padding region",
+        "timeout_secs": 3.0,
+    },
+    {"op": "chord", "keys": ["Alt", "F12"], "after": 0.45},
+    {
+        "op": "capture_wait_match",
+        "target": "mu_exact",
+        "name": "mu_exact_restored",
+        "region": "label_overlay_exact",
+        "message": "returning from lambda to mu did not restore the exact label overlay",
+        "timeout_secs": 4.0,
+    },
+    {
+        "op": "capture_wait_blank",
+        "name": "mu_padding_restored",
+        "region": "label_overlay_padding",
+        "message": "returning from lambda to mu did not clear stale left-padding cells",
+        "timeout_secs": 3.0,
+    },
+    {"op": "assert_eq", "left": "mu_exact", "right": "mu_exact_restored", "message": "returning from lambda to mu did not restore the exact label overlay"},
+    {"op": "assert_eq", "left": "mu_padding_blank", "right": "mu_padding_restored", "message": "returning from lambda to mu did not clear stale left-padding cells"},
 ]
 
 

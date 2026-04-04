@@ -32,6 +32,8 @@ backspace-blanks-the-last-visible-character-cell
 newline-moves-visible-output-to-the-next-row
 end-of-line-wrap-continues-on-the-next-row
 switching-back-to-a-scrolled-terminal-restores-its-viewport
+label-overlay-right-aligns-short-labels
+label-overlay-clears-stale-cells-when-shortening
 EOF
 }
 
@@ -57,6 +59,8 @@ describe_case() {
     newline-moves-visible-output-to-the-next-row) printf '%s\n' "host-driven VNC E2E moves visible output to the next row on Enter" ;;
     end-of-line-wrap-continues-on-the-next-row) printf '%s\n' "host-driven VNC E2E wraps visible output onto the next row at line end" ;;
     switching-back-to-a-scrolled-terminal-restores-its-viewport) printf '%s\n' "host-driven VNC E2E restores a scrolled terminal viewport after switching away and back" ;;
+    label-overlay-right-aligns-short-labels) printf '%s\n' "host-driven VNC E2E keeps short labels right-aligned with blank leading padding" ;;
+    label-overlay-clears-stale-cells-when-shortening) printf '%s\n' "host-driven VNC E2E clears stale label cells when switching from a longer label back to a shorter one" ;;
     *) return 1 ;;
   esac
 }
@@ -65,7 +69,7 @@ run_case() {
   local timeout_secs="${TEST_TIMEOUT_SECS:-15}"
 
   case "${CASE}" in
-    bare-function-key-selection-matrix|alt-function-key-selection-matrix|arrow-up-restores-an-older-viewport-snapshot|arrow-down-returns-to-the-live-tail-viewport|multi-line-output-scrolls-visibly-after-repeated-newlines|backspace-blanks-the-last-visible-character-cell|newline-moves-visible-output-to-the-next-row|end-of-line-wrap-continues-on-the-next-row|switching-back-to-a-scrolled-terminal-restores-its-viewport)
+    bare-function-key-selection-matrix|alt-function-key-selection-matrix|arrow-up-restores-an-older-viewport-snapshot|arrow-down-returns-to-the-live-tail-viewport|multi-line-output-scrolls-visibly-after-repeated-newlines|backspace-blanks-the-last-visible-character-cell|newline-moves-visible-output-to-the-next-row|end-of-line-wrap-continues-on-the-next-row|switching-back-to-a-scrolled-terminal-restores-its-viewport|label-overlay-right-aligns-short-labels|label-overlay-clears-stale-cells-when-shortening)
       timeout_secs="${TEST_TIMEOUT_SECS:-60}"
       ;;
   esac
