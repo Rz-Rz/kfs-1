@@ -25,6 +25,13 @@ terminal-create-capacity-limit-is-a-no-op
 switching-to-an-untouched-terminal-shows-a-blank-screen
 switching-back-from-an-untouched-terminal-restores-the-dirty-terminal
 destroying-from-a-high-slot-focuses-a-valid-survivor
+arrow-up-restores-an-older-viewport-snapshot
+arrow-down-returns-to-the-live-tail-viewport
+multi-line-output-scrolls-visibly-after-repeated-newlines
+backspace-blanks-the-last-visible-character-cell
+newline-moves-visible-output-to-the-next-row
+end-of-line-wrap-continues-on-the-next-row
+switching-back-to-a-scrolled-terminal-restores-its-viewport
 EOF
 }
 
@@ -43,6 +50,13 @@ describe_case() {
     switching-to-an-untouched-terminal-shows-a-blank-screen) printf '%s\n' "host-driven VNC E2E shows a blank screen on an untouched terminal" ;;
     switching-back-from-an-untouched-terminal-restores-the-dirty-terminal) printf '%s\n' "host-driven VNC E2E restores the dirty terminal after switching back from an untouched one" ;;
     destroying-from-a-high-slot-focuses-a-valid-survivor) printf '%s\n' "host-driven VNC E2E focuses a surviving terminal after destroying the highest active slot" ;;
+    arrow-up-restores-an-older-viewport-snapshot) printf '%s\n' "host-driven VNC E2E lets ArrowUp restore an older viewport snapshot" ;;
+    arrow-down-returns-to-the-live-tail-viewport) printf '%s\n' "host-driven VNC E2E lets ArrowDown return to the live tail viewport" ;;
+    multi-line-output-scrolls-visibly-after-repeated-newlines) printf '%s\n' "host-driven VNC E2E visibly scrolls after repeated newline output" ;;
+    backspace-blanks-the-last-visible-character-cell) printf '%s\n' "host-driven VNC E2E blanks the last visible character cell on Backspace" ;;
+    newline-moves-visible-output-to-the-next-row) printf '%s\n' "host-driven VNC E2E moves visible output to the next row on Enter" ;;
+    end-of-line-wrap-continues-on-the-next-row) printf '%s\n' "host-driven VNC E2E wraps visible output onto the next row at line end" ;;
+    switching-back-to-a-scrolled-terminal-restores-its-viewport) printf '%s\n' "host-driven VNC E2E restores a scrolled terminal viewport after switching away and back" ;;
     *) return 1 ;;
   esac
 }
@@ -51,8 +65,8 @@ run_case() {
   local timeout_secs="${TEST_TIMEOUT_SECS:-15}"
 
   case "${CASE}" in
-    bare-function-key-selection-matrix|alt-function-key-selection-matrix)
-      timeout_secs="${TEST_TIMEOUT_SECS:-45}"
+    bare-function-key-selection-matrix|alt-function-key-selection-matrix|arrow-up-restores-an-older-viewport-snapshot|arrow-down-returns-to-the-live-tail-viewport|multi-line-output-scrolls-visibly-after-repeated-newlines|backspace-blanks-the-last-visible-character-cell|newline-moves-visible-output-to-the-next-row|end-of-line-wrap-continues-on-the-next-row|switching-back-to-a-scrolled-terminal-restores-its-viewport)
+      timeout_secs="${TEST_TIMEOUT_SECS:-60}"
       ;;
   esac
 

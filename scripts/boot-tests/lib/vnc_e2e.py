@@ -20,6 +20,10 @@ def fail(message: str) -> None:
 
 
 KEYSYM_ALT_L = 0xFFE9
+KEYSYM_BACKSPACE = 0xFF08
+KEYSYM_ENTER = 0xFF0D
+KEYSYM_UP = 0xFF52
+KEYSYM_DOWN = 0xFF54
 KEYSYM_F3 = 0xFFC0
 KEYSYM_F4 = 0xFFC1
 KEYSYM_F5 = 0xFFC2
@@ -35,6 +39,11 @@ KEYSYM_F12 = 0xFFC9
 
 QCODE_KEYS = {
     "alt": "alt",
+    "backspace": "backspace",
+    "arrowdown": "down",
+    "arrowup": "up",
+    "down": "down",
+    "enter": "ret",
     "f1": "f1",
     "f2": "f2",
     "f3": "f3",
@@ -47,6 +56,7 @@ QCODE_KEYS = {
     "f10": "f10",
     "f11": "f11",
     "f12": "f12",
+    "up": "up",
     "spc": "spc",
 }
 
@@ -57,6 +67,10 @@ def normalize_keysym(value: int | str) -> int:
     if len(value) == 1 and value.isascii():
         return ord(value)
     mapping = {
+        "ArrowDown": KEYSYM_DOWN,
+        "ArrowUp": KEYSYM_UP,
+        "Backspace": KEYSYM_BACKSPACE,
+        "Enter": KEYSYM_ENTER,
         "F1": KEYSYM_F1,
         "F2": KEYSYM_F2,
         "F3": KEYSYM_F3,
@@ -433,6 +447,20 @@ def top_left_text_region(client: VNCClient, frame: bytes) -> bytes:
     )
 
 
+def top_left_body_region(client: VNCClient, frame: bytes) -> bytes:
+    cell_w, cell_h = cell_metrics(client.width, client.height)
+    return crop(
+        frame,
+        client.width,
+        client.height,
+        client.bytes_per_pixel,
+        cell_w,
+        0,
+        11 * cell_w,
+        2 * cell_h,
+    )
+
+
 def top_left_cell_region(client: VNCClient, frame: bytes) -> bytes:
     cell_w, cell_h = cell_metrics(client.width, client.height)
     return crop(
@@ -493,6 +521,7 @@ RegionFn = Callable[[VNCClient, bytes], bytes]
 
 REGIONS: dict[str, RegionFn] = {
     "top_left_text": top_left_text_region,
+    "top_left_body": top_left_body_region,
     "top_left_cell": top_left_cell_region,
     "compact_origin": compact_origin_region,
     "top_right_label": top_right_label_region,
@@ -962,6 +991,42 @@ def _selection_matrix_steps(keys: list[str], target_count: int, use_chord: bool)
     return steps
 
 
+def _write_lines_steps(lines: list[str], text_after_secs: float = 0.05, enter_after_secs: float = 0.18) -> list[dict]:
+    steps: list[dict] = []
+    for line in lines:
+        steps.extend(
+            [
+                {"op": "type_text", "text": line, "after": text_after_secs},
+                {"op": "tap", "key": "Enter", "after": enter_after_secs},
+            ]
+        )
+    return steps
+
+
+def _line_block(prefix: str, count: int) -> list[str]:
+    return [f"{prefix}{index:02d}" for index in range(count)]
+
+
+def _fresh_terminal_blank_steps(sample_name: str) -> list[dict]:
+    return [
+        {
+            "op": "capture_wait_foreground",
+            "name": f"{sample_name}_alpha_label",
+            "region": "top_right_label",
+            "timeout_secs": 3.0,
+            "message": "alpha terminal label did not appear before creating a fresh terminal",
+        },
+        {"op": "tap", "key": "F11", "after": 0.45},
+        {
+            "op": "capture_wait_blank",
+            "name": sample_name,
+            "region": "top_left_body",
+            "message": "fresh terminal did not render blank",
+            "timeout_secs": 3.0,
+        },
+    ]
+
+
 SCENARIOS: dict[str, list[dict]] = {
     "f11-creates-terminal-and-label-becomes-beta": [
         {"op": "capture", "name": "label_alpha", "region": "top_right_label", "wait_boot": True},
@@ -1218,7 +1283,7 @@ SCENARIOS["switching-to-an-untouched-terminal-shows-a-blank-screen"] = [
     {
         "op": "capture_wait_blank",
         "name": "untouched_beta",
-        "region": "top_left_text",
+        "region": "top_left_body",
         "message": "untouched terminal did not render blank after switching",
         "timeout_secs": 3.0,
     },
@@ -1238,7 +1303,7 @@ SCENARIOS["switching-back-from-an-untouched-terminal-restores-the-dirty-terminal
     {
         "op": "capture_wait_blank",
         "name": "untouched_beta",
-        "region": "top_left_text",
+        "region": "top_left_body",
         "message": "untouched terminal did not render blank after switching",
         "timeout_secs": 3.0,
     },
@@ -1265,6 +1330,139 @@ SCENARIOS["destroying-from-a-high-slot-focuses-a-valid-survivor"] = [
         "timeout_secs": 3.0,
     },
     {"op": "assert_eq", "left": "label_lambda", "right": "label_survivor", "message": "destroying the highest active slot did not focus a surviving terminal"},
+]
+SCENARIOS["arrow-up-restores-an-older-viewport-snapshot"] = [
+    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    *_write_lines_steps(_line_block("old", 26)),
+    {"op": "capture", "name": "older_view", "region": "top_left_text", "wait_boot": False},
+    *_write_lines_steps(["tail"]),
+    {
+        "op": "capture_wait_change",
+        "from": "older_view",
+        "name": "live_tail",
+        "region": "top_left_text",
+        "message": "live tail did not change after one more line of output",
+        "timeout_secs": 3.0,
+    },
+    {"op": "tap", "key": "ArrowUp", "after": 0.35},
+    {
+        "op": "capture_wait_match",
+        "target": "older_view",
+        "name": "restored_old_view",
+        "region": "top_left_text",
+        "message": "ArrowUp did not restore an older viewport snapshot",
+        "timeout_secs": 4.0,
+    },
+    {"op": "assert_eq", "left": "older_view", "right": "restored_old_view", "message": "ArrowUp did not restore an older viewport snapshot"},
+]
+SCENARIOS["arrow-down-returns-to-the-live-tail-viewport"] = [
+    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    *_write_lines_steps(_line_block("old", 26)),
+    {"op": "capture", "name": "older_view", "region": "top_left_text", "wait_boot": False},
+    *_write_lines_steps(["tail"]),
+    {
+        "op": "capture_wait_change",
+        "from": "older_view",
+        "name": "live_tail",
+        "region": "top_left_text",
+        "message": "live tail did not change after one more line of output",
+        "timeout_secs": 3.0,
+    },
+    {"op": "tap", "key": "ArrowUp", "after": 0.35},
+    {"op": "capture_wait_change", "from": "live_tail", "name": "older_again", "region": "top_left_text", "message": "ArrowUp did not move the viewport away from the live tail", "timeout_secs": 3.0},
+    {"op": "tap", "key": "ArrowDown", "after": 0.35},
+    {
+        "op": "capture_wait_match",
+        "target": "live_tail",
+        "name": "restored_tail",
+        "region": "top_left_text",
+        "message": "ArrowDown did not return to the live tail viewport",
+        "timeout_secs": 4.0,
+    },
+    {"op": "assert_eq", "left": "live_tail", "right": "restored_tail", "message": "ArrowDown did not return to the live tail viewport"},
+]
+SCENARIOS["multi-line-output-scrolls-visibly-after-repeated-newlines"] = [
+    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {"op": "capture", "name": "before_scroll", "region": "top_left_text", "wait_boot": True},
+    *_write_lines_steps(_line_block("scr", 30), text_after_secs=0.04, enter_after_secs=0.12),
+    {
+        "op": "capture_wait_change",
+        "from": "before_scroll",
+        "name": "after_scroll",
+        "region": "top_left_text",
+        "message": "repeated newlines did not visibly scroll the screen",
+        "timeout_secs": 5.0,
+    },
+    {"op": "assert_ne", "left": "before_scroll", "right": "after_scroll", "message": "repeated newlines did not visibly scroll the screen"},
+]
+SCENARIOS["backspace-blanks-the-last-visible-character-cell"] = [
+    *_fresh_terminal_blank_steps("beta_blank"),
+    {"op": "type_text", "text": "x", "after": 0.25},
+    {"op": "capture_wait_change", "from": "beta_blank", "name": "beta_dirty", "region": "top_left_body", "message": "typing a visible character did not change the terminal", "timeout_secs": 2.5},
+    {"op": "tap", "key": "Backspace", "after": 0.35},
+    {
+        "op": "capture_wait_match",
+        "target": "beta_blank",
+        "name": "beta_restored_blank",
+        "region": "top_left_body",
+        "message": "Backspace did not blank the last visible character cell",
+        "timeout_secs": 3.0,
+    },
+    {"op": "assert_eq", "left": "beta_blank", "right": "beta_restored_blank", "message": "Backspace did not blank the last visible character cell"},
+]
+SCENARIOS["newline-moves-visible-output-to-the-next-row"] = [
+    *_fresh_terminal_blank_steps("beta_blank"),
+    {"op": "type_text", "text": "ab", "after": 0.25},
+    {"op": "capture", "name": "before_newline", "region": "top_left_body", "wait_boot": False},
+    {"op": "tap", "key": "Enter", "after": 0.25},
+    {"op": "type_text", "text": "c", "after": 0.25},
+    {
+        "op": "capture_wait_change",
+        "from": "before_newline",
+        "name": "after_newline",
+        "region": "top_left_body",
+        "message": "newline did not move visible output to the next row",
+        "timeout_secs": 3.0,
+    },
+    {"op": "assert_ne", "left": "before_newline", "right": "after_newline", "message": "newline did not move visible output to the next row"},
+]
+SCENARIOS["end-of-line-wrap-continues-on-the-next-row"] = [
+    *_fresh_terminal_blank_steps("beta_blank"),
+    {"op": "type_text", "text": "a" * 80, "after": 0.35},
+    {"op": "capture", "name": "before_wrap", "region": "top_left_text", "wait_boot": False},
+    {"op": "type_text", "text": "b", "after": 0.35},
+    {
+        "op": "capture_wait_change",
+        "from": "before_wrap",
+        "name": "after_wrap",
+        "region": "top_left_text",
+        "message": "end-of-line wrap did not continue on the next row",
+        "timeout_secs": 3.0,
+    },
+    {"op": "assert_ne", "left": "before_wrap", "right": "after_wrap", "message": "end-of-line wrap did not continue on the next row"},
+]
+SCENARIOS["switching-back-to-a-scrolled-terminal-restores-its-viewport"] = [
+    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    *_write_lines_steps(_line_block("scr", 26)),
+    {"op": "capture", "name": "scrolled_alpha", "region": "top_left_text", "wait_boot": False},
+    {"op": "tap", "key": "F11", "after": 0.45},
+    {
+        "op": "capture_wait_blank",
+        "name": "untouched_beta",
+        "region": "top_left_body",
+        "message": "untouched terminal did not render blank after switching away from a scrolled terminal",
+        "timeout_secs": 3.0,
+    },
+    {"op": "tap", "key": "F1", "after": 0.45},
+    {
+        "op": "capture_wait_match",
+        "target": "scrolled_alpha",
+        "name": "restored_scrolled_alpha",
+        "region": "top_left_text",
+        "message": "switching back to a scrolled terminal did not restore its viewport",
+        "timeout_secs": 4.0,
+    },
+    {"op": "assert_eq", "left": "scrolled_alpha", "right": "restored_scrolled_alpha", "message": "switching back to a scrolled terminal did not restore its viewport"},
 ]
 
 
