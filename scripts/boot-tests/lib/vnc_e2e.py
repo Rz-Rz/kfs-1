@@ -540,7 +540,7 @@ def boot_text_region(client: VNCClient, frame: bytes) -> bytes:
         client.bytes_per_pixel,
         0,
         0,
-        1 * cell_w,
+        2 * cell_w,
         cell_h,
     )
 
@@ -568,6 +568,34 @@ class CaptureSample:
 
 def _region_hash(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
+
+
+EXPECTED_BOOT_TEXT_42 = (
+    (
+        "....##.",
+        "...###.",
+        "..####.",
+        ".##.##.",
+        "##..##.",
+        "#######",
+        "....##.",
+        "....##.",
+        "....##.",
+        "...####",
+    ),
+    (
+        ".#####.",
+        "##...##",
+        ".....##",
+        "....##.",
+        "...##..",
+        "..##...",
+        ".##....",
+        "##.....",
+        "##...##",
+        "#######",
+    ),
+)
 
 
 def _dominant_pixel(payload: bytes, bpp: int) -> bytes:
@@ -625,6 +653,60 @@ def _wait_for_visible_frame(client: VNCClient, timeout_secs: float) -> bytes:
 
 def _is_kernel_green(pixel_rgb: tuple[int, int, int]) -> bool:
     return pixel_rgb[1] >= pixel_rgb[0] + 40 and pixel_rgb[1] >= pixel_rgb[2] + 40
+
+
+def _trim_visible_mask(mask: list[list[bool]]) -> tuple[str, ...]:
+    if not mask or not mask[0]:
+        return ()
+
+    top = 0
+    while top < len(mask) and not any(mask[top]):
+        top += 1
+
+    if top == len(mask):
+        return ()
+
+    bottom = len(mask) - 1
+    while bottom >= 0 and not any(mask[bottom]):
+        bottom -= 1
+
+    left = 0
+    while left < len(mask[0]) and not any(row[left] for row in mask[top : bottom + 1]):
+        left += 1
+
+    right = len(mask[0]) - 1
+    while right >= 0 and not any(row[right] for row in mask[top : bottom + 1]):
+        right -= 1
+
+    trimmed: list[str] = []
+    for row in mask[top : bottom + 1]:
+        trimmed.append("".join("#" if cell else "." for cell in row[left : right + 1]))
+
+    return tuple(trimmed)
+
+
+def _boot_text_cell_masks(
+    client: VNCClient,
+    sample: CaptureSample,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    cell_w, cell_h = cell_metrics(client.width, client.height)
+    bpp = len(sample.background)
+    row_width = cell_w * 2
+    background_rgb = _pixel_color(client, sample.background)
+    cells: list[tuple[str, ...]] = []
+
+    for cell_idx in range(2):
+        mask: list[list[bool]] = []
+        for row in range(cell_h):
+            row_mask: list[bool] = []
+            for col in range(cell_w):
+                start = ((row * row_width) + (cell_idx * cell_w) + col) * bpp
+                pixel = sample.payload[start : start + bpp]
+                row_mask.append(_is_visible_text_color(_pixel_color(client, pixel), background_rgb))
+            mask.append(row_mask)
+        cells.append(_trim_visible_mask(mask))
+
+    return cells[0], cells[1]
 
 
 def _kernel_screen_visible(client: VNCClient, frame: bytes) -> bool:
@@ -833,16 +915,33 @@ def assert_green_text(
     client: VNCClient, samples: dict[str, CaptureSample], sample_key: str, message: str
 ) -> None:
     sample = samples[sample_key]
+    background_rgb = _pixel_color(client, sample.background)
+    if max(background_rgb) > 24:
+        fail(message)
+
     fg_pixels = _unique_foreground_pixels(sample.payload, sample.background, len(sample.background))
     if not fg_pixels:
         fail(message)
-    background_rgb = _pixel_color(client, sample.background)
-    has_visible = False
+
+    visible_counts: Counter[tuple[int, int, int]] = Counter()
     for px in fg_pixels:
-        if _is_visible_text_color(_pixel_color(client, px), background_rgb):
-            has_visible = True
-            break
-    if not has_visible:
+        pixel_rgb = _pixel_color(client, px)
+        if _is_visible_text_color(pixel_rgb, background_rgb):
+            visible_counts[pixel_rgb] += 1
+
+    if not visible_counts:
+        fail(message)
+
+    dominant_visible = visible_counts.most_common(1)[0][0]
+    if not _is_kernel_green(dominant_visible):
+        fail(message)
+
+
+def assert_boot_text_42(
+    client: VNCClient, samples: dict[str, CaptureSample], sample_key: str, message: str
+) -> None:
+    sample = samples[sample_key]
+    if _boot_text_cell_masks(client, sample) != EXPECTED_BOOT_TEXT_42:
         fail(message)
 
 
@@ -976,6 +1075,10 @@ def _execute_steps(
 
         if op == "assert_green_text":
             assert_green_text(client, samples, step["sample"], step["message"])
+            continue
+
+        if op == "assert_boot_text_42":
+            assert_boot_text_42(client, samples, step["sample"], step["message"])
             continue
 
         fail(f"unknown scenario op: {op}")
@@ -1616,7 +1719,11 @@ SCENARIOS: dict[str, list[dict]] = {
     ],
     "vga-buffer-starts-with-42": [
         {"op": "capture", "name": "boot", "region": "boot_text", "wait_boot": True},
-        {"op": "assert_foreground", "sample": "boot", "message": "boot text did not render"},
+        {
+            "op": "assert_boot_text_42",
+            "sample": "boot",
+            "message": "boot text did not render exact 42",
+        },
     ],
     "vga-buffer-uses-default-attribute": [
         {"op": "capture", "name": "boot", "region": "boot_text", "wait_boot": True},
