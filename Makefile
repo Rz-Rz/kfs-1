@@ -64,6 +64,7 @@ test_ui_python := $(if $(wildcard $(test_ui_venv)/bin/python),$(test_ui_venv)/bi
 	metrics-sync \
 	test test-plain test-ui test-ui-demo test-ui-bootstrap \
 	dev iso-in-container run-in-container \
+	run-ui run-ui-compact \
 	iso-test test-qemu test-vga \
 	img img-test run-img
 
@@ -74,6 +75,18 @@ clean:
 
 run: $(iso)
 	@qemu-system-i386 -cdrom $(iso)
+
+## Manual visual-proof entrypoints.
+## - run-ui: normal 80x25 UI
+## - run-ui-compact: compact 40x10 UI
+run-ui: KFS_SCREEN_GEOMETRY_PRESET := vga80x25
+run-ui:
+	@bash scripts/container.sh build-image
+	@KFS_SCREEN_GEOMETRY_PRESET=$(KFS_SCREEN_GEOMETRY_PRESET) bash scripts/container.sh run-gui -- bash scripts/run-ui.sh $(arch)
+
+run-ui-compact: KFS_SCREEN_GEOMETRY_PRESET := compact40x10
+run-ui-compact:
+	@KFS_SCREEN_GEOMETRY_PRESET=compact40x10 $(MAKE) --no-print-directory run-ui arch=$(arch)
 
 iso: $(iso)
 

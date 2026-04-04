@@ -57,7 +57,12 @@ cmd_check() {
   need_cmd xorriso
   need_cmd mtools
 
+  need_cmd python3
   need_cmd qemu-system-i386
+  need_cmd socat
+  need_cmd vncviewer
+  need_cmd xdotool
+  need_cmd Xvfb
 
   printf '%s ' "dev-env:"
   ok "OK"
@@ -65,6 +70,11 @@ cmd_check() {
   echo "  ld: $(ld -v | head -n 1)"
   echo "  grub-mkrescue: $(grub-mkrescue --version | head -n 1)"
   echo "  qemu-system-i386: $(qemu-system-i386 --version | head -n 1)"
+  echo "  python3: $(python3 --version)"
+  echo "  socat: $(socat -V 2>&1 | head -n 1)"
+  echo "  vncviewer: $(vncviewer --version 2>&1 | head -n 1)"
+  echo "  xdotool: $(xdotool -v)"
+  echo "  Xvfb: $(Xvfb -help 2>&1 | head -n 1)"
   echo "  xorriso: $(xorriso -version 2>/dev/null | head -n 1)"
 }
 

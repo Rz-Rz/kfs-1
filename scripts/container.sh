@@ -81,6 +81,22 @@ cmd_run_without_engine() {
   run_directly_in_current_env "$@"
 }
 
+cmd_run_gui_without_engine() {
+  fallback_to_current_env
+  if [[ -z "${DISPLAY:-}" ]]; then
+    die "DISPLAY is not set; cannot launch GUI command"
+  fi
+  if [[ "${1:-}" != "--" ]]; then
+    die "run-gui requires -- separator (example: scripts/container.sh run-gui -- make run-ui)"
+  fi
+  shift
+  if [[ "$#" -eq 0 ]]; then
+    die "run-gui requires a command after --"
+  fi
+
+  run_directly_in_current_env "$@"
+}
+
 cmd_env_check_without_engine() {
   fallback_to_current_env
   run_directly_in_current_env bash -lc 'bash scripts/dev-env.sh check'
@@ -171,6 +187,79 @@ cmd_run() {
     "${IMAGE}" "$@"
 }
 
+gui_mount_arg() {
+  local source="$1"
+  local target="$2"
+  local mode="${3:-}"
+  local mount_spec
+
+  mount_spec="${source}:${target}"
+  if [[ -n "${mode}" ]]; then
+    mount_spec="${mount_spec}:${mode}"
+  fi
+
+  printf '%s\n' "${mount_spec}"
+}
+
+cmd_run_gui() {
+  local engine
+  engine="$(detect_engine_optional)" || {
+    cmd_run_gui_without_engine "$@"
+    return 0
+  }
+  local root
+  root="$(repo_root)"
+  local tty_args=()
+  local gui_args=()
+  local security_args=()
+  local xauth_host xauth_container
+
+  case "${TTY_MODE}" in
+    1|true|yes) tty_args=(-t) ;;
+    0|false|no) tty_args=() ;;
+    auto|"")
+      if [[ -t 1 ]]; then
+        tty_args=(-t)
+      fi
+      ;;
+    *) die "KFS_CONTAINER_TTY must be auto, 1, or 0" ;;
+  esac
+
+  if [[ -z "${DISPLAY:-}" ]]; then
+    die "DISPLAY is not set; cannot launch GUI command"
+  fi
+  [[ -d /tmp/.X11-unix ]] || die "/tmp/.X11-unix is missing; cannot mount X11 socket"
+
+  if [[ "${1:-}" != "--" ]]; then
+    die "run-gui requires -- separator (example: scripts/container.sh run-gui -- make run-ui)"
+  fi
+  shift
+  if [[ "$#" -eq 0 ]]; then
+    die "run-gui requires a command after --"
+  fi
+
+  xauth_host="${XAUTHORITY:-}"
+  xauth_container="/tmp/kfs-host.xauth"
+  gui_args=(-e "DISPLAY=${DISPLAY}" -v "$(gui_mount_arg "/tmp/.X11-unix" "/tmp/.X11-unix")")
+  if [[ -n "${xauth_host}" && -r "${xauth_host}" ]]; then
+    gui_args+=(-e "XAUTHORITY=${xauth_container}")
+    gui_args+=(-v "$(gui_mount_arg "${xauth_host}" "${xauth_container}" "ro")")
+  fi
+  if [[ "${engine}" == "podman" || ( "${engine}" == "docker" && -r /sys/fs/selinux/enforce && "$(cat /sys/fs/selinux/enforce)" == "1" ) ]]; then
+    security_args=(--security-opt label=disable)
+  fi
+
+  "${engine}" run --rm \
+    "${tty_args[@]}" \
+    "${security_args[@]}" \
+    "${gui_args[@]}" \
+    -v "$(mount_arg "${root}" "${engine}")" \
+    -w /work \
+    $(user_args "${engine}") \
+    $(kvm_args "${engine}") \
+    "${IMAGE}" "$@"
+}
+
 cmd_env_check() {
   local engine
   engine="$(detect_engine_optional)" || {
@@ -235,6 +324,7 @@ Usage:
   scripts/container.sh build-image
   scripts/container.sh shell
   scripts/container.sh run -- <command...>
+  scripts/container.sh run-gui -- <command...>
   scripts/container.sh env-check
 
 Env vars:
@@ -267,6 +357,7 @@ main() {
     build-image) cmd_build_image ;;
     shell) cmd_shell ;;
     run) cmd_run "$@" ;;
+    run-gui) cmd_run_gui "$@" ;;
     env-check) cmd_env_check ;;
     -h|--help|"") usage; exit 0 ;;
     *) die "unknown command: ${cmd}" ;;

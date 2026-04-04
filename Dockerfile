@@ -15,8 +15,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6-dev \
     mtools \
     nasm \
+    python3 \
     qemu-system-x86 \
+    qemu-system-gui \
     ripgrep \
+    socat \
+    tigervnc-viewer \
+    xdotool \
+    xvfb \
     grub-common \
     grub-pc-bin \
     xorriso \
