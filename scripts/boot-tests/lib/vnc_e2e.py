@@ -222,7 +222,7 @@ class VNCClient:
                     h = struct.unpack(">H", self._read_exact(2))[0]
                     encoding = self._read_i32()
                     if encoding != 0:
-                        payload_len = (w * h * self.bytes_per_pixel)
+                        payload_len = w * h * self.bytes_per_pixel
                         self._read_exact(payload_len)
                         continue
                     payload = self._read_exact(w * h * self.bytes_per_pixel)
@@ -243,7 +243,7 @@ class VNCClient:
                 continue
             if msg_type == 1:
                 self._read_exact(1)
-                first_color = self._read_u16()
+                _ = self._read_u16()
                 color_count = self._read_u16()
                 self._read_exact(color_count * 6)
                 continue
@@ -623,6 +623,37 @@ def _wait_for_visible_frame(client: VNCClient, timeout_secs: float) -> bytes:
     return last
 
 
+def _is_kernel_green(pixel_rgb: tuple[int, int, int]) -> bool:
+    return pixel_rgb[1] >= pixel_rgb[0] + 40 and pixel_rgb[1] >= pixel_rgb[2] + 40
+
+
+def _kernel_screen_visible(client: VNCClient, frame: bytes) -> bool:
+    background = _dominant_pixel(frame, client.bytes_per_pixel)
+    background_rgb = _pixel_color(client, background)
+
+    for idx in range(0, len(frame), client.bytes_per_pixel):
+        pixel = frame[idx : idx + client.bytes_per_pixel]
+        if pixel == background:
+            continue
+        pixel_rgb = _pixel_color(client, pixel)
+        if _is_visible_text_color(pixel_rgb, background_rgb) and _is_kernel_green(pixel_rgb):
+            return True
+
+    return False
+
+
+def _wait_for_kernel_frame(client: VNCClient, timeout_secs: float) -> bytes:
+    deadline = time.time() + timeout_secs
+    last = b""
+    while time.time() < deadline:
+        frame = client.capture()
+        if _kernel_screen_visible(client, frame):
+            return frame
+        last = frame
+        time.sleep(0.1)
+    return last
+
+
 def _capture_until_change(
     client: VNCClient,
     region: str,
@@ -670,15 +701,18 @@ def _capture_until_foreground(
     region: str,
     timeout_secs: float,
     poll_interval_secs: float,
+    wait_boot: bool,
 ) -> CaptureSample | None:
     end = time.time() + timeout_secs
+    wait_for_boot = wait_boot
     while time.time() < end:
         candidate = capture_region(
             client,
             region=region,
-            wait_boot=False,
+            wait_boot=wait_for_boot,
             timeout_secs=1.0,
         )
+        wait_for_boot = False
         if _has_foreground(candidate.payload, candidate.background, len(candidate.background)):
             return candidate
         time.sleep(poll_interval_secs)
@@ -690,15 +724,18 @@ def _capture_until_blank(
     region: str,
     timeout_secs: float,
     poll_interval_secs: float,
+    wait_boot: bool,
 ) -> CaptureSample | None:
     end = time.time() + timeout_secs
+    wait_for_boot = wait_boot
     while time.time() < end:
         candidate = capture_region(
             client,
             region=region,
-            wait_boot=False,
+            wait_boot=wait_for_boot,
             timeout_secs=1.0,
         )
+        wait_for_boot = False
         if not _has_foreground(candidate.payload, candidate.background, len(candidate.background)):
             return candidate
         time.sleep(poll_interval_secs)
@@ -759,7 +796,7 @@ def capture_region(
     wait_boot: bool,
     timeout_secs: float,
 ) -> CaptureSample:
-    frame = _wait_for_visible_frame(client, timeout_secs) if wait_boot else client.capture()
+    frame = _wait_for_kernel_frame(client, timeout_secs) if wait_boot else client.capture()
     region_fn = REGIONS.get(region)
     if region_fn is None:
         fail(f"unknown region: {region}")
@@ -792,7 +829,9 @@ def assert_blank(samples: dict[str, CaptureSample], sample_key: str, message: st
         fail(message)
 
 
-def assert_green_text(client: VNCClient, samples: dict[str, CaptureSample], sample_key: str, message: str) -> None:
+def assert_green_text(
+    client: VNCClient, samples: dict[str, CaptureSample], sample_key: str, message: str
+) -> None:
     sample = samples[sample_key]
     fg_pixels = _unique_foreground_pixels(sample.payload, sample.background, len(sample.background))
     if not fg_pixels:
@@ -811,7 +850,9 @@ def _execute_steps(
     steps: list[dict],
     client: VNCClient,
     input_backend: InputBackend,
+    boot_timeout_secs: float,
 ) -> None:
+    _wait_for_kernel_frame(client, boot_timeout_secs)
     samples: dict[str, CaptureSample] = {}
     for step in steps:
         op = step["op"]
@@ -841,6 +882,7 @@ def _execute_steps(
                 region=step["region"],
                 timeout_secs=float(step.get("timeout_secs", 2.5)),
                 poll_interval_secs=0.08,
+                wait_boot=bool(step.get("wait_boot", False)),
             )
             if sample is None:
                 fail(step.get("message", f"timeout waiting for foreground in {step['name']}"))
@@ -853,6 +895,7 @@ def _execute_steps(
                 region=step["region"],
                 timeout_secs=float(step.get("timeout_secs", 2.5)),
                 poll_interval_secs=0.08,
+                wait_boot=bool(step.get("wait_boot", False)),
             )
             if sample is None:
                 fail(step.get("message", f"timeout waiting for blank region in {step['name']}"))
@@ -965,6 +1008,7 @@ def _create_terminal_label_steps(target_count: int) -> list[dict]:
             "name": _label_sample_name(0),
             "region": "top_right_label",
             "timeout_secs": 3.0,
+            "wait_boot": True,
             "message": "alpha terminal label did not appear",
         }
     ]
@@ -1021,7 +1065,9 @@ def _selection_matrix_steps(keys: list[str], target_count: int, use_chord: bool)
     return steps
 
 
-def _write_lines_steps(lines: list[str], text_after_secs: float = 0.05, enter_after_secs: float = 0.18) -> list[dict]:
+def _write_lines_steps(
+    lines: list[str], text_after_secs: float = 0.05, enter_after_secs: float = 0.18
+) -> list[dict]:
     steps: list[dict] = []
     for line in lines:
         steps.extend(
@@ -1069,10 +1115,21 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "F11 did not change the terminal label",
             "timeout_secs": 2.5,
         },
-        {"op": "assert_ne", "left": "label_alpha", "right": "label_beta", "message": "F11 did not change the terminal label"},
+        {
+            "op": "assert_ne",
+            "left": "label_alpha",
+            "right": "label_beta",
+            "message": "F11 did not change the terminal label",
+        },
     ],
     "f12-destroys-current-terminal-and-label-returns-alpha": [
-        {"op": "capture_wait_foreground", "name": "label_alpha", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+        {
+            "op": "capture_wait_foreground",
+            "name": "label_alpha",
+            "region": "top_right_label",
+            "timeout_secs": 3.0,
+            "message": "alpha terminal label did not appear",
+        },
         {"op": "tap", "key": "F11", "after": 0.5},
         {
             "op": "capture_wait_change",
@@ -1082,7 +1139,12 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "F11 bootstrap for F12 case did not create beta",
             "timeout_secs": 3.0,
         },
-        {"op": "assert_ne", "left": "label_alpha", "right": "label_beta", "message": "F11 bootstrap for F12 case did not create beta"},
+        {
+            "op": "assert_ne",
+            "left": "label_alpha",
+            "right": "label_beta",
+            "message": "F11 bootstrap for F12 case did not create beta",
+        },
         {"op": "tap", "key": "F12", "after": 0.5},
         {
             "op": "capture_wait_match",
@@ -1092,7 +1154,12 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "F12 did not restore alpha label",
             "timeout_secs": 5.0,
         },
-        {"op": "assert_eq", "left": "label_alpha", "right": "label_restored", "message": "F12 did not restore alpha label"},
+        {
+            "op": "assert_eq",
+            "left": "label_alpha",
+            "right": "label_restored",
+            "message": "F12 did not restore alpha label",
+        },
     ],
     "terminal-switching-preserves-screen-contents": [
         {"op": "capture", "name": "alpha_before", "region": "top_left_text", "wait_boot": True},
@@ -1105,7 +1172,12 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "alpha text did not change after typing",
             "timeout_secs": 2.0,
         },
-        {"op": "assert_ne", "left": "alpha_before", "right": "alpha_after_c", "message": "alpha text did not change after typing"},
+        {
+            "op": "assert_ne",
+            "left": "alpha_before",
+            "right": "alpha_after_c",
+            "message": "alpha text did not change after typing",
+        },
         {"op": "tap", "key": "F11", "after": 0.45},
         {"op": "type_text", "text": "b", "after": 0.35},
         {
@@ -1116,7 +1188,12 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "beta text matched alpha after terminal switch",
             "timeout_secs": 2.0,
         },
-        {"op": "assert_ne", "left": "alpha_after_c", "right": "beta_text", "message": "beta text matched alpha after terminal switch"},
+        {
+            "op": "assert_ne",
+            "left": "alpha_after_c",
+            "right": "beta_text",
+            "message": "beta text matched alpha after terminal switch",
+        },
         {"op": "tap", "key": "F1", "after": 0.45},
         {
             "op": "capture_wait_match",
@@ -1126,7 +1203,12 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "switching to F1 did not restore alpha",
             "timeout_secs": 2.0,
         },
-        {"op": "assert_eq", "left": "alpha_after_c", "right": "alpha_restored", "message": "switching to F1 did not restore alpha"},
+        {
+            "op": "assert_eq",
+            "left": "alpha_after_c",
+            "right": "alpha_restored",
+            "message": "switching to F1 did not restore alpha",
+        },
         {"op": "tap", "key": "F2", "after": 0.45},
         {
             "op": "capture_wait_match",
@@ -1136,10 +1218,21 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "switching to F2 did not restore beta",
             "timeout_secs": 2.0,
         },
-        {"op": "assert_eq", "left": "beta_text", "right": "beta_restored", "message": "switching to F2 did not restore beta"},
+        {
+            "op": "assert_eq",
+            "left": "beta_text",
+            "right": "beta_restored",
+            "message": "switching to F2 did not restore beta",
+        },
     ],
     "alt-a-c-creates-terminal-and-label-becomes-beta": [
-        {"op": "capture_wait_foreground", "name": "label_alpha", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+        {
+            "op": "capture_wait_foreground",
+            "name": "label_alpha",
+            "region": "top_right_label",
+            "timeout_secs": 3.0,
+            "message": "alpha terminal label did not appear",
+        },
         {"op": "alt_a_prefix", "after": 0.15},
         {"op": "tap", "key": "c", "after": 0.55},
         {
@@ -1150,10 +1243,21 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "Alt+A C did not change terminal label",
             "timeout_secs": 2.0,
         },
-        {"op": "assert_ne", "left": "label_alpha", "right": "label_created", "message": "Alt+A C did not change terminal label"},
+        {
+            "op": "assert_ne",
+            "left": "label_alpha",
+            "right": "label_created",
+            "message": "Alt+A C did not change terminal label",
+        },
     ],
     "alt-a-x-destroys-terminal-and-label-returns-alpha": [
-        {"op": "capture_wait_foreground", "name": "label_alpha", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+        {
+            "op": "capture_wait_foreground",
+            "name": "label_alpha",
+            "region": "top_right_label",
+            "timeout_secs": 3.0,
+            "message": "alpha terminal label did not appear",
+        },
         {"op": "tap", "key": "F11", "after": 0.4},
         {
             "op": "capture_wait_change",
@@ -1163,7 +1267,12 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "F11 bootstrap for Alt+A X case failed",
             "timeout_secs": 3.0,
         },
-        {"op": "assert_ne", "left": "label_alpha", "right": "label_beta", "message": "F11 bootstrap for Alt+A X case failed"},
+        {
+            "op": "assert_ne",
+            "left": "label_alpha",
+            "right": "label_beta",
+            "message": "F11 bootstrap for Alt+A X case failed",
+        },
         {"op": "alt_a_prefix", "after": 0.15},
         {"op": "tap", "key": "x", "after": 0.55},
         {
@@ -1174,14 +1283,39 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "Alt+A X did not restore alpha label",
             "timeout_secs": 5.0,
         },
-        {"op": "assert_eq", "left": "label_alpha", "right": "label_restored", "message": "Alt+A X did not restore alpha label"},
+        {
+            "op": "assert_eq",
+            "left": "label_alpha",
+            "right": "label_restored",
+            "message": "Alt+A X did not restore alpha label",
+        },
     ],
     "alt-a-digit-selects-target-terminal": [
-        {"op": "capture_wait_foreground", "name": "label_alpha", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+        {
+            "op": "capture_wait_foreground",
+            "name": "label_alpha",
+            "region": "top_right_label",
+            "timeout_secs": 3.0,
+            "message": "alpha terminal label did not appear",
+        },
         {"op": "tap", "key": "F11", "after": 0.45},
-        {"op": "capture_wait_change", "from": "label_alpha", "name": "label_beta", "region": "top_right_label", "message": "F11 bootstrap to beta failed", "timeout_secs": 3.0},
+        {
+            "op": "capture_wait_change",
+            "from": "label_alpha",
+            "name": "label_beta",
+            "region": "top_right_label",
+            "message": "F11 bootstrap to beta failed",
+            "timeout_secs": 3.0,
+        },
         {"op": "tap", "key": "F11", "after": 0.45},
-        {"op": "capture_wait_change", "from": "label_beta", "name": "label_gamma", "region": "top_right_label", "message": "second F11 bootstrap to gamma failed", "timeout_secs": 3.0},
+        {
+            "op": "capture_wait_change",
+            "from": "label_beta",
+            "name": "label_gamma",
+            "region": "top_right_label",
+            "message": "second F11 bootstrap to gamma failed",
+            "timeout_secs": 3.0,
+        },
         {"op": "capture", "name": "gamma_seed", "region": "top_left_text", "wait_boot": True},
         {"op": "type_text", "text": "g", "after": 0.35},
         {
@@ -1192,7 +1326,12 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "gamma terminal did not update after typing",
             "timeout_secs": 2.5,
         },
-        {"op": "assert_ne", "left": "gamma_seed", "right": "gamma_text", "message": "gamma terminal did not update after typing"},
+        {
+            "op": "assert_ne",
+            "left": "gamma_seed",
+            "right": "gamma_text",
+            "message": "gamma terminal did not update after typing",
+        },
         {"op": "alt_a_prefix", "after": 0.15},
         {"op": "tap", "key": "0", "after": 0.45},
         {
@@ -1203,7 +1342,12 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "Alt+A 0 did not switch away from gamma",
             "timeout_secs": 3.0,
         },
-        {"op": "assert_ne", "left": "alpha_text", "right": "gamma_text", "message": "Alt+A 0 did not switch away from gamma"},
+        {
+            "op": "assert_ne",
+            "left": "alpha_text",
+            "right": "gamma_text",
+            "message": "Alt+A 0 did not switch away from gamma",
+        },
         {"op": "alt_a_prefix", "after": 0.15},
         {"op": "tap", "key": "2", "after": 0.45},
         {
@@ -1214,7 +1358,12 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "Alt+A 2 did not restore gamma",
             "timeout_secs": 4.0,
         },
-        {"op": "assert_eq", "left": "gamma_text", "right": "gamma_restored", "message": "Alt+A 2 did not restore gamma"},
+        {
+            "op": "assert_eq",
+            "left": "gamma_text",
+            "right": "gamma_restored",
+            "message": "Alt+A 2 did not restore gamma",
+        },
     ],
     "compact-geometry-centers-42-in-physical-vga": [
         {"op": "capture", "name": "compact_boot", "region": "top_left_cell", "wait_boot": True},
@@ -1225,13 +1374,34 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "compact boot text did not appear at centered origin",
             "timeout_secs": 3.0,
         },
-        {"op": "assert_ne", "left": "compact_boot", "right": "compact_text", "message": "compact boot text did not appear at centered origin"},
+        {
+            "op": "assert_ne",
+            "left": "compact_boot",
+            "right": "compact_text",
+            "message": "compact boot text did not appear at centered origin",
+        },
     ],
     "compact-geometry-keeps-terminal-label-in-physical-top-right": [
-        {"op": "capture_wait_foreground", "name": "compact_boot_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "compact mode hid terminal label in physical top-right"},
+        {
+            "op": "capture_wait_foreground",
+            "name": "compact_boot_label",
+            "region": "top_right_label",
+            "timeout_secs": 3.0,
+            "wait_boot": True,
+            "message": "compact mode hid terminal label in physical top-right",
+        },
     ],
     "compact-create-terminal-keeps-output-centered": [
-        {"op": "capture_wait_stable", "name": "physical_margin_blank", "region": "top_left_cell", "wait_boot": True, "timeout_secs": 3.0, "sample_interval_secs": 0.12, "hold_secs": 0.2, "message": "compact physical top-left margin did not stabilize before terminal creation"},
+        {
+            "op": "capture_wait_stable",
+            "name": "physical_margin_blank",
+            "region": "top_left_cell",
+            "wait_boot": True,
+            "timeout_secs": 3.0,
+            "sample_interval_secs": 0.12,
+            "hold_secs": 0.2,
+            "message": "compact physical top-left margin did not stabilize before terminal creation",
+        },
         {"op": "tap", "key": "F11", "after": 0.45},
         {"op": "type_text", "text": "b", "after": 0.25},
         {
@@ -1241,48 +1411,208 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "compact terminal text did not appear in the centered viewport",
             "timeout_secs": 3.0,
         },
-        {"op": "capture", "name": "physical_margin_after_create", "region": "top_left_cell", "wait_boot": False},
-        {"op": "assert_eq", "left": "physical_margin_blank", "right": "physical_margin_after_create", "message": "compact terminal creation leaked visible output into the physical top-left margin"},
+        {
+            "op": "capture",
+            "name": "physical_margin_after_create",
+            "region": "top_left_cell",
+            "wait_boot": False,
+        },
+        {
+            "op": "assert_eq",
+            "left": "physical_margin_blank",
+            "right": "physical_margin_after_create",
+            "message": "compact terminal creation leaked visible output into the physical top-left margin",
+        },
     ],
     "compact-switching-restores-centered-terminal-contents": [
-        {"op": "capture_wait_stable", "name": "physical_margin_blank", "region": "top_left_cell", "wait_boot": True, "timeout_secs": 3.0, "sample_interval_secs": 0.12, "hold_secs": 0.2, "message": "compact physical top-left margin did not stabilize before terminal switching"},
+        {
+            "op": "capture_wait_stable",
+            "name": "physical_margin_blank",
+            "region": "top_left_cell",
+            "wait_boot": True,
+            "timeout_secs": 3.0,
+            "sample_interval_secs": 0.12,
+            "hold_secs": 0.2,
+            "message": "compact physical top-left margin did not stabilize before terminal switching",
+        },
         {"op": "type_text", "text": "a", "after": 0.25},
-        {"op": "capture_wait_foreground", "name": "alpha_center_text", "region": "compact_origin", "message": "alpha text did not appear in the compact centered viewport", "timeout_secs": 3.0},
+        {
+            "op": "capture_wait_foreground",
+            "name": "alpha_center_text",
+            "region": "compact_origin",
+            "message": "alpha text did not appear in the compact centered viewport",
+            "timeout_secs": 3.0,
+        },
         {"op": "tap", "key": "F11", "after": 0.45},
         {"op": "type_text", "text": "b", "after": 0.25},
-        {"op": "capture_wait_change", "from": "alpha_center_text", "name": "beta_center_text", "region": "compact_origin", "message": "beta text did not change the compact centered viewport", "timeout_secs": 3.0},
+        {
+            "op": "capture_wait_change",
+            "from": "alpha_center_text",
+            "name": "beta_center_text",
+            "region": "compact_origin",
+            "message": "beta text did not change the compact centered viewport",
+            "timeout_secs": 3.0,
+        },
         {"op": "tap", "key": "F1", "after": 0.45},
-        {"op": "capture_wait_match", "target": "alpha_center_text", "name": "alpha_center_restored", "region": "compact_origin", "message": "compact switch to alpha did not restore centered contents", "timeout_secs": 4.0},
-        {"op": "assert_eq", "left": "alpha_center_text", "right": "alpha_center_restored", "message": "compact switch to alpha did not restore centered contents"},
+        {
+            "op": "capture_wait_match",
+            "target": "alpha_center_text",
+            "name": "alpha_center_restored",
+            "region": "compact_origin",
+            "message": "compact switch to alpha did not restore centered contents",
+            "timeout_secs": 4.0,
+        },
+        {
+            "op": "assert_eq",
+            "left": "alpha_center_text",
+            "right": "alpha_center_restored",
+            "message": "compact switch to alpha did not restore centered contents",
+        },
         {"op": "tap", "key": "F2", "after": 0.45},
-        {"op": "capture_wait_match", "target": "beta_center_text", "name": "beta_center_restored", "region": "compact_origin", "message": "compact switch to beta did not restore centered contents", "timeout_secs": 4.0},
-        {"op": "assert_eq", "left": "beta_center_text", "right": "beta_center_restored", "message": "compact switch to beta did not restore centered contents"},
-        {"op": "capture", "name": "physical_margin_after_switch", "region": "top_left_cell", "wait_boot": False},
-        {"op": "assert_eq", "left": "physical_margin_blank", "right": "physical_margin_after_switch", "message": "compact terminal switching leaked visible output into the physical top-left margin"},
+        {
+            "op": "capture_wait_match",
+            "target": "beta_center_text",
+            "name": "beta_center_restored",
+            "region": "compact_origin",
+            "message": "compact switch to beta did not restore centered contents",
+            "timeout_secs": 4.0,
+        },
+        {
+            "op": "assert_eq",
+            "left": "beta_center_text",
+            "right": "beta_center_restored",
+            "message": "compact switch to beta did not restore centered contents",
+        },
+        {
+            "op": "capture",
+            "name": "physical_margin_after_switch",
+            "region": "top_left_cell",
+            "wait_boot": False,
+        },
+        {
+            "op": "assert_eq",
+            "left": "physical_margin_blank",
+            "right": "physical_margin_after_switch",
+            "message": "compact terminal switching leaked visible output into the physical top-left margin",
+        },
     ],
     "compact-destroy-restores-previous-terminal": [
-        {"op": "capture_wait_stable", "name": "physical_margin_blank", "region": "top_left_cell", "wait_boot": True, "timeout_secs": 3.0, "sample_interval_secs": 0.12, "hold_secs": 0.2, "message": "compact physical top-left margin did not stabilize before terminal destroy"},
+        {
+            "op": "capture_wait_stable",
+            "name": "physical_margin_blank",
+            "region": "top_left_cell",
+            "wait_boot": True,
+            "timeout_secs": 3.0,
+            "sample_interval_secs": 0.12,
+            "hold_secs": 0.2,
+            "message": "compact physical top-left margin did not stabilize before terminal destroy",
+        },
         {"op": "type_text", "text": "a", "after": 0.25},
-        {"op": "capture_wait_foreground", "name": "alpha_center_text", "region": "compact_origin", "message": "alpha text did not appear in compact mode", "timeout_secs": 3.0},
-        {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha label did not appear in compact mode"},
+        {
+            "op": "capture_wait_foreground",
+            "name": "alpha_center_text",
+            "region": "compact_origin",
+            "message": "alpha text did not appear in compact mode",
+            "timeout_secs": 3.0,
+        },
+        {
+            "op": "capture_wait_foreground",
+            "name": "alpha_label",
+            "region": "top_right_label",
+            "timeout_secs": 3.0,
+            "message": "alpha label did not appear in compact mode",
+        },
         {"op": "tap", "key": "F11", "after": 0.45},
         {"op": "type_text", "text": "b", "after": 0.25},
-        {"op": "capture_wait_change", "from": "alpha_center_text", "name": "beta_center_text", "region": "compact_origin", "message": "beta text did not change the compact viewport", "timeout_secs": 3.0},
-        {"op": "capture_wait_change", "from": "alpha_label", "name": "beta_label", "region": "top_right_label", "message": "beta label did not appear in compact mode", "timeout_secs": 3.0},
+        {
+            "op": "capture_wait_change",
+            "from": "alpha_center_text",
+            "name": "beta_center_text",
+            "region": "compact_origin",
+            "message": "beta text did not change the compact viewport",
+            "timeout_secs": 3.0,
+        },
+        {
+            "op": "capture_wait_change",
+            "from": "alpha_label",
+            "name": "beta_label",
+            "region": "top_right_label",
+            "message": "beta label did not appear in compact mode",
+            "timeout_secs": 3.0,
+        },
         {"op": "tap", "key": "F12", "after": 0.45},
-        {"op": "capture_wait_match", "target": "alpha_center_text", "name": "alpha_center_restored", "region": "compact_origin", "message": "compact destroy did not restore alpha contents", "timeout_secs": 4.0},
-        {"op": "assert_eq", "left": "alpha_center_text", "right": "alpha_center_restored", "message": "compact destroy did not restore alpha contents"},
-        {"op": "capture_wait_match", "target": "alpha_label", "name": "alpha_label_restored", "region": "top_right_label", "message": "compact destroy did not restore alpha label", "timeout_secs": 4.0},
-        {"op": "assert_eq", "left": "alpha_label", "right": "alpha_label_restored", "message": "compact destroy did not restore alpha label"},
-        {"op": "capture", "name": "physical_margin_after_destroy", "region": "top_left_cell", "wait_boot": False},
-        {"op": "assert_eq", "left": "physical_margin_blank", "right": "physical_margin_after_destroy", "message": "compact destroy leaked visible output into the physical top-left margin"},
+        {
+            "op": "capture_wait_match",
+            "target": "alpha_center_text",
+            "name": "alpha_center_restored",
+            "region": "compact_origin",
+            "message": "compact destroy did not restore alpha contents",
+            "timeout_secs": 4.0,
+        },
+        {
+            "op": "assert_eq",
+            "left": "alpha_center_text",
+            "right": "alpha_center_restored",
+            "message": "compact destroy did not restore alpha contents",
+        },
+        {
+            "op": "capture_wait_match",
+            "target": "alpha_label",
+            "name": "alpha_label_restored",
+            "region": "top_right_label",
+            "message": "compact destroy did not restore alpha label",
+            "timeout_secs": 4.0,
+        },
+        {
+            "op": "assert_eq",
+            "left": "alpha_label",
+            "right": "alpha_label_restored",
+            "message": "compact destroy did not restore alpha label",
+        },
+        {
+            "op": "capture",
+            "name": "physical_margin_after_destroy",
+            "region": "top_left_cell",
+            "wait_boot": False,
+        },
+        {
+            "op": "assert_eq",
+            "left": "physical_margin_blank",
+            "right": "physical_margin_after_destroy",
+            "message": "compact destroy leaked visible output into the physical top-left margin",
+        },
     ],
     "compact-scroll-keeps-output-inside-centered-viewport": [
-        {"op": "capture_wait_stable", "name": "physical_margin_blank", "region": "top_left_cell", "wait_boot": True, "timeout_secs": 3.0, "sample_interval_secs": 0.12, "hold_secs": 0.2, "message": "compact physical top-left margin did not stabilize before scroll"},
+        {
+            "op": "capture_wait_stable",
+            "name": "physical_margin_blank",
+            "region": "top_left_cell",
+            "wait_boot": True,
+            "timeout_secs": 3.0,
+            "sample_interval_secs": 0.12,
+            "hold_secs": 0.2,
+            "message": "compact physical top-left margin did not stabilize before scroll",
+        },
         *_write_lines_steps(_line_block("cmp", 16), text_after_secs=0.04, enter_after_secs=0.12),
-        {"op": "capture_wait_foreground", "name": "compact_scrolled_text", "region": "compact_origin", "message": "compact scroll did not leave visible text inside the centered viewport", "timeout_secs": 4.0},
-        {"op": "capture", "name": "physical_margin_after_scroll", "region": "top_left_cell", "wait_boot": False},
-        {"op": "assert_eq", "left": "physical_margin_blank", "right": "physical_margin_after_scroll", "message": "compact scroll leaked visible output into the physical top-left margin"},
+        {
+            "op": "capture_wait_foreground",
+            "name": "compact_scrolled_text",
+            "region": "compact_origin",
+            "message": "compact scroll did not leave visible text inside the centered viewport",
+            "timeout_secs": 4.0,
+        },
+        {
+            "op": "capture",
+            "name": "physical_margin_after_scroll",
+            "region": "top_left_cell",
+            "wait_boot": False,
+        },
+        {
+            "op": "assert_eq",
+            "left": "physical_margin_blank",
+            "right": "physical_margin_after_scroll",
+            "message": "compact scroll leaked visible output into the physical top-left margin",
+        },
     ],
     "vga-buffer-starts-with-42": [
         {"op": "capture", "name": "boot", "region": "boot_text", "wait_boot": True},
@@ -1290,7 +1620,11 @@ SCENARIOS: dict[str, list[dict]] = {
     ],
     "vga-buffer-uses-default-attribute": [
         {"op": "capture", "name": "boot", "region": "boot_text", "wait_boot": True},
-        {"op": "assert_green_text", "sample": "boot", "message": "boot text was not green dominant"},
+        {
+            "op": "assert_green_text",
+            "sample": "boot",
+            "message": "boot text was not green dominant",
+        },
     ],
     "vga-buffer-stable-across-snapshots": [
         {
@@ -1312,7 +1646,12 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "boot region changed between snapshots",
             "timeout_secs": 3.0,
         },
-        {"op": "assert_eq", "left": "snapshot_1", "right": "snapshot_2", "message": "boot region changed between snapshots"},
+        {
+            "op": "assert_eq",
+            "left": "snapshot_1",
+            "right": "snapshot_2",
+            "message": "boot region changed between snapshots",
+        },
     ],
 }
 
@@ -1327,7 +1666,13 @@ SCENARIOS["alt-function-key-selection-matrix"] = _selection_matrix_steps(
     True,
 )
 SCENARIOS["destroying-last-terminal-keeps-alpha-active"] = [
-    {"op": "capture_wait_foreground", "name": "label_alpha", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {
+        "op": "capture_wait_foreground",
+        "name": "label_alpha",
+        "region": "top_right_label",
+        "timeout_secs": 3.0,
+        "message": "alpha terminal label did not appear",
+    },
     {"op": "tap", "key": "F12", "after": 0.35},
     {
         "op": "capture_wait_match",
@@ -1337,7 +1682,12 @@ SCENARIOS["destroying-last-terminal-keeps-alpha-active"] = [
         "message": "destroying the last terminal changed the active label",
         "timeout_secs": 2.0,
     },
-    {"op": "assert_eq", "left": "label_alpha", "right": "label_after_destroy", "message": "destroying the last terminal changed the active label"},
+    {
+        "op": "assert_eq",
+        "left": "label_alpha",
+        "right": "label_after_destroy",
+        "message": "destroying the last terminal changed the active label",
+    },
 ]
 SCENARIOS["terminal-create-capacity-limit-is-a-no-op"] = [
     *_create_terminal_label_steps(12),
@@ -1350,10 +1700,21 @@ SCENARIOS["terminal-create-capacity-limit-is-a-no-op"] = [
         "message": "creating beyond terminal capacity changed the active label",
         "timeout_secs": 3.0,
     },
-    {"op": "assert_eq", "left": "label_mu", "right": "label_after_capacity", "message": "creating beyond terminal capacity changed the active label"},
+    {
+        "op": "assert_eq",
+        "left": "label_mu",
+        "right": "label_after_capacity",
+        "message": "creating beyond terminal capacity changed the active label",
+    },
 ]
 SCENARIOS["switching-to-an-untouched-terminal-shows-a-blank-screen"] = [
-    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {
+        "op": "capture_wait_foreground",
+        "name": "alpha_label",
+        "region": "top_right_label",
+        "timeout_secs": 3.0,
+        "message": "alpha terminal label did not appear",
+    },
     {"op": "type_text", "text": "d", "after": 0.35},
     {
         "op": "capture_wait_change",
@@ -1373,7 +1734,13 @@ SCENARIOS["switching-to-an-untouched-terminal-shows-a-blank-screen"] = [
     },
 ]
 SCENARIOS["switching-back-from-an-untouched-terminal-restores-the-dirty-terminal"] = [
-    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {
+        "op": "capture_wait_foreground",
+        "name": "alpha_label",
+        "region": "top_right_label",
+        "timeout_secs": 3.0,
+        "message": "alpha terminal label did not appear",
+    },
     {"op": "type_text", "text": "d", "after": 0.35},
     {
         "op": "capture_wait_change",
@@ -1400,7 +1767,12 @@ SCENARIOS["switching-back-from-an-untouched-terminal-restores-the-dirty-terminal
         "message": "switching back from an untouched terminal did not restore the dirty terminal",
         "timeout_secs": 3.0,
     },
-    {"op": "assert_eq", "left": "dirty_alpha", "right": "restored_alpha", "message": "switching back from an untouched terminal did not restore the dirty terminal"},
+    {
+        "op": "assert_eq",
+        "left": "dirty_alpha",
+        "right": "restored_alpha",
+        "message": "switching back from an untouched terminal did not restore the dirty terminal",
+    },
 ]
 SCENARIOS["destroying-from-a-high-slot-focuses-a-valid-survivor"] = [
     *_create_terminal_label_steps(12),
@@ -1413,10 +1785,21 @@ SCENARIOS["destroying-from-a-high-slot-focuses-a-valid-survivor"] = [
         "message": "destroying the highest active slot did not focus a surviving terminal",
         "timeout_secs": 3.0,
     },
-    {"op": "assert_eq", "left": "label_lambda", "right": "label_survivor", "message": "destroying the highest active slot did not focus a surviving terminal"},
+    {
+        "op": "assert_eq",
+        "left": "label_lambda",
+        "right": "label_survivor",
+        "message": "destroying the highest active slot did not focus a surviving terminal",
+    },
 ]
 SCENARIOS["arrow-up-restores-an-older-viewport-snapshot"] = [
-    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {
+        "op": "capture_wait_foreground",
+        "name": "alpha_label",
+        "region": "top_right_label",
+        "timeout_secs": 3.0,
+        "message": "alpha terminal label did not appear",
+    },
     *_write_lines_steps(_line_block("old", 26)),
     {"op": "capture", "name": "older_view", "region": "top_left_text", "wait_boot": False},
     *_write_lines_steps(["tail"]),
@@ -1437,10 +1820,21 @@ SCENARIOS["arrow-up-restores-an-older-viewport-snapshot"] = [
         "message": "ArrowUp did not restore an older viewport snapshot",
         "timeout_secs": 4.0,
     },
-    {"op": "assert_eq", "left": "older_view", "right": "restored_old_view", "message": "ArrowUp did not restore an older viewport snapshot"},
+    {
+        "op": "assert_eq",
+        "left": "older_view",
+        "right": "restored_old_view",
+        "message": "ArrowUp did not restore an older viewport snapshot",
+    },
 ]
 SCENARIOS["arrow-down-returns-to-the-live-tail-viewport"] = [
-    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {
+        "op": "capture_wait_foreground",
+        "name": "alpha_label",
+        "region": "top_right_label",
+        "timeout_secs": 3.0,
+        "message": "alpha terminal label did not appear",
+    },
     *_write_lines_steps(_line_block("old", 26)),
     {"op": "capture", "name": "older_view", "region": "top_left_text", "wait_boot": False},
     *_write_lines_steps(["tail"]),
@@ -1453,7 +1847,14 @@ SCENARIOS["arrow-down-returns-to-the-live-tail-viewport"] = [
         "timeout_secs": 3.0,
     },
     {"op": "tap", "key": "ArrowUp", "after": 0.35},
-    {"op": "capture_wait_change", "from": "live_tail", "name": "older_again", "region": "top_left_text", "message": "ArrowUp did not move the viewport away from the live tail", "timeout_secs": 3.0},
+    {
+        "op": "capture_wait_change",
+        "from": "live_tail",
+        "name": "older_again",
+        "region": "top_left_text",
+        "message": "ArrowUp did not move the viewport away from the live tail",
+        "timeout_secs": 3.0,
+    },
     {"op": "tap", "key": "ArrowDown", "after": 0.35},
     {
         "op": "capture_wait_match",
@@ -1463,10 +1864,21 @@ SCENARIOS["arrow-down-returns-to-the-live-tail-viewport"] = [
         "message": "ArrowDown did not return to the live tail viewport",
         "timeout_secs": 4.0,
     },
-    {"op": "assert_eq", "left": "live_tail", "right": "restored_tail", "message": "ArrowDown did not return to the live tail viewport"},
+    {
+        "op": "assert_eq",
+        "left": "live_tail",
+        "right": "restored_tail",
+        "message": "ArrowDown did not return to the live tail viewport",
+    },
 ]
 SCENARIOS["multi-line-output-scrolls-visibly-after-repeated-newlines"] = [
-    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {
+        "op": "capture_wait_foreground",
+        "name": "alpha_label",
+        "region": "top_right_label",
+        "timeout_secs": 3.0,
+        "message": "alpha terminal label did not appear",
+    },
     {"op": "capture", "name": "before_scroll", "region": "top_left_text", "wait_boot": True},
     *_write_lines_steps(_line_block("scr", 30), text_after_secs=0.04, enter_after_secs=0.12),
     {
@@ -1477,12 +1889,24 @@ SCENARIOS["multi-line-output-scrolls-visibly-after-repeated-newlines"] = [
         "message": "repeated newlines did not visibly scroll the screen",
         "timeout_secs": 5.0,
     },
-    {"op": "assert_ne", "left": "before_scroll", "right": "after_scroll", "message": "repeated newlines did not visibly scroll the screen"},
+    {
+        "op": "assert_ne",
+        "left": "before_scroll",
+        "right": "after_scroll",
+        "message": "repeated newlines did not visibly scroll the screen",
+    },
 ]
 SCENARIOS["backspace-blanks-the-last-visible-character-cell"] = [
     *_fresh_terminal_blank_steps("beta_blank"),
     {"op": "type_text", "text": "x", "after": 0.25},
-    {"op": "capture_wait_change", "from": "beta_blank", "name": "beta_dirty", "region": "top_left_body", "message": "typing a visible character did not change the terminal", "timeout_secs": 2.5},
+    {
+        "op": "capture_wait_change",
+        "from": "beta_blank",
+        "name": "beta_dirty",
+        "region": "top_left_body",
+        "message": "typing a visible character did not change the terminal",
+        "timeout_secs": 2.5,
+    },
     {"op": "tap", "key": "Backspace", "after": 0.35},
     {
         "op": "capture_wait_match",
@@ -1492,7 +1916,12 @@ SCENARIOS["backspace-blanks-the-last-visible-character-cell"] = [
         "message": "Backspace did not blank the last visible character cell",
         "timeout_secs": 3.0,
     },
-    {"op": "assert_eq", "left": "beta_blank", "right": "beta_restored_blank", "message": "Backspace did not blank the last visible character cell"},
+    {
+        "op": "assert_eq",
+        "left": "beta_blank",
+        "right": "beta_restored_blank",
+        "message": "Backspace did not blank the last visible character cell",
+    },
 ]
 SCENARIOS["newline-moves-visible-output-to-the-next-row"] = [
     *_fresh_terminal_blank_steps("beta_blank"),
@@ -1508,7 +1937,12 @@ SCENARIOS["newline-moves-visible-output-to-the-next-row"] = [
         "message": "newline did not move visible output to the next row",
         "timeout_secs": 3.0,
     },
-    {"op": "assert_ne", "left": "before_newline", "right": "after_newline", "message": "newline did not move visible output to the next row"},
+    {
+        "op": "assert_ne",
+        "left": "before_newline",
+        "right": "after_newline",
+        "message": "newline did not move visible output to the next row",
+    },
 ]
 SCENARIOS["end-of-line-wrap-continues-on-the-next-row"] = [
     *_fresh_terminal_blank_steps("beta_blank"),
@@ -1523,10 +1957,21 @@ SCENARIOS["end-of-line-wrap-continues-on-the-next-row"] = [
         "message": "end-of-line wrap did not continue on the next row",
         "timeout_secs": 3.0,
     },
-    {"op": "assert_ne", "left": "before_wrap", "right": "after_wrap", "message": "end-of-line wrap did not continue on the next row"},
+    {
+        "op": "assert_ne",
+        "left": "before_wrap",
+        "right": "after_wrap",
+        "message": "end-of-line wrap did not continue on the next row",
+    },
 ]
 SCENARIOS["switching-back-to-a-scrolled-terminal-restores-its-viewport"] = [
-    {"op": "capture_wait_foreground", "name": "alpha_label", "region": "top_right_label", "timeout_secs": 3.0, "message": "alpha terminal label did not appear"},
+    {
+        "op": "capture_wait_foreground",
+        "name": "alpha_label",
+        "region": "top_right_label",
+        "timeout_secs": 3.0,
+        "message": "alpha terminal label did not appear",
+    },
     *_write_lines_steps(_line_block("scr", 26)),
     {"op": "capture", "name": "scrolled_alpha", "region": "top_left_text", "wait_boot": False},
     {"op": "tap", "key": "F11", "after": 0.45},
@@ -1546,7 +1991,12 @@ SCENARIOS["switching-back-to-a-scrolled-terminal-restores-its-viewport"] = [
         "message": "switching back to a scrolled terminal did not restore its viewport",
         "timeout_secs": 4.0,
     },
-    {"op": "assert_eq", "left": "scrolled_alpha", "right": "restored_scrolled_alpha", "message": "switching back to a scrolled terminal did not restore its viewport"},
+    {
+        "op": "assert_eq",
+        "left": "scrolled_alpha",
+        "right": "restored_scrolled_alpha",
+        "message": "switching back to a scrolled terminal did not restore its viewport",
+    },
 ]
 SCENARIOS["label-overlay-right-aligns-short-labels"] = [
     *_create_terminal_label_steps(12),
@@ -1565,7 +2015,12 @@ SCENARIOS["label-overlay-right-aligns-short-labels"] = [
         "message": "lambda label did not render into the left padding region",
         "timeout_secs": 3.0,
     },
-    {"op": "assert_ne", "left": "mu_padding_blank", "right": "lambda_padding_foreground", "message": "short and long labels rendered the same left padding region"},
+    {
+        "op": "assert_ne",
+        "left": "mu_padding_blank",
+        "right": "lambda_padding_foreground",
+        "message": "short and long labels rendered the same left padding region",
+    },
 ]
 SCENARIOS["label-overlay-clears-stale-cells-when-shortening"] = [
     *_create_terminal_label_steps(12),
@@ -1601,8 +2056,18 @@ SCENARIOS["label-overlay-clears-stale-cells-when-shortening"] = [
         "message": "returning from lambda to mu did not clear stale left-padding cells",
         "timeout_secs": 3.0,
     },
-    {"op": "assert_eq", "left": "mu_exact", "right": "mu_exact_restored", "message": "returning from lambda to mu did not restore the exact label overlay"},
-    {"op": "assert_eq", "left": "mu_padding_blank", "right": "mu_padding_restored", "message": "returning from lambda to mu did not clear stale left-padding cells"},
+    {
+        "op": "assert_eq",
+        "left": "mu_exact",
+        "right": "mu_exact_restored",
+        "message": "returning from lambda to mu did not restore the exact label overlay",
+    },
+    {
+        "op": "assert_eq",
+        "left": "mu_padding_blank",
+        "right": "mu_padding_restored",
+        "message": "returning from lambda to mu did not clear stale left-padding cells",
+    },
 ]
 
 
@@ -1639,7 +2104,7 @@ def main() -> None:
         else:
             fail(f"unsupported input backend: {args.input_backend}")
 
-        _execute_steps(SCENARIOS[args.case], client, input_backend)
+        _execute_steps(SCENARIOS[args.case], client, input_backend, args.timeout_secs)
     finally:
         if qmp is not None:
             qmp.close()
