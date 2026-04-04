@@ -18,6 +18,8 @@ terminal-switching-preserves-screen-contents
 alt-a-c-creates-terminal-and-label-becomes-beta
 alt-a-x-destroys-terminal-and-label-returns-alpha
 alt-a-digit-selects-target-terminal
+bare-function-key-selection-matrix
+alt-function-key-selection-matrix
 EOF
 }
 
@@ -29,12 +31,22 @@ describe_case() {
     alt-a-c-creates-terminal-and-label-becomes-beta) printf '%s\n' "host-driven VNC E2E maps Alt+A then C onto terminal creation" ;;
     alt-a-x-destroys-terminal-and-label-returns-alpha) printf '%s\n' "host-driven VNC E2E maps Alt+A then X onto terminal destruction" ;;
     alt-a-digit-selects-target-terminal) printf '%s\n' "host-driven VNC E2E maps Alt+A then a digit onto terminal selection" ;;
+    bare-function-key-selection-matrix) printf '%s\n' "host-driven VNC E2E maps bare F1 through F10 onto visible terminal selection" ;;
+    alt-function-key-selection-matrix) printf '%s\n' "host-driven VNC E2E maps Alt+F1 through Alt+F12 onto visible terminal selection" ;;
     *) return 1 ;;
   esac
 }
 
 run_case() {
-  qemu_vnc_run_case "${ARCH}" "iso" "build/os-${ARCH}.iso" "${SOCKET_PATH}" "${QMP_SOCKET_PATH}" "${CASE}" "${LOG_PATH}" "${TIMEOUT_SECS}"
+  local timeout_secs="${TEST_TIMEOUT_SECS:-15}"
+
+  case "${CASE}" in
+    bare-function-key-selection-matrix|alt-function-key-selection-matrix)
+      timeout_secs="${TEST_TIMEOUT_SECS:-45}"
+      ;;
+  esac
+
+  qemu_vnc_run_case "${ARCH}" "iso" "build/os-${ARCH}.iso" "${SOCKET_PATH}" "${QMP_SOCKET_PATH}" "${CASE}" "${LOG_PATH}" "${timeout_secs}"
 }
 
 main() {

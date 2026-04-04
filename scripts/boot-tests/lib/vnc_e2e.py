@@ -20,6 +20,14 @@ def fail(message: str) -> None:
 
 
 KEYSYM_ALT_L = 0xFFE9
+KEYSYM_F3 = 0xFFC0
+KEYSYM_F4 = 0xFFC1
+KEYSYM_F5 = 0xFFC2
+KEYSYM_F6 = 0xFFC3
+KEYSYM_F7 = 0xFFC4
+KEYSYM_F8 = 0xFFC5
+KEYSYM_F9 = 0xFFC6
+KEYSYM_F10 = 0xFFC7
 KEYSYM_F1 = 0xFFBE
 KEYSYM_F2 = 0xFFBF
 KEYSYM_F11 = 0xFFC8
@@ -29,6 +37,14 @@ QCODE_KEYS = {
     "alt": "alt",
     "f1": "f1",
     "f2": "f2",
+    "f3": "f3",
+    "f4": "f4",
+    "f5": "f5",
+    "f6": "f6",
+    "f7": "f7",
+    "f8": "f8",
+    "f9": "f9",
+    "f10": "f10",
     "f11": "f11",
     "f12": "f12",
     "spc": "spc",
@@ -43,6 +59,14 @@ def normalize_keysym(value: int | str) -> int:
     mapping = {
         "F1": KEYSYM_F1,
         "F2": KEYSYM_F2,
+        "F3": KEYSYM_F3,
+        "F4": KEYSYM_F4,
+        "F5": KEYSYM_F5,
+        "F6": KEYSYM_F6,
+        "F7": KEYSYM_F7,
+        "F8": KEYSYM_F8,
+        "F9": KEYSYM_F9,
+        "F10": KEYSYM_F10,
         "F11": KEYSYM_F11,
         "F12": KEYSYM_F12,
     }
@@ -312,6 +336,9 @@ class InputBackend:
     def type_text(self, text: str) -> None:
         raise NotImplementedError
 
+    def chord(self, keys: list[str]) -> None:
+        raise NotImplementedError
+
     def alt_a_prefix(self) -> None:
         raise NotImplementedError
 
@@ -337,13 +364,16 @@ class QmpInput(InputBackend):
         for c in text:
             self._tap(c)
 
-    def alt_a_prefix(self) -> None:
-        self._send("Alt", True)
-        self._send("a", True)
+    def chord(self, keys: list[str]) -> None:
+        for key in keys:
+            self._send(key, True)
         time.sleep(0.08)
-        self._send("a", False)
-        self._send("Alt", False)
+        for key in reversed(keys):
+            self._send(key, False)
         time.sleep(0.12)
+
+    def alt_a_prefix(self) -> None:
+        self.chord(["Alt", "a"])
 
 
 def _pixel_color(client: VNCClient, pixel: bytes) -> tuple[int, int, int]:
@@ -784,6 +814,11 @@ def _execute_steps(
             time.sleep(float(step.get("after", 0.0)))
             continue
 
+        if op == "chord":
+            input_backend.chord(step["keys"])
+            time.sleep(float(step.get("after", 0.0)))
+            continue
+
         if op == "alt_a_prefix":
             input_backend.alt_a_prefix()
             time.sleep(float(step.get("after", 0.0)))
@@ -810,6 +845,89 @@ def _execute_steps(
             continue
 
         fail(f"unknown scenario op: {op}")
+
+
+TERMINAL_LABEL_NAMES = (
+    "alpha",
+    "beta",
+    "gamma",
+    "delta",
+    "epsilon",
+    "zeta",
+    "eta",
+    "theta",
+    "iota",
+    "kappa",
+    "lambda",
+    "mu",
+)
+
+
+def _label_sample_name(index: int) -> str:
+    return f"label_{TERMINAL_LABEL_NAMES[index]}"
+
+
+def _create_terminal_label_steps(target_count: int) -> list[dict]:
+    steps: list[dict] = [
+        {
+            "op": "capture_wait_foreground",
+            "name": _label_sample_name(0),
+            "region": "top_right_label",
+            "timeout_secs": 3.0,
+            "message": "alpha terminal label did not appear",
+        }
+    ]
+
+    for index in range(1, target_count):
+        steps.extend(
+            [
+                {"op": "tap", "key": "F11", "after": 0.45},
+                {
+                    "op": "capture_wait_change",
+                    "from": _label_sample_name(index - 1),
+                    "name": _label_sample_name(index),
+                    "region": "top_right_label",
+                    "message": f"F11 bootstrap to {TERMINAL_LABEL_NAMES[index]} failed",
+                    "timeout_secs": 3.0,
+                },
+            ]
+        )
+
+    return steps
+
+
+def _selection_matrix_steps(keys: list[str], target_count: int, use_chord: bool) -> list[dict]:
+    steps = _create_terminal_label_steps(target_count)
+
+    for index, key in enumerate(keys):
+        steps.append(
+            {
+                "op": "chord" if use_chord else "tap",
+                "keys": ["Alt", key] if use_chord else None,
+                "key": None if use_chord else key,
+                "after": 0.45,
+            }
+        )
+        steps.extend(
+            [
+                {
+                    "op": "capture_wait_match",
+                    "target": _label_sample_name(index),
+                    "name": f"selected_{key.lower()}",
+                    "region": "top_right_label",
+                    "message": f"{key} did not select terminal {index}",
+                    "timeout_secs": 3.0,
+                },
+                {
+                    "op": "assert_eq",
+                    "left": _label_sample_name(index),
+                    "right": f"selected_{key.lower()}",
+                    "message": f"{key} did not select terminal {index}",
+                },
+            ]
+        )
+
+    return steps
 
 
 SCENARIOS: dict[str, list[dict]] = {
@@ -1016,6 +1134,17 @@ SCENARIOS: dict[str, list[dict]] = {
         {"op": "assert_eq", "left": "snapshot_1", "right": "snapshot_2", "message": "boot region changed between snapshots"},
     ],
 }
+
+SCENARIOS["bare-function-key-selection-matrix"] = _selection_matrix_steps(
+    [f"F{index}" for index in range(1, 11)],
+    10,
+    False,
+)
+SCENARIOS["alt-function-key-selection-matrix"] = _selection_matrix_steps(
+    [f"F{index}" for index in range(1, 13)],
+    12,
+    True,
+)
 
 
 def _parse_args() -> argparse.Namespace:
