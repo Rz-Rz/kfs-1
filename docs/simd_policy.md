@@ -125,6 +125,55 @@ Current policy direction:
 
 Any later decision to require SSE2-class hardware must be made explicitly and documented as a compatibility change.
 
+## 8. Ownership Boundaries
+
+Future SIMD-related work must preserve the repo's existing ownership model.
+
+Expected ownership split:
+- `src/arch/` owns unavoidable raw assembly entry/runtime helpers and any truly arch-bound machine-state edges
+- `src/kernel/core/` owns sequencing and runtime policy transitions into later SIMD-safe execution
+- `src/kernel/machine/` owns typed low-level machine primitives that later layers can call without reintroducing raw assembly everywhere
+- `src/kernel/klib/` owns scalar and accelerated helper dispatch once runtime policy says acceleration is legal
+- `docs/` and `scripts/` own the written contract and the proof harness that guards it
+
+Disallowed pattern:
+- ad hoc inline assembly or target-policy shortcuts scattered through unrelated service/driver/helper code
+
+## 9. Proof Obligations
+
+Later phases must prove each new SIMD/MMX/SSE2 capability at the right boundary.
+
+Minimum proof obligations:
+1. capability policy proof
+- show how the kernel decides whether acceleration is allowed
+- prove unsupported or disabled paths remain scalar
+
+2. initialization-order proof
+- show that required machine-state setup occurs before any accelerated path is reachable
+- prove pre-init execution is impossible or rejected
+
+3. artifact-policy proof
+- if the repo continues to forbid unconditional SIMD emission, keep artifact checks that catch accidental XMM/SSE-family instructions
+- if policy changes, update the artifact checks in the same change
+
+4. semantic parity proof
+- accelerated `memcpy` / `memset` / later helpers must preserve the scalar contract
+- host and freestanding tests must prove parity and fallback behavior
+
+5. freestanding proof continuity
+- all SIMD work must leave the existing no-host-linkage proofs intact
+- freestanding ELF checks remain mandatory even after acceleration is introduced
+
+## 10. Open Risks
+
+The following questions remain intentionally unresolved after Phase 1:
+- **Strict 80386 compatibility:** the final artifact is ELF32 `Intel 80386`, but the current Rust baseline is still `i586-unknown-linux-gnu`
+- **x87 interaction:** the repo does not yet define a full x87 policy and does not currently prove absence of every floating-point instruction family
+- **MMX cleanup and transition rules:** later phases must define how MMX state and any required cleanup interact with subsequent floating-point/SSE use
+- **Future minimum CPU policy:** the branch has not yet decided whether optional acceleration remains permanent or later evolves into a stronger CPU baseline requirement
+
+These are design risks to manage explicitly, not details to hand-wave away in later implementation phases.
+
 ---
 *Policy written: 2026-04-05*
 *Update when SIMD ownership or compatibility rules change*
