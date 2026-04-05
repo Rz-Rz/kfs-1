@@ -9,9 +9,9 @@ This roadmap adds optional MMX/SSE/SSE2 acceleration to the existing freestandin
 - [x] **Phase 1: SIMD Policy & Subject Contract** - define CPU baseline, subject interpretation, and acceptance boundaries for SIMD work (completed 2026-04-05)
 - [x] **Phase 2: Capability Detection & Runtime Guardrails** - introduce explicit feature policy before any accelerated path can execute (completed 2026-04-05)
 - [x] **Phase 3: FPU/MMX/SSE State Ownership** - add the machine-state initialization and preservation model required for safe SIMD use (completed 2026-04-05)
-- [ ] **Phase 4: Accelerated Memory Primitives** - implement optional accelerated helper routines with scalar fallback
-- [ ] **Phase 5: Kernel Integration & Proof Hardening** - wire accelerated paths selectively and extend artifact/runtime tests
-- [ ] **Phase 6: Documentation & Future Expansion** - finish sign-off docs and define post-v1 SIMD follow-on work
+- [x] **Phase 4: Accelerated Memory Primitives** - implement optional accelerated helper routines with scalar fallback (completed 2026-04-05)
+- [x] **Phase 5: Kernel Integration & Proof Hardening** - wire accelerated paths selectively and extend artifact/runtime tests (completed 2026-04-05)
+- [x] **Phase 6: Documentation & Future Expansion** - finish sign-off docs and define post-v1 SIMD follow-on work (completed 2026-04-05)
 
 ## Phase Details
 
@@ -71,9 +71,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: define the canonical module/facade shape for accelerated helper routines
-- [ ] 04-02: implement optional accelerated `memcpy`
-- [ ] 04-03: implement optional accelerated `memset` and host semantic parity tests
+- [x] 04-01: define the canonical module/facade shape for accelerated helper routines
+- [x] 04-02: implement optional accelerated `memcpy`
+- [x] 04-03: implement optional accelerated `memset` and host semantic parity tests
 
 ### Phase 5: Kernel Integration & Proof Hardening
 **Goal**: Integrate accelerated primitives into selected kernel paths and strengthen freestanding, boot, and architecture proofs.
@@ -86,9 +86,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: integrate accelerated primitives into selected kernel call sites with clear fallbacks
-- [ ] 05-02: extend stability and boot proofs for subject compliance after SIMD work
-- [ ] 05-03: extend architecture and rejection tests for SIMD boundaries
+- [x] 05-01: integrate accelerated primitives into selected kernel call sites with clear fallbacks
+- [x] 05-02: extend stability and boot proofs for subject compliance after SIMD work
+- [x] 05-03: extend architecture and rejection tests for SIMD boundaries
 
 ### Phase 6: Documentation & Future Expansion
 **Goal**: Close the milestone with aligned docs and a clear backlog for post-v1 accelerations.
@@ -101,8 +101,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: update architecture/proof/docs to reflect the landed SIMD policy
-- [ ] 06-02: capture post-v1 candidates such as string or VGA-path acceleration
+- [x] 06-01: update architecture/proof/docs to reflect the landed SIMD policy
+- [x] 06-02: capture post-v1 candidates such as string or VGA-path acceleration
 
 ## Progress
 
@@ -114,6 +114,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. SIMD Policy & Subject Contract | 3/3 | Complete    | 2026-04-05 |
 | 2. Capability Detection & Runtime Guardrails | 3/3 | Complete    | 2026-04-05 |
 | 3. FPU/MMX/SSE State Ownership | 3/3 | Complete    | 2026-04-05 |
-| 4. Accelerated Memory Primitives | 0/3 | Not started | - |
-| 5. Kernel Integration & Proof Hardening | 0/3 | Not started | - |
-| 6. Documentation & Future Expansion | 0/2 | Not started | - |
+| 4. Accelerated Memory Primitives | 3/3 | Complete | 2026-04-05 |
+| 5. Kernel Integration & Proof Hardening | 3/3 | Complete | 2026-04-05 |
+| 6. Documentation & Future Expansion | 2/2 | Complete | 2026-04-05 |
