@@ -1207,7 +1207,7 @@ def _fresh_terminal_blank_steps(sample_name: str) -> list[dict]:
 
 
 SCENARIOS: dict[str, list[dict]] = {
-    "f11-creates-terminal-and-label-becomes-beta": [
+    "f11-creates-terminal-and-visible-indicator-changes": [
         {"op": "capture", "name": "label_alpha", "region": "top_right_label", "wait_boot": True},
         {"op": "tap", "key": "F11", "after": 0.5},
         {
@@ -1215,23 +1215,23 @@ SCENARIOS: dict[str, list[dict]] = {
             "from": "label_alpha",
             "name": "label_beta",
             "region": "top_right_label",
-            "message": "F11 did not change the terminal label",
+            "message": "F11 did not change the active-terminal indicator",
             "timeout_secs": 2.5,
         },
         {
             "op": "assert_ne",
             "left": "label_alpha",
             "right": "label_beta",
-            "message": "F11 did not change the terminal label",
+            "message": "F11 did not change the active-terminal indicator",
         },
     ],
-    "f12-destroys-current-terminal-and-label-returns-alpha": [
+    "f12-destroys-current-terminal-and-visible-indicator-restores": [
         {
             "op": "capture_wait_foreground",
             "name": "label_alpha",
             "region": "top_right_label",
             "timeout_secs": 3.0,
-            "message": "alpha terminal label did not appear",
+            "message": "initial active-terminal indicator did not appear",
         },
         {"op": "tap", "key": "F11", "after": 0.5},
         {
@@ -1239,14 +1239,14 @@ SCENARIOS: dict[str, list[dict]] = {
             "from": "label_alpha",
             "name": "label_beta",
             "region": "top_right_label",
-            "message": "F11 bootstrap for F12 case did not create beta",
+            "message": "F11 bootstrap for F12 case did not change the active-terminal indicator",
             "timeout_secs": 3.0,
         },
         {
             "op": "assert_ne",
             "left": "label_alpha",
             "right": "label_beta",
-            "message": "F11 bootstrap for F12 case did not create beta",
+            "message": "F11 bootstrap for F12 case did not change the active-terminal indicator",
         },
         {"op": "tap", "key": "F12", "after": 0.5},
         {
@@ -1254,14 +1254,14 @@ SCENARIOS: dict[str, list[dict]] = {
             "target": "label_alpha",
             "name": "label_restored",
             "region": "top_right_label",
-            "message": "F12 did not restore alpha label",
+            "message": "F12 did not restore the prior active-terminal indicator",
             "timeout_secs": 5.0,
         },
         {
             "op": "assert_eq",
             "left": "label_alpha",
             "right": "label_restored",
-            "message": "F12 did not restore alpha label",
+            "message": "F12 did not restore the prior active-terminal indicator",
         },
     ],
     "terminal-switching-preserves-screen-contents": [
@@ -1328,13 +1328,13 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "switching to F2 did not restore beta",
         },
     ],
-    "alt-a-c-creates-terminal-and-label-becomes-beta": [
+    "alt-a-c-creates-terminal-and-visible-indicator-changes": [
         {
             "op": "capture_wait_foreground",
             "name": "label_alpha",
             "region": "top_right_label",
             "timeout_secs": 3.0,
-            "message": "alpha terminal label did not appear",
+            "message": "initial active-terminal indicator did not appear",
         },
         {"op": "alt_a_prefix", "after": 0.15},
         {"op": "tap", "key": "c", "after": 0.55},
@@ -1343,23 +1343,23 @@ SCENARIOS: dict[str, list[dict]] = {
             "from": "label_alpha",
             "name": "label_created",
             "region": "top_right_label",
-            "message": "Alt+A C did not change terminal label",
+            "message": "Alt+A C did not change the active-terminal indicator",
             "timeout_secs": 2.0,
         },
         {
             "op": "assert_ne",
             "left": "label_alpha",
             "right": "label_created",
-            "message": "Alt+A C did not change terminal label",
+            "message": "Alt+A C did not change the active-terminal indicator",
         },
     ],
-    "alt-a-x-destroys-terminal-and-label-returns-alpha": [
+    "alt-a-x-destroys-terminal-and-visible-indicator-restores": [
         {
             "op": "capture_wait_foreground",
             "name": "label_alpha",
             "region": "top_right_label",
             "timeout_secs": 3.0,
-            "message": "alpha terminal label did not appear",
+            "message": "initial active-terminal indicator did not appear",
         },
         {"op": "tap", "key": "F11", "after": 0.4},
         {
@@ -1367,14 +1367,14 @@ SCENARIOS: dict[str, list[dict]] = {
             "from": "label_alpha",
             "name": "label_beta",
             "region": "top_right_label",
-            "message": "F11 bootstrap for Alt+A X case failed",
+            "message": "F11 bootstrap for Alt+A X case did not change the active-terminal indicator",
             "timeout_secs": 3.0,
         },
         {
             "op": "assert_ne",
             "left": "label_alpha",
             "right": "label_beta",
-            "message": "F11 bootstrap for Alt+A X case failed",
+            "message": "F11 bootstrap for Alt+A X case did not change the active-terminal indicator",
         },
         {"op": "alt_a_prefix", "after": 0.15},
         {"op": "tap", "key": "x", "after": 0.55},
@@ -1383,14 +1383,14 @@ SCENARIOS: dict[str, list[dict]] = {
             "target": "label_alpha",
             "name": "label_restored",
             "region": "top_right_label",
-            "message": "Alt+A X did not restore alpha label",
+            "message": "Alt+A X did not restore the prior active-terminal indicator",
             "timeout_secs": 5.0,
         },
         {
             "op": "assert_eq",
             "left": "label_alpha",
             "right": "label_restored",
-            "message": "Alt+A X did not restore alpha label",
+            "message": "Alt+A X did not restore the prior active-terminal indicator",
         },
     ],
     "alt-a-digit-selects-target-terminal": [
@@ -1772,13 +1772,13 @@ SCENARIOS["alt-function-key-selection-matrix"] = _selection_matrix_steps(
     12,
     True,
 )
-SCENARIOS["destroying-last-terminal-keeps-alpha-active"] = [
+SCENARIOS["destroying-last-terminal-keeps-active-indicator-stable"] = [
     {
         "op": "capture_wait_foreground",
         "name": "label_alpha",
         "region": "top_right_label",
         "timeout_secs": 3.0,
-        "message": "alpha terminal label did not appear",
+        "message": "initial active-terminal indicator did not appear",
     },
     {"op": "tap", "key": "F12", "after": 0.35},
     {
@@ -1786,14 +1786,14 @@ SCENARIOS["destroying-last-terminal-keeps-alpha-active"] = [
         "target": "label_alpha",
         "name": "label_after_destroy",
         "region": "top_right_label",
-        "message": "destroying the last terminal changed the active label",
+        "message": "destroying the last terminal changed the active-terminal indicator",
         "timeout_secs": 2.0,
     },
     {
         "op": "assert_eq",
         "left": "label_alpha",
         "right": "label_after_destroy",
-        "message": "destroying the last terminal changed the active label",
+        "message": "destroying the last terminal changed the active-terminal indicator",
     },
 ]
 SCENARIOS["terminal-create-capacity-limit-is-a-no-op"] = [
@@ -1804,14 +1804,14 @@ SCENARIOS["terminal-create-capacity-limit-is-a-no-op"] = [
         "target": "label_mu",
         "name": "label_after_capacity",
         "region": "top_right_label",
-        "message": "creating beyond terminal capacity changed the active label",
+        "message": "creating beyond terminal capacity changed the active-terminal indicator",
         "timeout_secs": 3.0,
     },
     {
         "op": "assert_eq",
         "left": "label_mu",
         "right": "label_after_capacity",
-        "message": "creating beyond terminal capacity changed the active label",
+        "message": "creating beyond terminal capacity changed the active-terminal indicator",
     },
 ]
 SCENARIOS["switching-to-an-untouched-terminal-shows-a-blank-screen"] = [
@@ -2103,77 +2103,6 @@ SCENARIOS["switching-back-to-a-scrolled-terminal-restores-its-viewport"] = [
         "left": "scrolled_alpha",
         "right": "restored_scrolled_alpha",
         "message": "switching back to a scrolled terminal did not restore its viewport",
-    },
-]
-SCENARIOS["label-overlay-right-aligns-short-labels"] = [
-    *_create_terminal_label_steps(12),
-    {
-        "op": "capture_wait_blank",
-        "name": "mu_padding_blank",
-        "region": "label_overlay_padding",
-        "message": "mu label did not keep its left padding blank",
-        "timeout_secs": 3.0,
-    },
-    {"op": "chord", "keys": ["Alt", "F11"], "after": 0.45},
-    {
-        "op": "capture_wait_foreground",
-        "name": "lambda_padding_foreground",
-        "region": "label_overlay_padding",
-        "message": "lambda label did not render into the left padding region",
-        "timeout_secs": 3.0,
-    },
-    {
-        "op": "assert_ne",
-        "left": "mu_padding_blank",
-        "right": "lambda_padding_foreground",
-        "message": "short and long labels rendered the same left padding region",
-    },
-]
-SCENARIOS["label-overlay-clears-stale-cells-when-shortening"] = [
-    *_create_terminal_label_steps(12),
-    {"op": "capture", "name": "mu_exact", "region": "label_overlay_exact", "wait_boot": False},
-    {
-        "op": "capture_wait_blank",
-        "name": "mu_padding_blank",
-        "region": "label_overlay_padding",
-        "message": "mu label did not keep its left padding blank",
-        "timeout_secs": 3.0,
-    },
-    {"op": "chord", "keys": ["Alt", "F11"], "after": 0.45},
-    {
-        "op": "capture_wait_foreground",
-        "name": "lambda_padding_foreground",
-        "region": "label_overlay_padding",
-        "message": "lambda label did not render into the left padding region",
-        "timeout_secs": 3.0,
-    },
-    {"op": "chord", "keys": ["Alt", "F12"], "after": 0.45},
-    {
-        "op": "capture_wait_match",
-        "target": "mu_exact",
-        "name": "mu_exact_restored",
-        "region": "label_overlay_exact",
-        "message": "returning from lambda to mu did not restore the exact label overlay",
-        "timeout_secs": 4.0,
-    },
-    {
-        "op": "capture_wait_blank",
-        "name": "mu_padding_restored",
-        "region": "label_overlay_padding",
-        "message": "returning from lambda to mu did not clear stale left-padding cells",
-        "timeout_secs": 3.0,
-    },
-    {
-        "op": "assert_eq",
-        "left": "mu_exact",
-        "right": "mu_exact_restored",
-        "message": "returning from lambda to mu did not restore the exact label overlay",
-    },
-    {
-        "op": "assert_eq",
-        "left": "mu_padding_blank",
-        "right": "mu_padding_restored",
-        "message": "returning from lambda to mu did not clear stale left-padding cells",
     },
 ]
 
