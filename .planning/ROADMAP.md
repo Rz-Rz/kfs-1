@@ -112,7 +112,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. SIMD Policy & Subject Contract | 3/3 | Complete    | 2026-04-05 |
-| 2. Capability Detection & Runtime Guardrails | 0/3 | Not started | - |
+| 2. Capability Detection & Runtime Guardrails | 0/3 | Planned    |  |
 | 3. FPU/MMX/SSE State Ownership | 0/3 | Not started | - |
 | 4. Accelerated Memory Primitives | 0/3 | Not started | - |
 | 5. Kernel Integration & Proof Hardening | 0/3 | Not started | - |

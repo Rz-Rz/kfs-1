@@ -2,44 +2,58 @@
 
 ## Goal
 
-Add CPU capability detection and a canonical runtime policy surface so the kernel can reason about MMX/SSE/SSE2 support without enabling accelerated execution yet.
+Add the feature-detection and runtime policy hooks that prevent accidental SIMD execution on unsupported paths.
 
 ## Why This Phase Exists
 
-Phase 1 established that future SIMD work must separate:
-- CPU capability detection
-- runtime legality of executing SIMD instructions
-- freestanding/no-host-linkage proofs
+Phase 1 established policy and ownership boundaries, but the codebase still has no canonical runtime surface for:
 
-Phase 2 exists to add the first two pieces of plumbing without crossing into Phase 3 machine-state enablement or Phase 4 accelerated helper code.
+- detecting MMX/SSE/SSE2 capability
+- recording whether acceleration is allowed
+- giving future helper code a stable scalar fallback decision
 
-## Current Repo Constraints
+Without that surface, later SIMD work would either scatter raw capability checks or bypass the repo's layer rules.
 
-- `src/kernel/core/` owns early runtime sequencing and currently runs `run_early_init()` from [`src/kernel/core/init.rs`](/home/motero/Code/kfs-1/src/kernel/core/init.rs).
-- `src/kernel/machine/` owns typed low-level primitives and currently exposes only [`src/kernel/machine/port.rs`](/home/motero/Code/kfs-1/src/kernel/machine/port.rs).
-- `src/kernel/klib/` owns helper routines and will eventually need a policy seam for scalar-vs-accelerated dispatch.
-- `scripts/architecture-tests/layer-dependencies.sh` currently rejects `core -> machine` and `klib -> services/machine` imports, so Phase 2 cannot wire capability detection directly into `core` or future helper leaves without a bridging surface.
+## Current Runtime Shape
 
-## Working Design Direction
+Observed early-init path:
 
-The least disruptive seam is:
+1. `src/arch/i386/boot.asm` sets the stack and calls `kmain`
+2. `src/kernel/core/entry.rs` owns `kmain`
+3. `src/kernel/core/init.rs` runs early validation and helper sanity checks
+4. success reaches `console::start_keyboard_echo_loop()`
 
-1. `machine::cpu` owns raw CPUID availability and feature-bit detection.
-2. `services::simd` owns runtime-policy initialization and test-mode diagnostics markers.
-3. `klib::simd` owns the stored policy/query surface that future helper code can read without importing higher layers.
-4. `core::init` calls the service surface during early init, but the resulting policy remains scalar-only until Phase 3 explicitly enables execution legality.
+Current layer constraints matter:
 
-## Non-Goals
+- `core` must not import `machine` directly
+- `machine` must remain primitive-only
+- `klib` must not depend upward on policy or hardware
+- `services` is the only existing seam that can legally orchestrate between `core`, `machine`, and `klib`
 
-- No MMX/SSE/SSE2 instruction execution in kernel helper code yet.
-- No CR0/CR4/FXSR/MXCSR ownership yet.
-- No accelerated `memcpy`/`memset` yet.
-- No CPU baseline increase.
+## Working Architectural Assumption
 
-## Acceptance Boundary
+Phase 2 will use this split:
 
-Phase 2 is complete only if:
-- capability detection exists in a canonical low-level surface
-- runtime policy state can be observed without enabling acceleration
-- unsupported or forced-disabled cases stay scalar-only
-- tests can prove the scalar guardrails and the early-init sequencing
+- `src/kernel/machine/` for typed CPU feature probing primitives
+- `src/kernel/klib/` for durable SIMD policy state and pure selection logic
+- `src/kernel/services/` for orchestration that bridges the probe result into installed runtime policy
+- `src/kernel/core/init.rs` for sequencing only
+
+That preserves the existing dependency rules while creating a future-safe policy surface for phases 3-5.
+
+## Existing Test Seams
+
+Useful current proof surfaces:
+
+- host Rust unit tests through `scripts/tests/unit/host-rust-lib.sh`
+- runtime marker tests in `scripts/boot-tests/runtime-markers.sh`
+- memory helper runtime tests in `scripts/boot-tests/memory-runtime.sh`
+- runtime ownership architecture tests in `scripts/architecture-tests/runtime-ownership.sh`
+- dependency and rejection guards in `scripts/architecture-tests/layer-dependencies.sh` and `scripts/rejection-tests/*`
+
+## Phase Risks
+
+- New policy wiring must not force `core` to import `machine`
+- New runtime markers must not destabilize existing ordered-marker tests without updating them in the same change
+- Feature detection must stay host-testable without making tests depend on the actual host CPU model
+- Docs must be updated in the same change if new ownership paths become canonical

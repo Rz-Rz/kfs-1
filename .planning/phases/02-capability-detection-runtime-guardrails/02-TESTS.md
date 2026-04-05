@@ -2,43 +2,49 @@
 
 ## BDD
 
-Not required.
+Not required for this kernel phase.
 
-## Unit / Host Tests
+## Unit
 
-Required:
-- host tests for pure capability parsing and runtime-policy semantics
-- host tests proving forced scalar-only policy remains false for MMX/SSE/SSE2 execution
+Required.
 
-Likely files:
+Coverage must include:
+
+- pure CPU feature decoding
+- unsupported-hardware representation
+- scalar fallback policy selection
+- installed runtime-policy state through the public crate boundary
+
+Primary surface:
+
 - `tests/host_simd_policy.rs`
-- updates to `tests/host_memory.rs` if policy-facing helper seams are added there
+- `scripts/tests/unit/simd-policy.sh`
 
-## Integration / Architecture Tests
+## Integration
 
-Required:
-- architecture/runtime-ownership test proving early init reaches the new SIMD policy initialization seam
-- architecture/layer checks proving the new files stay in allowed ownership boundaries
+Required.
 
-Likely files:
+Coverage must include:
+
+- runtime ownership proof for `core -> services::simd`
+- runtime marker proof for early-init SIMD policy setup
+- rejection proof for bypassed service ownership
+
+Primary surfaces:
+
 - `scripts/architecture-tests/runtime-ownership.sh`
 - `scripts/rejection-tests/runtime-ownership-rejections.sh`
+- `scripts/boot-tests/runtime-markers.sh`
+- `scripts/boot-tests/memory-runtime.sh`
 
-## Boot / Runtime Tests
+## E2E
 
-Required:
-- deterministic runtime-marker coverage for policy initialization
-- forced `no cpuid` and forced `disable simd` cases that still remain scalar-only
+Not required beyond the existing umbrella boot pass.
 
-Likely files:
-- `scripts/boot-tests/`
-- `scripts/rejection-tests/`
+## Final Verification
 
-## Stability Tests
+Phase closeout requires:
 
-Required:
-- existing `scripts/stability-tests/freestanding-simd.sh` must keep passing because Phase 2 still enables no actual SIMD execution
-
-## End-to-End
-
-Not required beyond `make test-plain`.
+```bash
+make test-plain
+```

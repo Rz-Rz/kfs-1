@@ -1,37 +1,26 @@
-# Phase 2 Validation
+# Phase 2 Validation Contract
 
-## Quick Checks
+## Quick Validation
 
-Run after each plan:
-
-```bash
-node ~/.codex/get-shit-done/bin/gsd-tools.cjs roadmap analyze >/dev/null
-```
-
-## Plan-Specific Checks
-
-### Plan 02-01
+Run the narrow checks needed while iterating on this phase:
 
 ```bash
-cargo_check_unused=0
-rg -n "pub mod cpu|pub mod simd|RuntimePolicy|SimdCapabilities" src/kernel/machine src/kernel/klib src/kernel/services
+bash scripts/tests/unit/simd-policy.sh i386 host-simd-policy-unit-tests-pass
+bash scripts/architecture-tests/runtime-ownership.sh i386 core-init-calls-services-simd
+bash scripts/boot-tests/runtime-markers.sh i386 runtime-confirms-simd-policy
 ```
 
-### Plan 02-02
+## Full Validation
 
-```bash
-rg -n "initialize_runtime_policy|SIMD_POLICY|SIMD_CPUID" src/kernel/core src/kernel/services src/arch/i386
-```
-
-### Plan 02-03
-
-```bash
-bash scripts/tests/unit/host-rust-lib.sh tests/host_memory.rs >/dev/null
-make test-plain
-```
-
-## Full Verification
+Before closing the phase:
 
 ```bash
 make test-plain
 ```
+
+## Required Evidence
+
+- host tests prove pure feature decoding and scalar fallback policy
+- architecture/rejection tests prove the new service boundary is respected
+- boot/runtime tests prove policy setup occurs in early init before memory-helper flow continues
+- live docs point to the new canonical ownership paths
