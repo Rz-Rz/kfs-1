@@ -3028,6 +3028,10 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `kernel::drivers::vga_text::writer::write_byte`
 - Current immediate consumer:
   - the mandatory early-init visible output path
+- Current live-loop evidence:
+  - `bash scripts/boot-tests/boot-flow.sh i386 boot-flow-renders-42-then-enters-live-console-loop`
+  - `bash scripts/boot-tests/ui-interaction.sh i386 newline-moves-visible-output-to-the-next-row`
+  - `bash scripts/boot-tests/ui-interaction.sh i386 backspace-blanks-the-last-visible-character-cell`
 - Next consumers:
   - `B1` for cursor/scroll ownership
   - `B2` for color policy
@@ -3080,7 +3084,8 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
     - the real runtime success path reaches the current normal-flow screen write site
   - Evidence:
     - `bash scripts/boot-tests/runtime-markers.sh i386 runtime-completes-early-init`
-    - `rg -n "console::write_bytes\\(b\"42\"\\)" -S src/kernel/core/init.rs`
+    - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-starts-with-42`
+    - `bash scripts/boot-tests/boot-flow.sh i386 boot-flow-renders-42-then-enters-live-console-loop`
   - Failure caught:
     - a screen path that still exists in source but is no longer reached by the running kernel
   - Status:
@@ -3166,6 +3171,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 - `scripts/tests/unit/vga-writer-model.sh`
 - `scripts/boot-tests/vga-writer.sh`
 - `scripts/boot-tests/vga-memory.sh`
+- `scripts/boot-tests/boot-flow.sh`
 - `scripts/architecture-tests/runtime-ownership.sh`
 - `scripts/rejection-tests/runtime-ownership-rejections.sh`
 - OSDev Printing To Screen

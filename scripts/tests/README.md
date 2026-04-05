@@ -278,9 +278,13 @@ discoverable cases such as:
 - `host-vga-cell-unit-tests-pass`
 - `rust-defines-layout-order-check`
 - `rust-defines-vga-text-cell`
-- `rust-entry-calls-core-init-sequence`
-- `rust-entry-success-path-reaches-console-loop`
-- `rust-core-init-writes-42-through-services-console`
+
+Any remaining source-shape checks in the same script should be labeled as static wiring checks,
+not runtime proof:
+
+- `static-entry-calls-core-init-sequence`
+- `static-entry-references-console-loop`
+- `static-core-init-references-console-write`
 
 ## Rebase Tips For Older Branches
 
@@ -305,6 +309,7 @@ bash scripts/boot-tests/freestanding-kernel.sh --list
 bash scripts/boot-tests/halt-behavior.sh --list
 bash scripts/boot-tests/layout-symbols.sh --list
 bash scripts/boot-tests/runtime-markers.sh --list
+bash scripts/boot-tests/boot-flow.sh --list
 bash scripts/boot-tests/build-boot-artifacts.sh --list
 bash scripts/boot-tests/qemu-boot.sh --list
 ```

@@ -16,9 +16,9 @@ host-layout-order-unit-tests-pass
 host-vga-cell-unit-tests-pass
 rust-defines-layout-order-check
 rust-defines-vga-text-cell
-rust-entry-calls-core-init-sequence
-rust-entry-success-path-reaches-console-loop
-rust-core-init-writes-42-through-services-console
+static-entry-calls-core-init-sequence
+static-entry-references-console-loop
+static-core-init-references-console-write
 EOF
 }
 
@@ -28,9 +28,9 @@ describe_case() {
 	host-vga-cell-unit-tests-pass) printf '%s\n' "host VGA text cell unit tests pass" ;;
 	rust-defines-layout-order-check) printf '%s\n' "Rust defines the pure layout-order helper" ;;
 	rust-defines-vga-text-cell) printf '%s\n' "Rust defines the VGA text cell helper" ;;
-	rust-entry-calls-core-init-sequence) printf '%s\n' "core entry delegates to the early-init sequence" ;;
-	rust-entry-success-path-reaches-console-loop) printf '%s\n' "core entry success path reaches the console loop" ;;
-	rust-core-init-writes-42-through-services-console) printf '%s\n' "core init writes 42 through services console" ;;
+	static-entry-calls-core-init-sequence) printf '%s\n' "static source check: entry references the early-init sequence" ;;
+	static-entry-references-console-loop) printf '%s\n' "static source check: entry references the console loop path" ;;
+	static-core-init-references-console-write) printf '%s\n' "static source check: core init references the console write call" ;;
 	*) return 1 ;;
 	esac
 }
@@ -96,17 +96,17 @@ run_direct_case() {
 	rust-defines-vga-text-cell)
 		assert_pattern '\bfn[[:space:]]+vga_text_cell\b' 'vga_text_cell definition' "${DRIVER_SOURCE}"
 		;;
-	rust-entry-calls-core-init-sequence)
+	static-entry-calls-core-init-sequence)
 		assert_pattern '\brun_early_init\(' 'kmain call to core init sequencing' "${ENTRY_SOURCE}"
 		;;
-	rust-entry-success-path-reaches-console-loop)
+	static-entry-references-console-loop)
 		assert_pattern '\bconsole::start_keyboard_echo_loop\(' 'kmain success path reaches console loop' "${ENTRY_SOURCE}"
 		;;
-	rust-core-init-writes-42-through-services-console)
+	static-core-init-references-console-write)
 		assert_pattern '\bconsole::write_bytes\(b"42"\)' 'core init writes 42 through services console' "${INIT_SOURCE}"
 		;;
 	*)
-		die "usage: $0 <arch> {host-layout-order-unit-tests-pass|host-vga-cell-unit-tests-pass|rust-defines-layout-order-check|rust-defines-vga-text-cell|rust-entry-calls-core-init-sequence|rust-entry-success-path-reaches-console-loop|rust-core-init-writes-42-through-services-console}"
+		die "usage: $0 <arch> {host-layout-order-unit-tests-pass|host-vga-cell-unit-tests-pass|rust-defines-layout-order-check|rust-defines-vga-text-cell|static-entry-calls-core-init-sequence|static-entry-references-console-loop|static-core-init-references-console-write}"
 		;;
 	esac
 }

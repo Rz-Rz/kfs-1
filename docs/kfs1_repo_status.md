@@ -419,8 +419,10 @@ Proof:
 - `bash scripts/architecture-tests/runtime-ownership.sh i386 services-console-calls-driver-facade`
 - `bash scripts/boot-tests/runtime-markers.sh i386 runtime-completes-early-init`
 - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-starts-with-42`
+- `bash scripts/boot-tests/boot-flow.sh i386 boot-flow-renders-42-then-enters-live-console-loop`
 - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-uses-default-attribute`
 - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-stable-across-snapshots`
+- `bash scripts/boot-tests/ui-interaction.sh i386 newline-moves-visible-output-to-the-next-row`
 - `bash scripts/boot-tests/vga-writer.sh i386 release-kernel-omits-vga-abi-exports`
 
 ---
