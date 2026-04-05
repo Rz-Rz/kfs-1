@@ -70,7 +70,7 @@ pub fn detect_simd() -> SimdDetection {
         return SimdDetection::forced_scalar();
     }
 
-    let leaf = unsafe { __cpuid(1) };
+    let leaf = __cpuid(1);
     SimdDetection::from_cpuid_leaf1_edx(leaf.edx)
 }
 

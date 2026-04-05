@@ -1,8 +1,8 @@
 use crate::kernel::core::entry;
 use crate::kernel::klib::{memory, string};
-use crate::kernel::machine::simd;
 use crate::kernel::services::console;
 use crate::kernel::services::diagnostics;
+use crate::kernel::services::simd;
 use crate::kernel::types::range::layout_order_is_sane;
 
 #[derive(Copy, Clone)]
@@ -30,7 +30,7 @@ pub(crate) fn run_early_init() -> Result<(), EarlyInitFailure> {
         diagnostics::write_line("LAYOUT_OK");
     }
 
-    let _ = simd::initialize_phase2_policy();
+    let _ = simd::initialize_runtime_policy(entry::is_test_mode());
 
     if !string_helpers_are_sane() {
         return Err(EarlyInitFailure::StringHelpers);
