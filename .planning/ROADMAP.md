@@ -6,7 +6,7 @@ This roadmap adds optional MMX/SSE/SSE2 acceleration to the existing freestandin
 
 ## Phases
 
-- [ ] **Phase 1: SIMD Policy & Subject Contract** - define CPU baseline, subject interpretation, and acceptance boundaries for SIMD work
+- [x] **Phase 1: SIMD Policy & Subject Contract** - define CPU baseline, subject interpretation, and acceptance boundaries for SIMD work (completed 2026-04-05)
 - [ ] **Phase 2: Capability Detection & Runtime Guardrails** - introduce explicit feature policy before any accelerated path can execute
 - [ ] **Phase 3: FPU/MMX/SSE State Ownership** - add the machine-state initialization and preservation model required for safe SIMD use
 - [ ] **Phase 4: Accelerated Memory Primitives** - implement optional accelerated helper routines with scalar fallback
@@ -26,9 +26,9 @@ This roadmap adds optional MMX/SSE/SSE2 acceleration to the existing freestandin
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: consolidate subject, ABI, and current toolchain constraints into a single SIMD policy note
-- [ ] 01-02: define allowed ownership boundaries for SIMD-related arch, machine, and klib code
-- [ ] 01-03: define the verification strategy that later phases must satisfy
+- [x] 01-01: consolidate subject, ABI, and current toolchain constraints into a single SIMD policy note
+- [x] 01-02: define allowed ownership boundaries for SIMD-related arch, machine, and klib code
+- [x] 01-03: define the verification strategy that later phases must satisfy
 
 ### Phase 2: Capability Detection & Runtime Guardrails
 **Goal**: Add the feature-detection and runtime policy hooks that prevent accidental SIMD execution on unsupported paths.
@@ -111,7 +111,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. SIMD Policy & Subject Contract | 0/3 | Not started | - |
+| 1. SIMD Policy & Subject Contract | 3/3 | Complete    | 2026-04-05 |
 | 2. Capability Detection & Runtime Guardrails | 0/3 | Not started | - |
 | 3. FPU/MMX/SSE State Ownership | 0/3 | Not started | - |
 | 4. Accelerated Memory Primitives | 0/3 | Not started | - |
