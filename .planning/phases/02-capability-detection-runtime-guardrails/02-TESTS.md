@@ -2,49 +2,31 @@
 
 ## BDD
 
-Not required for this kernel phase.
+Not used for this kernel phase.
 
 ## Unit
 
-Required.
-
-Coverage must include:
-
-- pure CPU feature decoding
-- unsupported-hardware representation
-- scalar fallback policy selection
-- installed runtime-policy state through the public crate boundary
-
-Primary surface:
-
-- `tests/host_simd_policy.rs`
-- `scripts/tests/unit/simd-policy.sh`
+Required:
+- source/unit checks for the canonical `klib::memory` guardrail seam
+- host-visible checks that memory helpers remain scalar-safe while the guardrail is disabled
 
 ## Integration
 
-Required.
-
-Coverage must include:
-
-- runtime ownership proof for `core -> services::simd`
-- runtime marker proof for early-init SIMD policy setup
-- rejection proof for bypassed service ownership
-
-Primary surfaces:
-
-- `scripts/architecture-tests/runtime-ownership.sh`
-- `scripts/rejection-tests/runtime-ownership-rejections.sh`
-- `scripts/boot-tests/runtime-markers.sh`
-- `scripts/boot-tests/memory-runtime.sh`
+Required:
+- boot/runtime marker checks for CPUID support and scalar-policy enforcement
+- rejection coverage for forced unsupported/disabled SIMD policy cases
+- existing freestanding no-SIMD artifact stability checks remain in scope
 
 ## E2E
 
-Not required beyond the existing umbrella boot pass.
+Not required beyond the existing umbrella `make test-plain` run.
 
-## Final Verification
+## Acceptance Focus
 
-Phase closeout requires:
+The phase is green only if:
+- capability detection is observable
+- unsupported or disabled cases stay scalar
+- no freestanding artifact begins emitting unconditional SIMD instructions
 
-```bash
-make test-plain
-```
+---
+*Phase: 02-capability-detection-runtime-guardrails*

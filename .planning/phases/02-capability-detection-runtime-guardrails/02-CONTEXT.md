@@ -1,59 +1,105 @@
-# Phase 2 Context: Capability Detection & Runtime Guardrails
+# Phase 2: Capability Detection & Runtime Guardrails - Context
 
-## Goal
+**Gathered:** 2026-04-05
+**Status:** Ready for planning
 
-Add the feature-detection and runtime policy hooks that prevent accidental SIMD execution on unsupported paths.
+<domain>
+## Phase Boundary
 
-## Why This Phase Exists
+This phase introduces the first code for SIMD/MMX/SSE2 awareness, but it is still not an enablement phase.
 
-Phase 1 established policy and ownership boundaries, but the codebase still has no canonical runtime surface for:
+The kernel must:
+- detect whether CPUID and the relevant feature bits exist
+- record a canonical runtime policy for optional acceleration
+- keep the actual memory/helper behavior scalar-only until Phase 3 owns FPU/MMX/SSE machine state
 
-- detecting MMX/SSE/SSE2 capability
-- recording whether acceleration is allowed
-- giving future helper code a stable scalar fallback decision
+This phase does not execute SIMD instructions in freestanding kernel code.
 
-Without that surface, later SIMD work would either scatter raw capability checks or bypass the repo's layer rules.
+</domain>
 
-## Current Runtime Shape
+<decisions>
+## Implementation Decisions
 
-Observed early-init path:
+### Architectural shape
+- **D-01:** Preserve the current `start -> kmain -> core::init` handoff with no new boot bypasses.
+- **D-02:** Keep low-level CPUID access at the existing `arch runtime helper -> core entry` ABI boundary instead of introducing a new `core -> machine` dependency in this phase.
+- **D-03:** Keep `klib` scalar by default; the Phase 2 guardrail seam exists so later accelerated helpers have one canonical decision point.
 
-1. `src/arch/i386/boot.asm` sets the stack and calls `kmain`
-2. `src/kernel/core/entry.rs` owns `kmain`
-3. `src/kernel/core/init.rs` runs early validation and helper sanity checks
-4. success reaches `console::start_keyboard_echo_loop()`
+### Runtime policy
+- **D-04:** Capability detection and acceleration permission are different truths. Phase 2 may observe CPU support while still forcing scalar behavior.
+- **D-05:** Unsupported hardware or policy-disabled paths must succeed by staying scalar, not by failing boot.
+- **D-06:** Runtime markers should make CPUID/capability/policy state observable in test mode without creating a fake parallel codepath.
 
-Current layer constraints matter:
+### the agent's Discretion
+- Marker naming, internal type layout, and helper factoring are at the agent's discretion as long as they remain consistent with Phase 1 policy and repo architecture rules.
 
-- `core` must not import `machine` directly
-- `machine` must remain primitive-only
-- `klib` must not depend upward on policy or hardware
-- `services` is the only existing seam that can legally orchestrate between `core`, `machine`, and `klib`
+</decisions>
 
-## Working Architectural Assumption
+<canonical_refs>
+## Canonical References
 
-Phase 2 will use this split:
+**Downstream agents MUST read these before planning or implementing.**
 
-- `src/kernel/machine/` for typed CPU feature probing primitives
-- `src/kernel/klib/` for durable SIMD policy state and pure selection logic
-- `src/kernel/services/` for orchestration that bridges the probe result into installed runtime policy
-- `src/kernel/core/init.rs` for sequencing only
+### Branch policy and requirements
+- `docs/simd_policy.md` — canonical Phase 1 policy note, especially ownership boundaries and proof obligations
+- `.planning/REQUIREMENTS.md` — `COMP-03`, `HW-01`, `HW-03`
+- `.planning/ROADMAP.md` — Phase 2 goal and success criteria
 
-That preserves the existing dependency rules while creating a future-safe policy surface for phases 3-5.
+### Runtime ownership and current code
+- `src/arch/i386/boot.asm` — current start -> `kmain` handoff
+- `src/arch/i386/runtime_io.asm` — existing arch runtime helper surface and test-toggle pattern
+- `src/kernel/core/entry.rs` — current arch helper extern block and runtime fail behavior
+- `src/kernel/core/init.rs` — current early-init sequencing and diagnostic markers
+- `src/kernel/klib/memory/mod.rs` — future acceleration seam for memory helpers
 
-## Existing Test Seams
+### Enforcement and test surfaces
+- `scripts/architecture-tests/runtime-ownership.sh`
+- `scripts/architecture-tests/layer-dependencies.sh`
+- `scripts/boot-tests/memory-runtime.sh`
+- `scripts/rejection-tests/memory-rejections.sh`
+- `scripts/stability-tests/freestanding-simd.sh`
 
-Useful current proof surfaces:
+</canonical_refs>
 
-- host Rust unit tests through `scripts/tests/unit/host-rust-lib.sh`
-- runtime marker tests in `scripts/boot-tests/runtime-markers.sh`
-- memory helper runtime tests in `scripts/boot-tests/memory-runtime.sh`
-- runtime ownership architecture tests in `scripts/architecture-tests/runtime-ownership.sh`
-- dependency and rejection guards in `scripts/architecture-tests/layer-dependencies.sh` and `scripts/rejection-tests/*`
+<code_context>
+## Existing Code Insights
 
-## Phase Risks
+### Reusable Assets
+- `src/arch/i386/runtime_io.asm` already hosts arch-owned test toggles and runtime helpers such as `kfs_arch_is_test_mode` and `kfs_arch_qemu_exit`.
+- `src/kernel/core/entry.rs` already owns the extern ABI boundary to arch runtime helpers.
+- `src/kernel/core/init.rs` already emits ordered diagnostic markers during test-mode early init.
+- `src/kernel/klib/memory/mod.rs` is the canonical future ownership point for memory acceleration.
 
-- New policy wiring must not force `core` to import `machine`
-- New runtime markers must not destabilize existing ordered-marker tests without updating them in the same change
-- Feature detection must stay host-testable without making tests depend on the actual host CPU model
-- Docs must be updated in the same change if new ownership paths become canonical
+### Established Constraints
+- `core` must not import `machine` directly under current layer-dependency enforcement.
+- `klib` must not import higher-level modules, so any future acceleration gate must be reachable without `klib -> core/services/machine` imports.
+- `scripts/stability-tests/freestanding-simd.sh` already rejects accidental SIMD instruction emission in freestanding artifacts.
+
+### Integration Points
+- New CPUID helpers can extend `src/arch/i386/runtime_io.asm` without changing boot ownership.
+- New runtime policy logic belongs in `src/kernel/core/`.
+- The guardrail seam for future accelerated helpers belongs in `src/kernel/klib/memory/`.
+
+</code_context>
+
+<specifics>
+## Specific Ideas
+
+- Add arch helpers for CPUID support and leaf-1 feature bits using the existing `kfs_arch_*` pattern.
+- Add a `core::simd` policy module that can emit test-mode markers such as CPUID support, MMX/SSE/SSE2 capability, and scalar-policy enforcement.
+- Add a canonical `klib::memory` guardrail function even if it remains false in Phase 2.
+
+</specifics>
+
+<deferred>
+## Deferred Ideas
+
+- CR0/CR4/FXSR/SSE machine-state initialization — Phase 3
+- Any actual MMX/SSE/SSE2 memory implementation — Phase 4
+- Integration of accelerated paths into normal kernel callsites — Phase 5
+
+</deferred>
+
+---
+*Phase: 02-capability-detection-runtime-guardrails*
+*Context gathered: 2026-04-05*

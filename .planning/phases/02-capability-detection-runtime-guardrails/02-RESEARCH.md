@@ -1,105 +1,87 @@
 # Phase 2 Research: Capability Detection & Runtime Guardrails
 
-## Key Findings
+## Question
 
-### 1. `services` is the correct orchestration seam
+How should the repo introduce CPU feature detection and a canonical scalar-only guardrail without violating the existing architecture rules?
 
-Evidence:
+## Findings
 
-- `src/kernel/core/init.rs` already imports `services` and `klib`
-- `scripts/architecture-tests/layer-dependencies.sh` forbids `core` importing `machine`
-- the same script does not forbid `services` from importing `machine` or `klib`
-
-Consequence:
-
-- `core` should sequence SIMD policy installation through a new `services` facade
-- `machine` should not be imported directly into `core`
-
-### 2. Current runtime tests already rely on ordered diagnostics markers
+### 1. The current low-level seam already exists in `arch -> core`
 
 Evidence:
+- `src/arch/i386/runtime_io.asm` exports test/runtime helpers under the `kfs_arch_*` prefix.
+- `src/kernel/core/entry.rs` owns the extern ABI boundary for those helpers.
+- `scripts/architecture-tests/runtime-ownership.sh` enforces the `boot -> kmain -> core init` path.
 
-- `scripts/boot-tests/runtime-markers.sh` checks `KMAIN_OK -> BSS_OK -> LAYOUT_OK -> EARLY_INIT_OK -> KMAIN_FLOW_OK`
-- `scripts/boot-tests/memory-runtime.sh` checks `MEMCPY_OK -> MEMSET_OK -> MEMORY_HELPERS_OK`
-- `scripts/rejection-tests/runtime-init-rejections.sh` proves failures stop later markers from appearing
+Implication:
+- Phase 2 can extend the current `kfs_arch_*` surface with CPUID helpers without inventing a new ownership pattern.
 
-Consequence:
-
-- Phase 2 can add deterministic policy markers, but must update ordered-marker expectations in the same change
-
-### 3. Existing negative-runtime pattern is compile-time test override via NASM flags
+### 2. `core -> machine` is currently blocked by architecture enforcement
 
 Evidence:
+- `scripts/architecture-tests/layer-dependencies.sh` case `core-depends-only-on-services-types-klib` rejects `core` imports from `machine`.
+- `docs/simd_policy.md` says `core` owns sequencing while `machine` owns typed low-level primitives, but the current enforced graph still blocks a direct module import.
 
-- `src/arch/i386/runtime_io.asm` exposes `kfs_arch_should_fail_*` helpers
-- `Makefile` drives them through `TEST_ASM_DEFS`
-- rejection suites use env toggles such as `KFS_TEST_BAD_LAYOUT=1`
+Implication:
+- The safe Phase 2 move is to keep CPUID access at the existing arch-helper boundary.
+- If the repo ever wants a `machine::cpu` typed primitive, that should be a deliberate later architecture change rather than an accidental Phase 2 side effect.
 
-Consequence:
-
-- if Phase 2 needs deterministic negative runtime paths, the existing pattern is available
-- but host tests should carry most capability-matrix coverage so runtime tests do not depend on the actual CPU model
-
-### 4. Host tests need pure policy helpers, not live CPUID dependence
+### 3. `klib` needs a guardrail seam, but it cannot import runtime policy directly
 
 Evidence:
+- `scripts/architecture-tests/layer-dependencies.sh` case `klib-does-not-depend-on-device-code` forbids `klib` imports from `core`, `services`, `machine`, and `types`.
+- `src/kernel/klib/memory/mod.rs` is already the canonical memory facade.
 
-- `scripts/tests/unit/host-rust-lib.sh` compiles the real `src/lib.rs` library and runs pure Rust tests
-- `tests/host_memory.rs` shows the preferred style: test pure contract behavior through the real crate API
+Implication:
+- Phase 2 should add a canonical guardrail function in `klib::memory` even if it stays scalar-only for now.
+- That seam is enough for later accelerated implementations to use one policy gate instead of scattering ad hoc checks.
 
-Consequence:
-
-- CPU-feature decoding and policy-selection logic should be pure functions
-- actual machine probing should be wrapped so host tests can validate logic without asserting the host machine's features
-
-### 5. New ownership paths will need architecture and docs updates
+### 4. Phase 2 should detect capability but still deny acceleration
 
 Evidence:
+- `docs/simd_policy.md` requires machine-state ownership before MMX/SSE/SSE2 execution becomes legal.
+- Phase 3 is explicitly the machine-state ownership phase in `.planning/ROADMAP.md`.
 
-- `docs/simd_policy.md` says `machine` owns typed low-level machine primitives, `klib` owns helper dispatch, and `docs`/`scripts` own proof harnesses
-- repo rules require docs and guidance updates when canonical ownership changes
+Implication:
+- Phase 2 runtime policy can legitimately say:
+  - CPUID present/absent
+  - MMX/SSE/SSE2 supported/unsupported
+  - acceleration still forced off
+- This keeps capability detection observable without violating the "no SIMD execution yet" rule.
 
-Consequence:
+### 5. The test style should mirror existing runtime marker scripts
 
-- if Phase 2 lands `machine::cpu`, `klib::simd`, and `services::simd`, live docs must mention them
+Evidence:
+- `scripts/boot-tests/string-runtime.sh` and `scripts/boot-tests/memory-runtime.sh` validate both source wiring and runtime marker output.
+- `scripts/rejection-tests/memory-rejections.sh` uses the existing `KFS_TEST_BAD_*` override pattern to verify failure/short-circuit behavior.
+- `scripts/stability-tests/freestanding-simd.sh` already rejects accidental SIMD instructions.
 
-## Recommended Implementation Shape
+Implication:
+- Phase 2 should add a SIMD runtime test script rather than inventing a different proof style.
+- Negative/unsupported cases should use arch test toggles rather than special-casing host-only codepaths.
 
-### Machine layer
+## Recommended Phase Shape
 
-Add `src/kernel/machine/cpu.rs` with:
+### Plan 02-01
+- add arch CPUID helpers
+- add core-owned capability/policy logic
+- emit observable runtime markers
 
-- typed CPU feature struct(s)
-- pure decoding from raw feature bits
-- actual runtime probe function
+### Plan 02-02
+- add the canonical `klib::memory` guardrail seam
+- keep memory helpers scalar-only
+- expose the seam through code/tests without introducing new cross-layer imports
 
-### Klib layer
+### Plan 02-03
+- add boot/runtime tests for capability markers and scalar-policy enforcement
+- add unsupported-hardware / disabled-policy rejection coverage using the existing arch test-toggle pattern
 
-Add `src/kernel/klib/simd.rs` with:
+## Risks
 
-- pure policy selection logic
-- installed runtime-policy state
-- future-facing query surface for accelerated helpers
+- The repo must not accidentally grow a new linker-visible runtime ABI surface unless that is a deliberate architecture choice.
+- CPUID detection must remain safe when CPUID is unavailable; a direct `cpuid` instruction without probing would be wrong for the branch's current compatibility story.
+- Tests must not start treating "CPU supports SSE2" as "kernel may execute SSE2"; those remain separate truths until Phase 3.
 
-### Services layer
-
-Add `src/kernel/services/simd.rs` with:
-
-- orchestration that probes machine features
-- installs scalar-safe policy into `klib`
-- exposes a small result surface to `core::init`
-
-### Core sequencing
-
-`src/kernel/core/init.rs` should:
-
-- call the service-layer SIMD initializer before memory-helper sanity checks
-- emit deterministic test markers around successful policy installation
-- keep failure ownership in the existing early-init error path
-
-## Test Strategy
-
-- Host tests: decode matrix, policy selection, installed scalar fallback
-- Architecture tests: core delegates via `services::simd`, machine remains primitive-only
-- Boot tests: runtime emits SIMD policy markers in a stable order
-- Rejection tests: missing service delegation or bypassed layer boundaries fail
+---
+*Phase: 02-capability-detection-runtime-guardrails*
+*Researched: 2026-04-05*

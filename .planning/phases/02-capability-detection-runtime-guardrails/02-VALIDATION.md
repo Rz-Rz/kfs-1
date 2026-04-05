@@ -1,26 +1,38 @@
-# Phase 2 Validation Contract
+# Phase 2 Validation Strategy
 
-## Quick Validation
+## Validation Levels
 
-Run the narrow checks needed while iterating on this phase:
+### Quick validation
+
+Use fast checks while iterating on the capability/policy seam:
 
 ```bash
-bash scripts/tests/unit/simd-policy.sh i386 host-simd-policy-unit-tests-pass
-bash scripts/architecture-tests/runtime-ownership.sh i386 core-init-calls-services-simd
-bash scripts/boot-tests/runtime-markers.sh i386 runtime-confirms-simd-policy
+node ~/.codex/get-shit-done/bin/gsd-tools.cjs roadmap analyze >/dev/null
+bash scripts/tests/unit/memory-helpers.sh i386 host-memcpy-unit-tests-pass
 ```
 
-## Full Validation
+### Phase validation
 
-Before closing the phase:
+Use the Phase 2-targeted proof set before closing the phase:
+
+```bash
+bash scripts/boot-tests/simd-runtime.sh i386 runtime-confirms-scalar-policy
+bash scripts/rejection-tests/simd-runtime-rejections.sh i386 forced-no-cpuid-stays-scalar
+bash scripts/stability-tests/freestanding-simd.sh i386 default-freestanding-kernel-disables-simd-instructions
+```
+
+### Full regression validation
+
+Before phase sign-off:
 
 ```bash
 make test-plain
 ```
 
-## Required Evidence
+## Notes
 
-- host tests prove pure feature decoding and scalar fallback policy
-- architecture/rejection tests prove the new service boundary is respected
-- boot/runtime tests prove policy setup occurs in early init before memory-helper flow continues
-- live docs point to the new canonical ownership paths
+- `make test-plain` remains the canonical umbrella proof and must pass before the phase is declared complete.
+- Phase 2 should not relax the existing no-SIMD artifact checks; they remain valid because acceleration is still disabled.
+
+---
+*Phase: 02-capability-detection-runtime-guardrails*
