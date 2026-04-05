@@ -12,7 +12,7 @@ It is not a historical analysis.
 ## 1. Subject constraints
 
 Subject requirements that matter to architecture:
-- the kernel targets i386
+- the subject requires a 32-bit x86 kernel environment ("i386 (x86)" in the subject wording)
 - GRUB boots the kernel
 - the project provides ASM boot code and kernel code in the chosen language
 - the kernel must link without host runtime dependencies
@@ -25,6 +25,20 @@ Subject requirements that do not exist:
 - no required driver/service split beyond whatever is needed to stay clean and extensible
 
 Source: [`docs/subject.pdf`](/home/motero/Code/kfs-1/docs/subject.pdf)
+
+Current repo interpretation of that subject constraint:
+- the final kernel artifact is ELF32 with machine `Intel 80386`
+- the boot path and linker remain 32-bit x86 (`elf_i386`, multiboot, `qemu-system-i386`)
+- the Rust codegen baseline currently uses `i586-unknown-linux-gnu`
+
+Why the Rust baseline is `i586` instead of `i686`:
+- the stable Rust `i686-unknown-linux-gnu` target now carries an SSE2-based ABI contract
+- this repo currently keeps freestanding kernel artifacts free of SSE/XMM instructions
+- using `i686` while forcing `-sse2` is being phased into a hard compiler error
+
+Current limitation:
+- this means the repo currently implements the subject's 32-bit x86 requirement with an ELF/i386 binary format and boot path, but not with a literal 80386 Rust codegen baseline
+- if the course is later interpreted to require strict 80386 instruction compatibility rather than generic 32-bit x86, this choice must be revisited explicitly
 
 ## 2. Current architecture decision
 
