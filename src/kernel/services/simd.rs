@@ -74,7 +74,9 @@ fn emit_runtime_markers(policy: RuntimePolicy) {
     match policy.mode() {
         SimdExecutionMode::Uninitialized => diagnostics::write_line("SIMD_MODE_UNINITIALIZED"),
         SimdExecutionMode::ScalarOnly => diagnostics::write_line("SIMD_MODE_SCALAR_ONLY"),
-        SimdExecutionMode::AccelerationEnabled => diagnostics::write_line("SIMD_MODE_ACCELERATION_ENABLED"),
+        SimdExecutionMode::AccelerationEnabled => {
+            diagnostics::write_line("SIMD_MODE_ACCELERATION_ENABLED")
+        }
     }
 
     if policy.has_cpuid() {

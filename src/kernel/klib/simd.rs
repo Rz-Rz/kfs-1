@@ -317,7 +317,11 @@ impl RuntimePolicy {
     }
 
     pub const fn runtime_owned(self) -> bool {
-        self.x87_initialized || self.mxcsr_initialized || self.mmx_ready || self.sse_ready || self.sse2_ready
+        self.x87_initialized
+            || self.mxcsr_initialized
+            || self.mmx_ready
+            || self.sse_ready
+            || self.sse2_ready
     }
 }
 
@@ -370,9 +374,7 @@ pub fn install_runtime_policy(policy: RuntimePolicy) {
 }
 
 pub fn runtime_policy() -> RuntimePolicy {
-    unsafe {
-        RUNTIME_POLICY
-    }
+    unsafe { RUNTIME_POLICY }
 }
 
 pub fn reset_runtime_policy() {

@@ -87,7 +87,7 @@ assert_kernel_has_only_approved_simd() {
 		failures+=("${current_symbol}: ${line}")
 	done <<<"${disassembly}"
 
-	if (( ${#failures[@]} > 0 )); then
+	if ((${#failures[@]} > 0)); then
 		echo "FAIL ${KERNEL_PATH}: found SIMD/MMX/SSE instructions outside approved memory backends"
 		printf '%s\n' "${failures[@]:0:20}"
 		return 1

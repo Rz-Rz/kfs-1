@@ -47,7 +47,11 @@ impl SimdRuntimeState {
     }
 
     pub const fn runtime_owned(self) -> bool {
-        self.x87_initialized || self.mxcsr_initialized || self.mmx_ready || self.sse_ready || self.sse2_ready
+        self.x87_initialized
+            || self.mxcsr_initialized
+            || self.mmx_ready
+            || self.sse_ready
+            || self.sse2_ready
     }
 }
 

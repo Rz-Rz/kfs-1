@@ -49,7 +49,7 @@ describe_case() {
 	klib-policy-defaults-to-scalar-guardrails) printf '%s\n' "klib runtime policy defaults to scalar guardrails" ;;
 	memory-facade-exposes-simd-guardrails) printf '%s\n' "memory facade exposes SIMD guardrail queries without importing machine" ;;
 	*) return 1 ;;
-esac
+	esac
 }
 
 ensure_sources_exist() {
@@ -114,15 +114,15 @@ run_direct_case() {
 	host-simd-forced-scalar-policy-denies-acceleration)
 		run_host_tests 'forced_scalar_policy_denies_all_acceleration'
 		;;
-		host-simd-no-cpuid-policy-denies-acceleration)
-			run_host_tests 'no_cpuid_policy_denies_all_acceleration'
-			;;
-		host-simd-no-supported-features-stays-scalar)
-			run_host_tests 'no_supported_features_still_counts_as_scalar_policy'
-			;;
-		host-simd-guardrails-reach-klib)
-			run_host_tests 'guardrails_reach_klib_without_arch_shortcuts'
-			;;
+	host-simd-no-cpuid-policy-denies-acceleration)
+		run_host_tests 'no_cpuid_policy_denies_all_acceleration'
+		;;
+	host-simd-no-supported-features-stays-scalar)
+		run_host_tests 'no_supported_features_still_counts_as_scalar_policy'
+		;;
+	host-simd-guardrails-reach-klib)
+		run_host_tests 'guardrails_reach_klib_without_arch_shortcuts'
+		;;
 	machine-defines-simd-support)
 		assert_pattern '\bstruct[[:space:]]+SimdDetection\b' 'SimdDetection definition' "${SOURCE_MACHINE}"
 		assert_pattern '\bfn[[:space:]]+detect_simd\b' 'detect_simd function' "${SOURCE_MACHINE}"
@@ -143,11 +143,11 @@ run_direct_case() {
 		assert_pattern '\bfn[[:space:]]+sse2_allowed\b' 'SSE2 guard query' "${SOURCE_POLICY}"
 		assert_pattern '\bfn[[:space:]]+ready\b' 'runtime-ready feature query' "${SOURCE_POLICY}"
 		;;
-		memory-facade-exposes-simd-guardrails)
-			assert_pattern '\bfn[[:space:]]+simd_policy\b' 'memory SIMD policy query' 'src/kernel/klib/memory/mod.rs'
-			assert_pattern '\bfn[[:space:]]+simd_mode\b' 'memory SIMD mode query' 'src/kernel/klib/memory/mod.rs'
-			assert_pattern '\bfn[[:space:]]+simd_acceleration_allowed\b' 'memory SIMD guard query' 'src/kernel/klib/memory/mod.rs'
-			;;
+	memory-facade-exposes-simd-guardrails)
+		assert_pattern '\bfn[[:space:]]+simd_policy\b' 'memory SIMD policy query' 'src/kernel/klib/memory/mod.rs'
+		assert_pattern '\bfn[[:space:]]+simd_mode\b' 'memory SIMD mode query' 'src/kernel/klib/memory/mod.rs'
+		assert_pattern '\bfn[[:space:]]+simd_acceleration_allowed\b' 'memory SIMD guard query' 'src/kernel/klib/memory/mod.rs'
+		;;
 	*)
 		die "usage: $0 <arch> {host-simd-cpuid-absence-disables-support|host-simd-feature-bits-map-correctly|host-simd-uninitialized-policy-denies-acceleration|host-simd-runtime-blocked-policy-denies-acceleration|host-simd-runtime-owned-policy-is-observable|host-simd-runtime-owned-sse2-policy-allows-acceleration|host-simd-forced-scalar-policy-denies-acceleration|host-simd-no-cpuid-policy-denies-acceleration|host-simd-no-supported-features-stays-scalar|host-simd-guardrails-reach-klib|machine-defines-simd-support|klib-defines-runtime-policy|klib-policy-defaults-to-scalar-guardrails|memory-facade-exposes-simd-guardrails}"
 		;;
@@ -172,6 +172,7 @@ main() {
 		exit 0
 	fi
 
+	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
 	describe_case "${CASE}" >/dev/null 2>&1 || die "unknown case: ${CASE}"
 	run_direct_case
 }
