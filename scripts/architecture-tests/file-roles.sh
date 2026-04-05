@@ -117,7 +117,7 @@ assert_private_leaves_stay_under_owning_subsystems() {
 	local offenders
 
 	offenders="$(
-		find "${REPO_ROOT}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' -o -name '*_impl.rs' -o -name 'logic_impl.rs' \) -printf '%P\n' |
+		find "${REPO_ROOT}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' -o -name '*_impl.rs' -o -name 'logic_impl.rs' -o -name 'sse2_*.rs' \) -printf '%P\n' |
 			awk -F/ '
 				{
 					if (NF < 3) {
@@ -145,7 +145,7 @@ assert_private_leaf_imports_are_local() {
 
 	offenders="$(
 		find "${REPO_ROOT}/src/kernel" -type f -name '*.rs' -print0 |
-			xargs -0 rg -n '\#\[path[[:space:]]*=[[:space:]]*"[^\"]*(string|memory|keyboard|vga_text)/(imp|writer)\.rs"|^\s*mod\s+(imp|writer)\s*;|\buse\s+crate::kernel::(?:klib|drivers)::(?:string|memory|keyboard|vga_text)::(?:imp|writer)\b|\bcrate::kernel::(?:klib|drivers)::(?:string|memory|keyboard|vga_text)::(?:imp|writer)\b' -P -S 2>/dev/null |
+			xargs -0 rg -n '\#\[path[[:space:]]*=[[:space:]]*"[^\"]*(string|memory|keyboard|vga_text)/(imp|writer|sse2_[A-Za-z0-9_]+)\.rs"|^\s*mod\s+(imp|writer|sse2_memcpy|sse2_memset)\s*;|\buse\s+crate::kernel::(?:klib|drivers)::(?:string|memory|keyboard|vga_text)::(?:imp|writer|sse2_memcpy|sse2_memset)\b|\bcrate::kernel::(?:klib|drivers)::(?:string|memory|keyboard|vga_text)::(?:imp|writer|sse2_memcpy|sse2_memset)\b' -P -S 2>/dev/null |
 			grep -vE '^.*/src/kernel/(klib/string/mod\.rs|klib/memory/mod\.rs|drivers/keyboard/mod\.rs|drivers/vga_text/mod\.rs):' || true
 	)"
 

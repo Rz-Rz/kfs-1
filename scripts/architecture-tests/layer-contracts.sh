@@ -15,6 +15,7 @@ console-runtime-path-files-exist
 core-init-avoids-raw-hw-and-asm
 services-avoid-raw-hw-and-asm
 inline-asm-stays-in-arch-or-machine
+simd-intrinsics-stay-in-approved-files
 types-have-no-side-effects
 EOF
 }
@@ -28,6 +29,7 @@ describe_case() {
 	core-init-avoids-raw-hw-and-asm) printf '%s\n' "core entry and init avoid raw hardware access and inline asm" ;;
 	services-avoid-raw-hw-and-asm) printf '%s\n' "services avoid raw hardware access and inline asm" ;;
 	inline-asm-stays-in-arch-or-machine) printf '%s\n' "inline asm stays in arch or machine only" ;;
+	simd-intrinsics-stay-in-approved-files) printf '%s\n' "typed x86 SIMD intrinsics stay in approved CPU-probe and private klib leaf files" ;;
 	types-have-no-side-effects) printf '%s\n' "types layer stays free of side effects and hardware primitives" ;;
 	*) return 1 ;;
 	esac
@@ -170,6 +172,25 @@ assert_inline_asm_stays_in_arch_or_machine() {
 	echo "PASS ${CASE}: inline asm stays in machine layer"
 }
 
+assert_simd_intrinsics_stay_in_approved_files() {
+	local offenders
+	local allowlist='^.*/src/kernel/(machine/cpu\.rs|klib/memory/sse2_memcpy\.rs|klib/memory/sse2_memset\.rs):'
+
+	offenders="$(
+		find "${REPO_ROOT}/src" -type f \( -name '*.rs' -o -name '*.S' -o -name '*.asm' \) -print0 |
+			xargs -0 rg -n 'core::arch::x86(::|_64::|$)|core::arch::x86_64(::|$)|#\[target_feature\(enable = "sse2"\)\]' -S 2>/dev/null |
+			grep -vE "${allowlist}" || true
+	)"
+
+	if [[ -n "${offenders}" ]]; then
+		echo "FAIL ${CASE}: found typed SIMD intrinsics outside approved files"
+		printf '%s\n' "${offenders}"
+		return 1
+	fi
+
+	echo "PASS ${CASE}: typed SIMD intrinsics stay in approved files"
+}
+
 assert_types_have_no_side_effects() {
 	local roots=()
 	local offenders
@@ -200,6 +221,7 @@ run_case() {
 	core-init-avoids-raw-hw-and-asm) assert_core_avoids_raw_hw_and_asm ;;
 	services-avoid-raw-hw-and-asm) assert_services_avoid_raw_hw_and_asm ;;
 	inline-asm-stays-in-arch-or-machine) assert_inline_asm_stays_in_arch_or_machine ;;
+	simd-intrinsics-stay-in-approved-files) assert_simd_intrinsics_stay_in_approved_files ;;
 	types-have-no-side-effects) assert_types_have_no_side_effects ;;
 	*) die "unknown case: ${CASE}" ;;
 	esac

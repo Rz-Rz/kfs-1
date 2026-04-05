@@ -13,9 +13,17 @@ list_cases() {
 	cat <<'EOF'
 release-core-init-calls-memory-memcpy
 runtime-confirms-memcpy
+runtime-confirms-memcpy-backend-sse2
+runtime-confirms-memcpy-scalar-fallback-when-no-cpuid
+runtime-confirms-memcpy-scalar-fallback-when-simd-disabled
 release-core-init-calls-memory-memset
 runtime-confirms-memset
+runtime-confirms-memset-backend-sse2
+runtime-confirms-memset-scalar-fallback-when-no-cpuid
+runtime-confirms-memset-scalar-fallback-when-simd-disabled
 runtime-confirms-memory-helpers
+runtime-memory-acceleration-happens-after-simd-runtime-ownership
+runtime-memory-backend-markers-are-ordered
 runtime-memory-markers-are-ordered
 EOF
 }
@@ -24,9 +32,17 @@ describe_case() {
 	case "$1" in
 	release-core-init-calls-memory-memcpy) printf '%s\n' "release core init calls memory::memcpy in the memory sanity path" ;;
 	runtime-confirms-memcpy) printf '%s\n' "runtime emits MEMCPY_OK" ;;
+	runtime-confirms-memcpy-backend-sse2) printf '%s\n' "runtime emits MEMCPY_BACKEND_SSE2 when the default CPU supports SSE2" ;;
+	runtime-confirms-memcpy-scalar-fallback-when-no-cpuid) printf '%s\n' "runtime falls back to MEMCPY_BACKEND_SCALAR when CPUID is forced unavailable" ;;
+	runtime-confirms-memcpy-scalar-fallback-when-simd-disabled) printf '%s\n' "runtime falls back to MEMCPY_BACKEND_SCALAR when SIMD is forced off" ;;
 	release-core-init-calls-memory-memset) printf '%s\n' "release core init calls memory::memset in the memory sanity path" ;;
 	runtime-confirms-memset) printf '%s\n' "runtime emits MEMSET_OK" ;;
+	runtime-confirms-memset-backend-sse2) printf '%s\n' "runtime emits MEMSET_BACKEND_SSE2 when the default CPU supports SSE2" ;;
+	runtime-confirms-memset-scalar-fallback-when-no-cpuid) printf '%s\n' "runtime falls back to MEMSET_BACKEND_SCALAR when CPUID is forced unavailable" ;;
+	runtime-confirms-memset-scalar-fallback-when-simd-disabled) printf '%s\n' "runtime falls back to MEMSET_BACKEND_SCALAR when SIMD is forced off" ;;
 	runtime-confirms-memory-helpers) printf '%s\n' "runtime emits MEMORY_HELPERS_OK" ;;
+	runtime-memory-acceleration-happens-after-simd-runtime-ownership) printf '%s\n' "runtime reaches SIMD ownership before selecting SSE2 memory backends" ;;
+	runtime-memory-backend-markers-are-ordered) printf '%s\n' "runtime emits backend markers before helper success markers" ;;
 	runtime-memory-markers-are-ordered) printf '%s\n' "runtime emits MEMCPY_OK then MEMSET_OK then MEMORY_HELPERS_OK in order" ;;
 	*) return 1 ;;
 	esac
@@ -145,6 +161,15 @@ run_direct_case() {
 	runtime-confirms-memcpy)
 		assert_log_contains "MEMCPY_OK"
 		;;
+	runtime-confirms-memcpy-backend-sse2)
+		assert_log_contains "MEMCPY_BACKEND_SSE2"
+		;;
+	runtime-confirms-memcpy-scalar-fallback-when-no-cpuid)
+		assert_log_contains "MEMCPY_BACKEND_SCALAR"
+		;;
+	runtime-confirms-memcpy-scalar-fallback-when-simd-disabled)
+		assert_log_contains "MEMCPY_BACKEND_SCALAR"
+		;;
 	release-core-init-calls-memory-memset)
 		assert_pattern 'memory::memset\(' 'memory::memset call in core init' "${INIT_SOURCE}"
 		assert_pattern_absent '\bkfs_memset\(' 'kfs_memset call in core init' "${INIT_SOURCE}"
@@ -153,22 +178,48 @@ run_direct_case() {
 	runtime-confirms-memset)
 		assert_log_contains "MEMSET_OK"
 		;;
+	runtime-confirms-memset-backend-sse2)
+		assert_log_contains "MEMSET_BACKEND_SSE2"
+		;;
+	runtime-confirms-memset-scalar-fallback-when-no-cpuid)
+		assert_log_contains "MEMSET_BACKEND_SCALAR"
+		;;
+	runtime-confirms-memset-scalar-fallback-when-simd-disabled)
+		assert_log_contains "MEMSET_BACKEND_SCALAR"
+		;;
 	runtime-confirms-memory-helpers)
 		assert_log_contains "MEMORY_HELPERS_OK"
+		;;
+	runtime-memory-acceleration-happens-after-simd-runtime-ownership)
+		assert_log_order "SIMD_RUNTIME_OWNED" "MEMCPY_BACKEND_SSE2" "MEMSET_BACKEND_SSE2" "MEMORY_HELPERS_OK"
+		;;
+	runtime-memory-backend-markers-are-ordered)
+		assert_log_order "MEMCPY_BACKEND_SSE2" "MEMCPY_OK" "MEMSET_BACKEND_SSE2" "MEMSET_OK" "MEMORY_HELPERS_OK"
 		;;
 	runtime-memory-markers-are-ordered)
 		assert_log_order "MEMCPY_OK" "MEMSET_OK" "MEMORY_HELPERS_OK"
 		;;
 	*)
-		die "usage: $0 <arch> {release-core-init-calls-memory-memcpy|runtime-confirms-memcpy|release-core-init-calls-memory-memset|runtime-confirms-memset|runtime-confirms-memory-helpers|runtime-memory-markers-are-ordered}"
+		die "usage: $0 <arch> {release-core-init-calls-memory-memcpy|runtime-confirms-memcpy|runtime-confirms-memcpy-backend-sse2|runtime-confirms-memcpy-scalar-fallback-when-no-cpuid|runtime-confirms-memcpy-scalar-fallback-when-simd-disabled|release-core-init-calls-memory-memset|runtime-confirms-memset|runtime-confirms-memset-backend-sse2|runtime-confirms-memset-scalar-fallback-when-no-cpuid|runtime-confirms-memset-scalar-fallback-when-simd-disabled|runtime-confirms-memory-helpers|runtime-memory-acceleration-happens-after-simd-runtime-ownership|runtime-memory-backend-markers-are-ordered|runtime-memory-markers-are-ordered}"
 		;;
 	esac
 }
 
 run_host_case() {
+	local make_env=""
+
+	case "${CASE}" in
+	runtime-confirms-memcpy-scalar-fallback-when-no-cpuid | runtime-confirms-memset-scalar-fallback-when-no-cpuid)
+		make_env="KFS_TEST_NO_CPUID=1"
+		;;
+	runtime-confirms-memcpy-scalar-fallback-when-simd-disabled | runtime-confirms-memset-scalar-fallback-when-simd-disabled)
+		make_env="KFS_TEST_DISABLE_SIMD=1"
+		;;
+	esac
+
 	bash scripts/with-build-lock.sh \
 		bash scripts/container.sh run -- \
-		bash -lc "make clean >/dev/null 2>&1 || true; make -B iso-test arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 TEST_TIMEOUT_SECS='${TIMEOUT_SECS}' TEST_PASS_RC='${PASS_RC}' bash scripts/boot-tests/memory-runtime.sh '${ARCH}' '${CASE}'"
+		bash -lc "make clean >/dev/null 2>&1 || true; make -B iso-test arch='${ARCH}' ${make_env} >/dev/null && KFS_HOST_TEST_DIRECT=1 TEST_TIMEOUT_SECS='${TIMEOUT_SECS}' TEST_PASS_RC='${PASS_RC}' bash scripts/boot-tests/memory-runtime.sh '${ARCH}' '${CASE}'"
 }
 
 main() {

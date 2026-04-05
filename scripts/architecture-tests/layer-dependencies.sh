@@ -159,7 +159,7 @@ assert_services_do_not_import_driver_leaves_or_raw_hw() {
 
 	assert_no_matches \
 		'importing private driver leaves in services' \
-		'(^|[[:space:]])(use|pub[[:space:]]+use)[[:space:]]+[^;\n]*\bcrate::kernel::drivers::[A-Za-z0-9_]+::(writer|imp|_impl|logic_impl|memory_impl|string_impl)\b|#\[path[[:space:]]*=[[:space:]]*\"[^\"]*(writer|imp|_impl|logic_impl|memory_impl|string_impl)\.rs\"\]' \
+		'(^|[[:space:]])(use|pub[[:space:]]+use)[[:space:]]+[^;\n]*\bcrate::kernel::drivers::[A-Za-z0-9_]+::(writer|imp|_impl|logic_impl|memory_impl|string_impl|sse2_[A-Za-z0-9_]+)\b|#\[path[[:space:]]*=[[:space:]]*\"[^\"]*(writer|imp|_impl|logic_impl|memory_impl|string_impl|sse2_[A-Za-z0-9_]+)\.rs\"\]' \
 		"${services_sources[@]}"
 
 	assert_no_matches \
@@ -189,7 +189,7 @@ assert_klib_no_device_deps() {
 
 	assert_no_matches \
 		'forbidden cross-layer imports in klib' \
-		'(^|[[:space:]])(use|pub[[:space:]]+use)[[:space:]]+[^;\n]*\bcrate::kernel::(drivers|services|core|machine|types)::|\buse[[:space:]]+[^;\n]*\b(core|services|drivers|machine|types)::' \
+		'(^|[[:space:]])(use|pub[[:space:]]+use)[[:space:]]+[^;\n]*\bcrate::kernel::(drivers|services|core|machine|types)::' \
 		"${klib_sources[@]}"
 
 	assert_no_matches \

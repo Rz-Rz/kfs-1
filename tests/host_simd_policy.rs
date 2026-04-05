@@ -143,6 +143,33 @@ fn runtime_owned_policy_is_observable_but_still_scalar_only() {
 }
 
 #[test]
+fn runtime_owned_sse2_policy_can_enable_acceleration() {
+    simd::install_runtime_policy(RuntimePolicy::acceleration_enabled(
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+    ));
+
+    let policy = simd::runtime_policy();
+
+    assert_eq!(policy.block_reason, ScalarBlockReason::AccelerationEnabled);
+    assert_eq!(policy.mode(), SimdExecutionMode::AccelerationEnabled);
+    assert!(policy.runtime_owned());
+    assert!(!policy.allows(SimdFeature::Mmx));
+    assert!(!policy.allows(SimdFeature::Sse));
+    assert!(policy.allows(SimdFeature::Sse2));
+    assert!(!simd::mmx_allowed());
+    assert!(!simd::sse_allowed());
+    assert!(simd::sse2_allowed());
+}
+
+#[test]
 fn guardrails_reach_klib_without_arch_shortcuts() {
     simd::reset_runtime_policy();
 

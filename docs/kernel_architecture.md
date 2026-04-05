@@ -211,14 +211,27 @@ Current hardware ownership:
 - direct VGA MMIO and volatile writes belong in `drivers`
 - raw assembly entry/runtime helpers stay in `arch`
 - typed port I/O and CPU capability probing belong in `machine`
+- typed Rust x86 intrinsics may appear only in approved low-level files: CPU probing in `machine` and private accelerated helper leaves in `klib`
 - linker symbols stay at the `arch`/entry boundary
 
 Current SIMD policy wiring:
 - [`src/kernel/machine/cpu.rs`](/home/motero/Code/kfs-1/src/kernel/machine/cpu.rs) owns typed CPUID/MMX/SSE/SSE2 capability detection
 - [`src/kernel/machine/fpu.rs`](/home/motero/Code/kfs-1/src/kernel/machine/fpu.rs) owns typed CR0/CR4/x87/MXCSR runtime-state initialization
 - [`src/kernel/services/simd.rs`](/home/motero/Code/kfs-1/src/kernel/services/simd.rs) translates detection plus machine-state ownership into the canonical installed runtime policy
-- [`src/kernel/klib/simd.rs`](/home/motero/Code/kfs-1/src/kernel/klib/simd.rs) owns the canonical runtime-owned-but-deferred guardrail state that future helper families can query
+- [`src/kernel/klib/simd.rs`](/home/motero/Code/kfs-1/src/kernel/klib/simd.rs) owns the canonical runtime policy and currently enables only `SSE2` acceleration on runtime-owned supported CPUs
+- [`src/kernel/klib/memory/dispatch.rs`](/home/motero/Code/kfs-1/src/kernel/klib/memory/dispatch.rs) owns helper-backend selection for the memory family based on installed policy plus compiled backend availability
+- [`src/kernel/klib/memory/mod.rs`](/home/motero/Code/kfs-1/src/kernel/klib/memory/mod.rs) remains the only public memory-family facade and ABI export owner
+- [`src/kernel/klib/memory/sse2_memcpy.rs`](/home/motero/Code/kfs-1/src/kernel/klib/memory/sse2_memcpy.rs) owns the private SSE2 `memcpy` backend
+- [`src/kernel/klib/memory/sse2_memset.rs`](/home/motero/Code/kfs-1/src/kernel/klib/memory/sse2_memset.rs) owns the private SSE2 `memset` backend
 - [`src/kernel/core/init.rs`](/home/motero/Code/kfs-1/src/kernel/core/init.rs) sequences SIMD runtime-state ownership through the services layer during early init
+
+Current memory-dispatch contract:
+- callers use `memory::memcpy` / `memory::memset`; they do not select `MMX` / `SSE` / `SSE2` directly
+- backend selection stays inside `klib::memory`
+- `SSE2` is the currently enabled accelerated tier for memory helpers on this branch
+- supported runtime-owned CPUs select the `SSE2` backend for `memcpy` and `memset`
+- unsupported, no-CPUID, or forced-scalar paths stay on the scalar implementation
+- boot/runtime proof observes the selected backend through markers emitted by `core::init`, not by teaching `klib` about diagnostics
 
 Current serial reality:
 - serial driver register access is owned by [`src/kernel/drivers/serial/mod.rs`](/home/motero/Code/kfs-1/src/kernel/drivers/serial/mod.rs)
@@ -266,6 +279,12 @@ Relevant suites:
 - [`scripts/rejection-tests/`](/home/motero/Code/kfs-1/scripts/rejection-tests)
 - [`scripts/boot-tests/`](/home/motero/Code/kfs-1/scripts/boot-tests)
 - [`scripts/tests/unit/`](/home/motero/Code/kfs-1/scripts/tests/unit)
+
+Current proof extension for Phase 4:
+- `tests/host_memory.rs` and [`scripts/tests/unit/memory-helpers.sh`](/home/motero/Code/kfs-1/scripts/tests/unit/memory-helpers.sh) prove scalar fallback and SSE2 parity through the public memory facade
+- [`scripts/boot-tests/memory-runtime.sh`](/home/motero/Code/kfs-1/scripts/boot-tests/memory-runtime.sh) proves runtime-selected helper backend markers, fallback markers, and ordering during early init
+- [`scripts/boot-tests/simd-policy.sh`](/home/motero/Code/kfs-1/scripts/boot-tests/simd-policy.sh) proves that supported CPUs now transition into acceleration-enabled policy rather than staying deferred
+- [`scripts/stability-tests/freestanding-simd.sh`](/home/motero/Code/kfs-1/scripts/stability-tests/freestanding-simd.sh) proves SIMD instructions remain confined to approved runtime-state operations and owned memory backend symbols
 
 The hard gate is:
 - `make test`

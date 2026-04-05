@@ -178,13 +178,13 @@ check_private_impl_boundary() {
 	if command -v rg >/dev/null 2>&1; then
 		offenders="$(
 			find "${TMPDIR}/src/kernel" -type f -name '*.rs' -print0 |
-				xargs -0 rg -n 'klib/(string|memory)/imp\.rs' -S 2>/dev/null |
+				xargs -0 rg -n 'klib/(string|memory)/(imp|sse2_[A-Za-z0-9_]+)\.rs' -S 2>/dev/null |
 				grep -vE "^${TMPDIR}/src/kernel/klib/(string|memory)/mod\\.rs:" || true
 		)"
 	else
 		offenders="$(
 			find "${TMPDIR}/src/kernel" -type f -name '*.rs' -print0 |
-				xargs -0 grep -En 'klib/(string|memory)/imp\.rs' 2>/dev/null |
+				xargs -0 grep -En 'klib/(string|memory)/(imp|sse2_[A-Za-z0-9_]+)\.rs' 2>/dev/null |
 				grep -vE "^${TMPDIR}/src/kernel/klib/(string|memory)/mod\\.rs:" || true
 		)"
 	fi

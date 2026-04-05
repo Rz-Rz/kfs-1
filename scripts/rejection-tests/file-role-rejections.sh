@@ -185,7 +185,7 @@ check_private_leaves_owned() {
 	local offenders
 
 	offenders="$(
-		find "${TMPDIR}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' -o -name '*_impl.rs' -o -name 'logic_impl.rs' \) -printf '%P\n' |
+		find "${TMPDIR}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' -o -name '*_impl.rs' -o -name 'logic_impl.rs' -o -name 'sse2_*.rs' \) -printf '%P\n' |
 			awk -F/ '
 				{
 					if (NF < 3) {
@@ -206,7 +206,7 @@ check_private_leaf_imports_local() {
 	local offenders
 	offenders="$(
 		find "${TMPDIR}/src/kernel" -type f -name '*.rs' -print0 |
-			xargs -0 rg -n '\#\[path[[:space:]]*=[[:space:]]*\"[^\"]*(string|memory|vga_text)/(imp|writer)\.rs\"|^\s*mod\s+(imp|writer)\s*;|\buse\s+crate::kernel::(?:klib|drivers)::(?:string|memory|vga_text)::(?:imp|writer)\b|\bcrate::kernel::(?:klib|drivers)::(?:string|memory|vga_text)::(?:imp|writer)\b' -P -S 2>/dev/null |
+			xargs -0 rg -n '\#\[path[[:space:]]*=[[:space:]]*\"[^\"]*(string|memory|vga_text)/(imp|writer|sse2_[A-Za-z0-9_]+)\.rs\"|^\s*mod\s+(imp|writer|sse2_memcpy|sse2_memset)\s*;|\buse\s+crate::kernel::(?:klib|drivers)::(?:string|memory|vga_text)::(?:imp|writer|sse2_memcpy|sse2_memset)\b|\bcrate::kernel::(?:klib|drivers)::(?:string|memory|vga_text)::(?:imp|writer|sse2_memcpy|sse2_memset)\b' -P -S 2>/dev/null |
 			grep -vE '^.*/src/kernel/(klib/string/mod\.rs|klib/memory/mod\.rs|drivers/vga_text/mod\.rs):' || true
 	)"
 	[[ -z "${offenders}" ]]

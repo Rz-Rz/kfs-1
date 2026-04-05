@@ -11,6 +11,7 @@ layer-root-modrs-missing-fails
 boot-calls-driver-directly-fails
 core-inline-asm-fails
 services-raw-hardware-fails
+simd-intrinsics-outside-owned-files-fails
 types-side-effect-fails
 EOF
 }
@@ -21,6 +22,7 @@ describe_case() {
 	boot-calls-driver-directly-fails) printf '%s\n' "rejects boot asm calling driver or helper surfaces directly" ;;
 	core-inline-asm-fails) printf '%s\n' "rejects inline asm in core" ;;
 	services-raw-hardware-fails) printf '%s\n' "rejects raw hardware access in services" ;;
+	simd-intrinsics-outside-owned-files-fails) printf '%s\n' "rejects typed SIMD intrinsics outside approved CPU-probe and private klib leaf files" ;;
 	types-side-effect-fails) printf '%s\n' "rejects side effects in types" ;;
 	*) return 1 ;;
 	esac
@@ -102,6 +104,19 @@ check_types_no_side_effects() {
 	! rg -n 'core::arch::asm!|\b(inb|outb)\b|write_volatile|read_volatile|extern[[:space:]]+"C"|#\[no_mangle\]' "${TMPDIR}/src/kernel/types" >/dev/null
 }
 
+check_simd_intrinsics_ownership() {
+	local offenders
+	local allowlist='^.*/src/kernel/(machine/cpu\.rs|klib/memory/sse2_memcpy\.rs|klib/memory/sse2_memset\.rs):'
+
+	offenders="$(
+		find "${TMPDIR}/src" -type f -name '*.rs' -print0 |
+			xargs -0 rg -n 'core::arch::x86(::|_64::|$)|core::arch::x86_64(::|$)|#\[target_feature\(enable = "sse2"\)\]' -S 2>/dev/null |
+			grep -vE "${allowlist}" || true
+	)"
+
+	[[ -z "${offenders}" ]]
+}
+
 run_case() {
 	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
 	make_tree
@@ -121,6 +136,10 @@ run_case() {
 	services-raw-hardware-fails)
 		printf '\nconst VGA: *mut u16 = 0xb8000 as *mut u16;\n' >>"${TMPDIR}/src/kernel/services/console.rs"
 		expect_failure "raw hardware in services" check_services_no_raw_hw
+		;;
+	simd-intrinsics-outside-owned-files-fails)
+		printf '\nuse core::arch::x86 as simd;\n#[target_feature(enable = "sse2")]\nunsafe fn bad() { let _ = &simd::_mm_setzero_si128; }\n' >>"${TMPDIR}/src/kernel/services/console.rs"
+		expect_failure "typed SIMD intrinsics outside approved files" check_simd_intrinsics_ownership
 		;;
 	types-side-effect-fails)
 		printf '\n#[no_mangle]\npub extern \"C\" fn leaked() {}\n' >>"${TMPDIR}/src/kernel/types/screen.rs"

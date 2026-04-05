@@ -1,4 +1,5 @@
 use crate::kernel::core::entry;
+use crate::kernel::klib::memory::MemoryBackend;
 use crate::kernel::klib::{memory, string};
 use crate::kernel::services::console;
 use crate::kernel::services::diagnostics;
@@ -128,6 +129,7 @@ fn memory_helpers_are_sane() -> bool {
     }
 
     if entry::is_test_mode() {
+        emit_memcpy_backend_marker(memory::memcpy_backend());
         diagnostics::write_line("MEMCPY_OK");
     }
 
@@ -144,8 +146,23 @@ fn memory_helpers_are_sane() -> bool {
     }
 
     if entry::is_test_mode() {
+        emit_memset_backend_marker(memory::memset_backend());
         diagnostics::write_line("MEMSET_OK");
     }
 
     true
+}
+
+fn emit_memcpy_backend_marker(backend: MemoryBackend) {
+    match backend {
+        MemoryBackend::Scalar => diagnostics::write_line("MEMCPY_BACKEND_SCALAR"),
+        MemoryBackend::Sse2 => diagnostics::write_line("MEMCPY_BACKEND_SSE2"),
+    }
+}
+
+fn emit_memset_backend_marker(backend: MemoryBackend) {
+    match backend {
+        MemoryBackend::Scalar => diagnostics::write_line("MEMSET_BACKEND_SCALAR"),
+        MemoryBackend::Sse2 => diagnostics::write_line("MEMSET_BACKEND_SSE2"),
+    }
 }

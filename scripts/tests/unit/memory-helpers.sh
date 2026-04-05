@@ -26,8 +26,16 @@ host-memset-zero-byte-fill
 host-memset-zero-length-behavior
 host-memset-return-pointer-behavior
 host-memset-sentinel-bounds
+host-memory-backends-default-to-scalar
+host-memory-backends-stay-scalar-when-runtime-owned
+host-memory-backends-stay-scalar-when-runtime-blocked
+host-memory-backends-choose-sse2-when-allowed
+host-memcpy-sse2-backend-preserves-contract
+host-memset-sse2-backend-preserves-contract
 rust-defines-memcpy
 rust-defines-memset
+rust-defines-memory-backend-dispatch
+memory-facade-exposes-backend-queries
 rust-exports-kfs-memcpy
 rust-exports-kfs-memset
 rust-avoids-extern-memcpy
@@ -51,8 +59,16 @@ describe_case() {
 	host-memset-zero-length-behavior) printf '%s\n' "host memset zero-length behavior is correct" ;;
 	host-memset-return-pointer-behavior) printf '%s\n' "host memset returns the original destination pointer" ;;
 	host-memset-sentinel-bounds) printf '%s\n' "host memset preserves bytes outside the requested range" ;;
+	host-memory-backends-default-to-scalar) printf '%s\n' "host memory backend selection defaults to scalar when policy is uninitialized" ;;
+	host-memory-backends-stay-scalar-when-runtime-owned) printf '%s\n' "host memory backend selection stays scalar while acceleration is still deferred" ;;
+	host-memory-backends-stay-scalar-when-runtime-blocked) printf '%s\n' "host memory backend selection stays scalar when runtime policy blocks acceleration" ;;
+	host-memory-backends-choose-sse2-when-allowed) printf '%s\n' "host memory backend selection chooses SSE2 when the runtime policy allows it" ;;
+	host-memcpy-sse2-backend-preserves-contract) printf '%s\n' "host memcpy preserves its contract on the SSE2 backend" ;;
+	host-memset-sse2-backend-preserves-contract) printf '%s\n' "host memset preserves its contract on the SSE2 backend" ;;
 	rust-defines-memcpy) printf '%s\n' "Rust defines memcpy in the kernel helper module" ;;
 	rust-defines-memset) printf '%s\n' "Rust defines memset in the kernel helper module" ;;
+	rust-defines-memory-backend-dispatch) printf '%s\n' "kernel memory family defines a canonical backend dispatch leaf" ;;
+	memory-facade-exposes-backend-queries) printf '%s\n' "kernel memory facade exposes selected backend queries" ;;
 	rust-exports-kfs-memcpy) printf '%s\n' "kernel memory family exports kfs_memcpy" ;;
 	rust-exports-kfs-memset) printf '%s\n' "kernel memory family exports kfs_memset" ;;
 	rust-avoids-extern-memcpy) printf '%s\n' "kernel memory family does not fall back to extern memcpy" ;;
@@ -165,11 +181,37 @@ run_direct_case() {
 	host-memset-sentinel-bounds)
 		run_host_tests 'memset_partial_range_preserves_edges'
 		;;
+	host-memory-backends-default-to-scalar)
+		run_host_tests 'memory_backends_default_to_scalar_when_policy_is_uninitialized'
+		;;
+	host-memory-backends-stay-scalar-when-runtime-owned)
+		run_host_tests 'memory_backends_remain_scalar_when_runtime_is_owned_but_acceleration_is_deferred'
+		;;
+	host-memory-backends-stay-scalar-when-runtime-blocked)
+		run_host_tests 'memory_backends_remain_scalar_when_policy_is_runtime_blocked'
+		;;
+	host-memory-backends-choose-sse2-when-allowed)
+		run_host_tests 'memory_backends_choose_sse2_when_policy_allows_it'
+		;;
+	host-memcpy-sse2-backend-preserves-contract)
+		run_host_tests 'memcpy_sse2_backend_preserves_existing_contract'
+		;;
+	host-memset-sse2-backend-preserves-contract)
+		run_host_tests 'memset_sse2_backend_preserves_existing_contract'
+		;;
 	rust-defines-memcpy)
 		assert_memory_pattern '\bfn[[:space:]]+memcpy\b' 'memcpy definition' "${SOURCE_IMPL}"
 		;;
 	rust-defines-memset)
 		assert_memory_pattern '\bfn[[:space:]]+memset\b' 'memset definition' "${SOURCE_IMPL}"
+		;;
+	rust-defines-memory-backend-dispatch)
+		assert_memory_pattern '\bmod[[:space:]]+dispatch\b' 'memory dispatch module' "${SOURCE_CRATE}"
+		assert_memory_pattern '\benum[[:space:]]+MemoryBackend\b' 'MemoryBackend enum' 'src/kernel/klib/memory/dispatch.rs'
+		;;
+	memory-facade-exposes-backend-queries)
+		assert_memory_pattern '\bfn[[:space:]]+memcpy_backend\b' 'memcpy backend query' "${SOURCE_CRATE}"
+		assert_memory_pattern '\bfn[[:space:]]+memset_backend\b' 'memset backend query' "${SOURCE_CRATE}"
 		;;
 	rust-exports-kfs-memcpy)
 		assert_memory_pattern '#\[no_mangle\]' 'no_mangle marker for exported helper wrappers' "${SOURCE_CRATE}"
@@ -195,7 +237,7 @@ run_direct_case() {
 		assert_no_memory_pattern 'read_volatile|write_volatile' 'volatile ordinary-memory access in memory helpers' "${SOURCE_IMPL}"
 		;;
 	*)
-		die "usage: $0 <arch> {host-memcpy-unit-tests-pass|host-memcpy-zero-length-behavior|host-memcpy-return-pointer-behavior|host-memcpy-sentinel-bounds|host-memset-unit-tests-pass|host-memset-zero-length-behavior|host-memset-return-pointer-behavior|host-memset-sentinel-bounds|rust-defines-memcpy|rust-defines-memset|rust-exports-kfs-memcpy|rust-exports-kfs-memset|rust-avoids-extern-memcpy|rust-avoids-extern-memset|release-kernel-exports-kfs-memcpy|release-kernel-exports-kfs-memset|memory-helpers-avoid-volatile-access}"
+		die "usage: $0 <arch> {host-memcpy-unit-tests-pass|host-memcpy-zero-length-behavior|host-memcpy-return-pointer-behavior|host-memcpy-same-pointer|host-memcpy-unaligned-pointers|host-memcpy-sentinel-bounds|host-memset-unit-tests-pass|host-memset-zero-byte-fill|host-memset-zero-length-behavior|host-memset-return-pointer-behavior|host-memset-sentinel-bounds|host-memory-backends-default-to-scalar|host-memory-backends-stay-scalar-when-runtime-owned|host-memory-backends-stay-scalar-when-runtime-blocked|host-memory-backends-choose-sse2-when-allowed|host-memcpy-sse2-backend-preserves-contract|host-memset-sse2-backend-preserves-contract|rust-defines-memcpy|rust-defines-memset|rust-defines-memory-backend-dispatch|memory-facade-exposes-backend-queries|rust-exports-kfs-memcpy|rust-exports-kfs-memset|rust-avoids-extern-memcpy|rust-avoids-extern-memset|release-kernel-exports-kfs-memcpy|release-kernel-exports-kfs-memset|memory-helpers-avoid-volatile-access}"
 		;;
 	esac
 }

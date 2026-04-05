@@ -106,7 +106,7 @@ assert_drivers_no_abi() {
 assert_leaves_no_abi() {
 	local offenders
 	offenders="$(
-		find "${REPO_ROOT}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' -o -name '*_impl.rs' -o -name 'logic_impl.rs' \) -print0 |
+		find "${REPO_ROOT}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' -o -name '*_impl.rs' -o -name 'logic_impl.rs' -o -name 'sse2_*.rs' \) -print0 |
 			xargs -0 rg -n '#\[no_mangle\]|extern[[:space:]]+"C"' -S 2>/dev/null || true
 	)"
 	if [[ -n "${offenders}" ]]; then

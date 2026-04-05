@@ -10,19 +10,19 @@ LOG="build/m5-simd-policy-${CASE}.log"
 
 list_cases() {
 	cat <<'EOF'
-phase3-runtime-ownership-markers
-phase3-runtime-ownership-order
-phase3-no-cpuid-stays-scalar
-phase3-forced-disable-stays-scalar
+phase4-runtime-acceleration-markers
+phase4-runtime-acceleration-order
+phase4-no-cpuid-stays-scalar
+phase4-forced-disable-stays-scalar
 EOF
 }
 
 describe_case() {
 	case "$1" in
-	phase3-runtime-ownership-markers) printf '%s\n' "runtime emits Phase 3 ownership markers while acceleration stays deferred" ;;
-	phase3-runtime-ownership-order) printf '%s\n' "runtime owns SIMD state before helper self-check markers run" ;;
-	phase3-no-cpuid-stays-scalar) printf '%s\n' "runtime falls back to scalar-only policy when CPUID is forced unavailable" ;;
-	phase3-forced-disable-stays-scalar) printf '%s\n' "runtime stays scalar-only and does not own state when SIMD policy is forced off" ;;
+	phase4-runtime-acceleration-markers) printf '%s\n' "runtime emits Phase 4 ownership markers and enables SSE2 acceleration on supported CPUs" ;;
+	phase4-runtime-acceleration-order) printf '%s\n' "runtime owns SIMD state and enables acceleration before helper self-check markers run" ;;
+	phase4-no-cpuid-stays-scalar) printf '%s\n' "runtime falls back to scalar-only policy when CPUID is forced unavailable" ;;
+	phase4-forced-disable-stays-scalar) printf '%s\n' "runtime stays scalar-only and does not own state when SIMD policy is forced off" ;;
 	*) return 1 ;;
 	esac
 }
@@ -93,27 +93,28 @@ run_direct_case() {
 	run_qemu_capture
 
 	case "${CASE}" in
-	phase3-runtime-ownership-markers)
+	phase4-runtime-acceleration-markers)
 		assert_log_contains "SIMD_POLICY_OK"
-		assert_log_contains "SIMD_MODE_SCALAR_ONLY"
+		assert_log_contains "SIMD_MODE_ACCELERATION_ENABLED"
 		assert_log_contains "SIMD_CPUID_PRESENT"
 		assert_log_contains "SIMD_FXSR_OK"
 		assert_log_contains "SIMD_RUNTIME_OWNED"
 		assert_log_contains "SIMD_X87_INIT_OK"
 		assert_log_contains "SIMD_MXCSR_DEFAULT_OK"
-		assert_log_contains "SIMD_POLICY_ACCELERATION_DEFERRED"
+		assert_log_contains "SIMD_POLICY_ACCELERATION_ENABLED"
+		assert_log_contains "SIMD_SSE2_OK"
 		;;
-	phase3-runtime-ownership-order)
-		assert_log_order "LAYOUT_OK" "SIMD_POLICY_OK" "SIMD_RUNTIME_OWNED" "SIMD_X87_INIT_OK" "STRING_HELPERS_OK"
+	phase4-runtime-acceleration-order)
+		assert_log_order "LAYOUT_OK" "SIMD_POLICY_OK" "SIMD_RUNTIME_OWNED" "SIMD_POLICY_ACCELERATION_ENABLED" "STRING_HELPERS_OK"
 		;;
-	phase3-no-cpuid-stays-scalar)
+	phase4-no-cpuid-stays-scalar)
 		assert_log_contains "SIMD_POLICY_OK"
 		assert_log_contains "SIMD_MODE_SCALAR_ONLY"
 		assert_log_contains "SIMD_CPUID_ABSENT"
 		assert_log_contains "SIMD_RUNTIME_NOT_OWNED"
 		assert_log_contains "SIMD_POLICY_NO_CPUID"
 		;;
-	phase3-forced-disable-stays-scalar)
+	phase4-forced-disable-stays-scalar)
 		assert_log_contains "SIMD_POLICY_OK"
 		assert_log_contains "SIMD_MODE_SCALAR_ONLY"
 		assert_log_contains "SIMD_CPUID_PRESENT"
@@ -121,7 +122,7 @@ run_direct_case() {
 		assert_log_contains "SIMD_POLICY_FORCED_SCALAR"
 		;;
 	*)
-		die "usage: $0 <arch> {phase3-runtime-ownership-markers|phase3-runtime-ownership-order|phase3-no-cpuid-stays-scalar|phase3-forced-disable-stays-scalar}"
+		die "usage: $0 <arch> {phase4-runtime-acceleration-markers|phase4-runtime-acceleration-order|phase4-no-cpuid-stays-scalar|phase4-forced-disable-stays-scalar}"
 		;;
 	esac
 }
@@ -130,10 +131,10 @@ run_host_case() {
 	local make_env=""
 
 	case "${CASE}" in
-	phase3-no-cpuid-stays-scalar)
+	phase4-no-cpuid-stays-scalar)
 		make_env="KFS_TEST_NO_CPUID=1"
 		;;
-	phase3-forced-disable-stays-scalar)
+	phase4-forced-disable-stays-scalar)
 		make_env="KFS_TEST_DISABLE_SIMD=1"
 		;;
 	esac

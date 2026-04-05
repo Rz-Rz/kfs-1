@@ -20,6 +20,7 @@ host-simd-feature-bits-map-correctly
 host-simd-uninitialized-policy-denies-acceleration
 host-simd-runtime-blocked-policy-denies-acceleration
 host-simd-runtime-owned-policy-is-observable
+host-simd-runtime-owned-sse2-policy-allows-acceleration
 host-simd-forced-scalar-policy-denies-acceleration
 host-simd-no-cpuid-policy-denies-acceleration
 host-simd-no-supported-features-stays-scalar
@@ -38,6 +39,7 @@ describe_case() {
 	host-simd-uninitialized-policy-denies-acceleration) printf '%s\n' "uninitialized SIMD policy denies all acceleration" ;;
 	host-simd-runtime-blocked-policy-denies-acceleration) printf '%s\n' "runtime-blocked SIMD policy preserves detection but denies execution" ;;
 	host-simd-runtime-owned-policy-is-observable) printf '%s\n' "runtime-owned SIMD policy is observable while acceleration remains deferred" ;;
+	host-simd-runtime-owned-sse2-policy-allows-acceleration) printf '%s\n' "runtime-owned SIMD policy can allow SSE2 acceleration while MMX/SSE remain blocked" ;;
 	host-simd-forced-scalar-policy-denies-acceleration) printf '%s\n' "forced-scalar SIMD policy denies all acceleration" ;;
 	host-simd-no-cpuid-policy-denies-acceleration) printf '%s\n' "no-CPUID SIMD policy denies all acceleration" ;;
 	host-simd-no-supported-features-stays-scalar) printf '%s\n' "CPUID-without-MMX/SSE/SSE2 still yields scalar-only policy" ;;
@@ -106,6 +108,9 @@ run_direct_case() {
 	host-simd-runtime-owned-policy-is-observable)
 		run_host_tests 'runtime_owned_policy_is_observable_but_still_scalar_only'
 		;;
+	host-simd-runtime-owned-sse2-policy-allows-acceleration)
+		run_host_tests 'runtime_owned_sse2_policy_can_enable_acceleration'
+		;;
 	host-simd-forced-scalar-policy-denies-acceleration)
 		run_host_tests 'forced_scalar_policy_denies_all_acceleration'
 		;;
@@ -131,6 +136,8 @@ run_direct_case() {
 	klib-policy-defaults-to-scalar-guardrails)
 		assert_pattern 'ScalarBlockReason::Uninitialized' 'uninitialized scalar guard reason' "${SOURCE_POLICY}"
 		assert_pattern 'ScalarBlockReason::AccelerationDeferred' 'runtime-owned deferred scalar guard reason' "${SOURCE_POLICY}"
+		assert_pattern 'ScalarBlockReason::AccelerationEnabled' 'runtime-owned acceleration-enabled reason' "${SOURCE_POLICY}"
+		assert_pattern 'SimdExecutionMode::AccelerationEnabled' 'acceleration-enabled execution mode' "${SOURCE_POLICY}"
 		assert_pattern '\bfn[[:space:]]+mmx_allowed\b' 'MMX guard query' "${SOURCE_POLICY}"
 		assert_pattern '\bfn[[:space:]]+sse_allowed\b' 'SSE guard query' "${SOURCE_POLICY}"
 		assert_pattern '\bfn[[:space:]]+sse2_allowed\b' 'SSE2 guard query' "${SOURCE_POLICY}"
@@ -142,7 +149,7 @@ run_direct_case() {
 			assert_pattern '\bfn[[:space:]]+simd_acceleration_allowed\b' 'memory SIMD guard query' 'src/kernel/klib/memory/mod.rs'
 			;;
 	*)
-		die "usage: $0 <arch> {host-simd-cpuid-absence-disables-support|host-simd-feature-bits-map-correctly|host-simd-uninitialized-policy-denies-acceleration|host-simd-runtime-blocked-policy-denies-acceleration|host-simd-runtime-owned-policy-is-observable|host-simd-forced-scalar-policy-denies-acceleration|host-simd-no-cpuid-policy-denies-acceleration|host-simd-no-supported-features-stays-scalar|host-simd-guardrails-reach-klib|machine-defines-simd-support|klib-defines-runtime-policy|klib-policy-defaults-to-scalar-guardrails|memory-facade-exposes-simd-guardrails}"
+		die "usage: $0 <arch> {host-simd-cpuid-absence-disables-support|host-simd-feature-bits-map-correctly|host-simd-uninitialized-policy-denies-acceleration|host-simd-runtime-blocked-policy-denies-acceleration|host-simd-runtime-owned-policy-is-observable|host-simd-runtime-owned-sse2-policy-allows-acceleration|host-simd-forced-scalar-policy-denies-acceleration|host-simd-no-cpuid-policy-denies-acceleration|host-simd-no-supported-features-stays-scalar|host-simd-guardrails-reach-klib|machine-defines-simd-support|klib-defines-runtime-policy|klib-policy-defaults-to-scalar-guardrails|memory-facade-exposes-simd-guardrails}"
 		;;
 	esac
 }

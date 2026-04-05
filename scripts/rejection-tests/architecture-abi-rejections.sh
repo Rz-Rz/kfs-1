@@ -107,7 +107,7 @@ check_no_abi_in_drivers() {
 }
 
 check_no_abi_in_leaves() {
-	! find "${TMPDIR}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' -o -name '*_impl.rs' -o -name 'logic_impl.rs' \) -print0 |
+	! find "${TMPDIR}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' -o -name '*_impl.rs' -o -name 'logic_impl.rs' -o -name 'sse2_*.rs' \) -print0 |
 		xargs -0 rg -n '#\[no_mangle\]|extern[[:space:]]+"C"' -S 2>/dev/null >/dev/null
 }
 

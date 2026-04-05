@@ -90,7 +90,7 @@ check_core_forbidden_layer_imports() {
 }
 
 check_services_driver_leaf_or_raw_hw() {
-	! rg -n '(^|[[:space:]])(use|pub[[:space:]]+use)[[:space:]]+[^;\n]*\bcrate::kernel::drivers::[A-Za-z0-9_]+::(writer|imp|_impl|logic_impl|memory_impl|string_impl)\b|#\[path[[:space:]]*=[[:space:]]*"[^"]*(writer|imp|_impl|logic_impl|memory_impl|string_impl)\.rs"\]|\b(0x[bB]8000|write_volatile|read_volatile|\b(inb|outb)\(|core::arch::asm!)\b' -S "${TMPDIR}/src/kernel/services"
+	! rg -n '(^|[[:space:]])(use|pub[[:space:]]+use)[[:space:]]+[^;\n]*\bcrate::kernel::drivers::[A-Za-z0-9_]+::(writer|imp|_impl|logic_impl|memory_impl|string_impl|sse2_[A-Za-z0-9_]+)\b|#\[path[[:space:]]*=[[:space:]]*"[^"]*(writer|imp|_impl|logic_impl|memory_impl|string_impl|sse2_[A-Za-z0-9_]+)\.rs"\]|\b(0x[bB]8000|write_volatile|read_volatile|\b(inb|outb)\(|core::arch::asm!)\b' -S "${TMPDIR}/src/kernel/services"
 }
 
 check_drivers_boot_policy() {

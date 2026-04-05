@@ -82,7 +82,7 @@ is_disallowed_export_file() {
 	esac
 
 	case "${path##*/}" in
-	imp.rs | writer.rs | logic_impl.rs | string_impl.rs | memory_impl.rs | *_impl.rs)
+	imp.rs | writer.rs | logic_impl.rs | string_impl.rs | memory_impl.rs | sse2_memcpy.rs | sse2_memset.rs | *_impl.rs)
 		return 0
 		;;
 	esac

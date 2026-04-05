@@ -153,9 +153,9 @@ assert_struct_owned_only_in_file() {
 assert_private_impl_boundary() {
 	local offenders
 	if command -v rg >/dev/null 2>&1; then
-		offenders="$(find src/kernel -type f -name '*.rs' -print0 | xargs -0 rg -n 'klib/(string|memory)/imp\.rs' -S 2>/dev/null | grep -vE '^src/kernel/klib/(string|memory)/mod\.rs:' || true)"
+		offenders="$(find src/kernel -type f -name '*.rs' -print0 | xargs -0 rg -n 'klib/(string|memory)/(imp|sse2_[A-Za-z0-9_]+)\.rs' -S 2>/dev/null | grep -vE '^src/kernel/klib/(string|memory)/mod\.rs:' || true)"
 	else
-		offenders="$(find src/kernel -type f -name '*.rs' -print0 | xargs -0 grep -En 'klib/(string|memory)/imp\.rs' 2>/dev/null | grep -vE '^src/kernel/klib/(string|memory)/mod\.rs:' || true)"
+		offenders="$(find src/kernel -type f -name '*.rs' -print0 | xargs -0 grep -En 'klib/(string|memory)/(imp|sse2_[A-Za-z0-9_]+)\.rs' 2>/dev/null | grep -vE '^src/kernel/klib/(string|memory)/mod\.rs:' || true)"
 	fi
 	if [[ -n "${offenders}" ]]; then
 		echo "FAIL src: found private helper import outside public boundary file"

@@ -74,6 +74,7 @@ fn emit_runtime_markers(policy: RuntimePolicy) {
     match policy.mode() {
         SimdExecutionMode::Uninitialized => diagnostics::write_line("SIMD_MODE_UNINITIALIZED"),
         SimdExecutionMode::ScalarOnly => diagnostics::write_line("SIMD_MODE_SCALAR_ONLY"),
+        SimdExecutionMode::AccelerationEnabled => diagnostics::write_line("SIMD_MODE_ACCELERATION_ENABLED"),
     }
 
     if policy.has_cpuid() {
@@ -136,6 +137,9 @@ fn emit_runtime_markers(policy: RuntimePolicy) {
         }
         ScalarBlockReason::AccelerationDeferred => {
             diagnostics::write_line("SIMD_POLICY_ACCELERATION_DEFERRED")
+        }
+        ScalarBlockReason::AccelerationEnabled => {
+            diagnostics::write_line("SIMD_POLICY_ACCELERATION_ENABLED")
         }
     }
 }

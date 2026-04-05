@@ -10,6 +10,7 @@ pub enum SimdFeature {
 pub enum SimdExecutionMode {
     Uninitialized = 0,
     ScalarOnly = 1,
+    AccelerationEnabled = 2,
 }
 
 #[repr(u8)]
@@ -21,6 +22,7 @@ pub enum ScalarBlockReason {
     ForcedByPolicy = 3,
     RuntimeStateDisabled = 4,
     AccelerationDeferred = 5,
+    AccelerationEnabled = 6,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -106,6 +108,20 @@ impl RuntimePolicy {
         }
 
         if runtime_state.runtime_owned {
+            if sse2 && runtime_state.sse2_ready {
+                return Self::acceleration_enabled(
+                    fxsr,
+                    mmx,
+                    sse,
+                    sse2,
+                    runtime_state.x87_initialized,
+                    runtime_state.mxcsr_initialized,
+                    runtime_state.mmx_ready,
+                    runtime_state.sse_ready,
+                    runtime_state.sse2_ready,
+                );
+            }
+
             return Self::acceleration_deferred(
                 fxsr,
                 mmx,
@@ -227,6 +243,35 @@ impl RuntimePolicy {
         }
     }
 
+    pub const fn acceleration_enabled(
+        fxsr: bool,
+        mmx: bool,
+        sse: bool,
+        sse2: bool,
+        x87_initialized: bool,
+        mxcsr_initialized: bool,
+        mmx_ready: bool,
+        sse_ready: bool,
+        sse2_ready: bool,
+    ) -> Self {
+        Self {
+            cpuid_supported: true,
+            fxsr_detected: fxsr,
+            mmx_detected: mmx,
+            sse_detected: sse,
+            sse2_detected: sse2,
+            x87_initialized,
+            mxcsr_initialized,
+            mmx_ready,
+            sse_ready,
+            sse2_ready,
+            mmx_allowed: false,
+            sse_allowed: false,
+            sse2_allowed: sse2 && sse2_ready,
+            block_reason: ScalarBlockReason::AccelerationEnabled,
+        }
+    }
+
     pub const fn has_cpuid(self) -> bool {
         self.cpuid_supported
     }
@@ -243,6 +288,7 @@ impl RuntimePolicy {
             | ScalarBlockReason::ForcedByPolicy
             | ScalarBlockReason::RuntimeStateDisabled
             | ScalarBlockReason::AccelerationDeferred => SimdExecutionMode::ScalarOnly,
+            ScalarBlockReason::AccelerationEnabled => SimdExecutionMode::AccelerationEnabled,
         }
     }
 

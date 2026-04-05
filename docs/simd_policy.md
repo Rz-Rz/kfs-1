@@ -70,9 +70,10 @@ This limitation must remain explicit until it is either resolved or accepted as 
 
 Today the kernel policy is:
 - early init owns the required CR0/CR4/x87/SSE control state through the approved `services -> machine` path
-- accelerated helper routines are still not part of the runtime contract
-- runtime ownership is explicit, but acceleration remains deferred until Phase 4 wires real helper implementations
-- accidental SIMD data-path instruction emission is still treated as a regression; only approved control-state instructions are allowed in freestanding artifacts
+- `SSE2` memory helper acceleration is part of the runtime contract on supported CPUs
+- runtime ownership is explicit, and current branch policy enables only `SSE2` data-path use
+- unsupported or forced-scalar paths still remain on the scalar implementation
+- accidental SIMD data-path instruction emission outside the owned memory backend symbols is treated as a regression
 
 This is a runtime-safety and toolchain-policy choice, not a subject-only choice.
 
@@ -138,12 +139,14 @@ Expected ownership split:
 - `src/kernel/klib/` owns scalar and accelerated helper dispatch once runtime policy says acceleration is legal
 - `docs/` and `scripts/` own the written contract and the proof harness that guards it
 
-Current Phase 2 realization:
+Current branch realization:
 - `src/kernel/machine/cpu.rs` owns CPUID-based capability probing
 - `src/kernel/machine/fpu.rs` owns typed CR0/CR4/x87/MXCSR state initialization
-- `src/kernel/services/simd.rs` installs the current runtime-owned-but-deferred policy
-- `src/kernel/klib/simd.rs` exposes the canonical guardrail and runtime-ownership state that helper families can query
-- `src/kernel/klib/memory/mod.rs` exposes the current memory-facing guardrail seam without importing `machine`
+- `src/kernel/services/simd.rs` installs the canonical runtime policy and emits ordered runtime markers for accelerated and scalar-fallback paths
+- `src/kernel/klib/simd.rs` exposes the canonical guardrail, runtime-ownership state, and `SSE2` acceleration permission on supported CPUs
+- `src/kernel/klib/memory/mod.rs` exposes the only public memory-helper facade without importing `machine`
+- `src/kernel/klib/memory/dispatch.rs` owns memory-helper backend selection behind that facade
+- `src/kernel/klib/memory/sse2_memcpy.rs` and `src/kernel/klib/memory/sse2_memset.rs` own the private `SSE2` leaves for the first accelerated helper family
 
 Disallowed pattern:
 - ad hoc inline assembly or target-policy shortcuts scattered through unrelated service/driver/helper code
@@ -168,6 +171,7 @@ Minimum proof obligations:
 4. semantic parity proof
 - accelerated `memcpy` / `memset` / later helpers must preserve the scalar contract
 - host and freestanding tests must prove parity and fallback behavior
+- backend-selection tests must prove which helper path the kernel chose, not just that the helper returned a correct buffer
 
 5. freestanding proof continuity
 - all SIMD work must leave the existing no-host-linkage proofs intact
@@ -192,6 +196,30 @@ The current runtime contract is intentionally conservative:
 - task-switch preservation, interrupt-time save/restore, and user-mode FP/SIMD ABI support remain deferred work
 
 These are design risks to manage explicitly, not details to hand-wave away in later implementation phases.
+
+## 12. Current Phase 4 Dispatch Contract
+
+Phase 4 now owns live accelerated memory selection:
+- `klib::memory` now owns a canonical backend-selection seam for `memcpy` and `memset`
+- the selected backend is a function of installed runtime policy plus compiled backend availability
+- the current branch compiles scalar plus SSE2 memory backends
+- runtime-owned CPUs with detected `SSE2` support select the `SSE2` helper backend
+- unsupported or forced-scalar paths fall back to `Scalar`
+- boot tests must observe `MEMCPY_BACKEND_*` and `MEMSET_BACKEND_*` markers before helper-success markers
+
+This keeps the branch honest in two ways:
+- the repo can prove both accelerated selection and scalar fallback now
+- SIMD data-path instructions remain confined to one owned helper family instead of scattering instruction-family decisions through the kernel
+
+## 13. Post-v1 Candidates
+
+The branch deliberately stops after the first owned accelerated helper family.
+
+Next worthwhile candidates:
+- `memmove` on top of the same `Scalar`/`SSE2` dispatch model
+- string-scan helpers where measurement shows a real win
+- VGA scroll, blit, redraw, and terminal-history movement paths that already move bulk rows
+- explicit scalar-vs-`SSE2` performance characterization before broadening acceleration scope
 
 ---
 *Policy written: 2026-04-05*
