@@ -176,3 +176,31 @@ fn terminal_label_overlay_changes_with_active_label_index() {
         assert_ne!(cell, 0);
     }
 }
+
+#[test]
+fn switching_back_to_a_scrolled_terminal_preserves_backspace_history() {
+    let mut bank = VgaTerminalBank::new();
+    bank.reset();
+
+    {
+        let alpha = bank.terminal_mut(0).expect("terminal 0");
+        for _ in 0..(VGA_TEXT_DIMENSIONS.height() + 3) {
+            alpha.put_byte(b'Q');
+            alpha.put_byte(b'\n');
+            alpha.put_byte(b'\n');
+        }
+    }
+
+    assert!(bank.create_terminal());
+    assert!(bank.set_active(0));
+
+    let alpha = bank.active_mut();
+    alpha.backspace();
+    alpha.backspace();
+
+    assert_eq!(alpha.cursor.col, 0);
+    assert_eq!(
+        alpha.history[alpha.cursor.row * VGA_TEXT_DIMENSIONS.width()],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE)
+    );
+}

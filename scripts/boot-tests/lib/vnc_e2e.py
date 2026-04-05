@@ -2059,6 +2059,43 @@ SCENARIOS["backspace-blanks-the-last-visible-character-cell"] = [
         "message": "Backspace did not blank the last visible character cell",
     },
 ]
+SCENARIOS["backspace-rewinds-across-scrolled-blank-lines"] = [
+    *_fresh_terminal_blank_steps("beta_blank"),
+    {"op": "type_text", "text": "xy", "after": 0.25},
+    {
+        "op": "capture_wait_change",
+        "from": "beta_blank",
+        "name": "beta_dirty",
+        "region": "top_left_text",
+        "message": "typing a visible character did not change the terminal before scroll",
+        "timeout_secs": 2.5,
+    },
+    {"op": "capture", "name": "x_visible", "region": "top_left_text", "wait_boot": False},
+    *[{"op": "tap", "key": "Enter", "after": 0.12} for _ in range(30)],
+    {
+        "op": "capture_wait_change",
+        "from": "x_visible",
+        "name": "x_scrolled_away",
+        "region": "top_left_text",
+        "message": "blank-line scrolling did not move the visible terminal window",
+        "timeout_secs": 5.0,
+    },
+    *[{"op": "tap", "key": "Backspace", "after": 0.12} for _ in range(29)],
+    {
+        "op": "capture_wait_match",
+        "target": "x_visible",
+        "name": "x_rewound",
+        "region": "top_left_text",
+        "message": "Backspace did not rewind across scrolled blank lines",
+        "timeout_secs": 5.0,
+    },
+    {
+        "op": "assert_eq",
+        "left": "x_visible",
+        "right": "x_rewound",
+        "message": "Backspace did not rewind across scrolled blank lines",
+    },
+]
 SCENARIOS["newline-moves-visible-output-to-the-next-row"] = [
     *_fresh_terminal_blank_steps("beta_blank"),
     {"op": "type_text", "text": "ab", "after": 0.25},
