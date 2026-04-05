@@ -40,6 +40,9 @@ Current limitation:
 - this means the repo currently implements the subject's 32-bit x86 requirement with an ELF/i386 binary format and boot path, but not with a literal 80386 Rust codegen baseline
 - if the course is later interpreted to require strict 80386 instruction compatibility rather than generic 32-bit x86, this choice must be revisited explicitly
 
+See also:
+- [`docs/simd_policy.md`](/home/motero/Code/kfs-1/docs/simd_policy.md) for the current MMX/SSE/SSE2 policy, the `i586` target compromise, and the future enablement prerequisites
+
 ## 2. Current architecture decision
 
 The repo implements a layered monolithic kernel.

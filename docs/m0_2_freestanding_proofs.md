@@ -17,6 +17,7 @@ These checks do **not** guarantee:
 - The kernel boots correctly (that’s covered by QEMU boot tests).
 - The kernel prints `42` or implements the subject features (M2–M6).
 - The kernel is “correct” or safe—only that it is **self-contained** from a dynamic-linking standpoint.
+- Whether MMX/SSE/SSE2 instructions are allowed or forbidden by policy. Freestanding linkage proofs and SIMD policy are separate concerns.
 
 ### Where the checks run
 - Script: `scripts/boot-tests/freestanding-kernel.sh`
@@ -123,3 +124,6 @@ The rejection suite complements the positive proofs above:
   runnable kernel artifact can be produced.
 - The libc/loader string case proves the heuristic marker checks are wired and fail loudly when
   host-runtime identifiers leak into the image.
+
+For the current MMX/SSE/SSE2 policy, including why SIMD is not itself a host-linkage question, see
+[`docs/simd_policy.md`](/home/motero/Code/kfs-1/docs/simd_policy.md).
