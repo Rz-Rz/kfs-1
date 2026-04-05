@@ -9,13 +9,12 @@ ALLOWLIST="${SCRIPT_DIR}/fixtures/exports.${ARCH}.allowlist"
 
 list_cases() {
 	cat <<'EOF'
-target-tree-has-kernel-root
-required-architecture-artifacts-exist
+kernel-binary-crate-root-exists
+host-library-crate-root-exists
+shared-kernel-module-root-exists
+freestanding-support-root-exists
 kernel-first-level-dirs-match-allowlist
 no-top-level-kernel-peer-files
-types-layer-contains-only-current-files
-private-leaves-stay-under-owning-subsystem
-forbidden-leaf-imports-are-absent
 types-has-no-abi-exports
 core-services-types-have-no-raw-hardware-access
 core-entry-does-not-call-driver-abi-directly
@@ -28,13 +27,12 @@ EOF
 
 describe_case() {
 	case "$1" in
-	target-tree-has-kernel-root) printf '%s\n' "kernel Rust tree is rooted at src/main.rs" ;;
-	required-architecture-artifacts-exist) printf '%s\n' "all required future-architecture artifacts exist" ;;
+	kernel-binary-crate-root-exists) printf '%s\n' "kernel binary crate root exists at src/main.rs" ;;
+	host-library-crate-root-exists) printf '%s\n' "host library crate root exists at src/lib.rs" ;;
+	shared-kernel-module-root-exists) printf '%s\n' "shared kernel module root exists at src/kernel/mod.rs" ;;
+	freestanding-support-root-exists) printf '%s\n' "freestanding support root exists at src/freestanding/mod.rs" ;;
 	kernel-first-level-dirs-match-allowlist) printf '%s\n' "kernel first-level directories match the architecture allowlist" ;;
 	no-top-level-kernel-peer-files) printf '%s\n' "src/kernel has only the canonical top-level mod.rs file" ;;
-	types-layer-contains-only-current-files) printf '%s\n' "the types layer contains only the current canonical files" ;;
-	private-leaves-stay-under-owning-subsystem) printf '%s\n' "private leaves stay under their owning subsystem directories" ;;
-	forbidden-leaf-imports-are-absent) printf '%s\n' "private leaves are not imported outside their owning facade" ;;
 	types-has-no-abi-exports) printf '%s\n' "types layer does not export ABI symbols" ;;
 	core-services-types-have-no-raw-hardware-access) printf '%s\n' "core, services, and types avoid raw hardware access" ;;
 	core-entry-does-not-call-driver-abi-directly) printf '%s\n' "core entry avoids direct driver ABI calls and direct VGA writes" ;;
@@ -62,7 +60,7 @@ find_pattern() {
 	fi
 }
 
-assert_kernel_root_exists() {
+assert_kernel_binary_root_exists() {
 	[[ -f "${REPO_ROOT}/src/main.rs" ]] || {
 		echo "FAIL ${CASE}: missing src/main.rs"
 		return 1
@@ -71,43 +69,31 @@ assert_kernel_root_exists() {
 	echo "PASS ${CASE}: src/main.rs exists"
 }
 
-assert_required_architecture_artifacts_exist() {
-	local missing=()
-	local path
-
-	while IFS= read -r path; do
-		[[ -f "${REPO_ROOT}/${path}" ]] || missing+=("${path}")
-	done <<'EOF'
-src/main.rs
-src/freestanding/mod.rs
-src/freestanding/panic.rs
-src/freestanding/section_markers.rs
-src/kernel/mod.rs
-src/kernel/core/entry.rs
-src/kernel/core/init.rs
-src/kernel/machine/port.rs
-src/kernel/types/range.rs
-src/kernel/types/screen.rs
-src/kernel/klib/string/mod.rs
-src/kernel/klib/string/imp.rs
-src/kernel/klib/memory/mod.rs
-src/kernel/klib/memory/imp.rs
-src/kernel/drivers/serial/mod.rs
-src/kernel/drivers/keyboard/mod.rs
-src/kernel/drivers/keyboard/imp.rs
-src/kernel/drivers/vga_text/mod.rs
-src/kernel/drivers/vga_text/writer.rs
-src/kernel/services/diagnostics.rs
-src/kernel/services/console.rs
-EOF
-
-	if [[ "${#missing[@]}" -gt 0 ]]; then
-		echo "FAIL ${CASE}: missing required architecture artifacts"
-		printf '%s\n' "${missing[@]}"
+assert_host_library_root_exists() {
+	[[ -f "${REPO_ROOT}/src/lib.rs" ]] || {
+		echo "FAIL ${CASE}: missing src/lib.rs"
 		return 1
-	fi
+	}
 
-	echo "PASS ${CASE}: all required architecture artifacts exist"
+	echo "PASS ${CASE}: src/lib.rs exists"
+}
+
+assert_shared_kernel_module_root_exists() {
+	[[ -f "${REPO_ROOT}/src/kernel/mod.rs" ]] || {
+		echo "FAIL ${CASE}: missing src/kernel/mod.rs"
+		return 1
+	}
+
+	echo "PASS ${CASE}: src/kernel/mod.rs exists"
+}
+
+assert_freestanding_support_root_exists() {
+	[[ -f "${REPO_ROOT}/src/freestanding/mod.rs" ]] || {
+		echo "FAIL ${CASE}: missing src/freestanding/mod.rs"
+		return 1
+	}
+
+	echo "PASS ${CASE}: src/freestanding/mod.rs exists"
 }
 
 assert_first_level_dirs_match_allowlist() {
@@ -151,88 +137,6 @@ assert_no_top_level_peer_files() {
 	fi
 
 	echo "PASS ${CASE}: src/kernel exposes only mod.rs at the top level"
-}
-
-assert_types_layer_contains_only_current_files() {
-	local actual expected
-
-	if [[ ! -d "${REPO_ROOT}/src/kernel/types" ]]; then
-		echo "FAIL ${CASE}: missing src/kernel/types"
-		return 1
-	fi
-
-	actual="$(
-		find "${REPO_ROOT}/src/kernel/types" -mindepth 1 -maxdepth 1 -type f -name '*.rs' -printf '%f\n' | sort
-	)"
-	expected="$(
-		cat <<'EOF'
-mod.rs
-range.rs
-screen.rs
-EOF
-	)"
-
-	if [[ "${actual}" != "${expected}" ]]; then
-		echo "FAIL ${CASE}: types layer contains unexpected files"
-		printf 'expected:\n%s\n' "${expected}"
-		printf 'actual:\n%s\n' "${actual}"
-		return 1
-	fi
-
-	echo "PASS ${CASE}: types layer contains only the current canonical files"
-}
-
-assert_private_leaves_stay_under_owning_subsystem() {
-	local offenders
-
-	offenders="$(
-		find "${REPO_ROOT}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' -o -name '*_impl.rs' -o -name 'logic_impl.rs' \) -printf '%P\n' |
-			awk -F/ '
-        {
-          if (NF < 3) {
-            print $0
-            next
-          }
-          if ($1 !~ /^(core|drivers|klib|machine|services|types)$/) {
-            print $0
-          }
-        }
-      '
-	)"
-
-	if [[ -n "${offenders}" ]]; then
-		echo "FAIL ${CASE}: found private leaves outside allowed subsystem directories"
-		printf '%s\n' "${offenders}"
-		return 1
-	fi
-
-	echo "PASS ${CASE}: private leaves stay under owning subsystem directories"
-}
-
-assert_forbidden_leaf_imports_are_absent() {
-	local offenders
-
-	if command -v rg >/dev/null 2>&1; then
-		offenders="$(
-			find "${REPO_ROOT}/src/kernel" -type f -name '*.rs' -print0 |
-				xargs -0 rg -n '#\[path = ".*(imp|writer|logic_impl|string_impl|memory_impl)\.rs"\]' -S 2>/dev/null |
-				grep -vE '^.*/(mod|entry|string|memory|vga|kmain)\.rs:|^.*/drivers/keyboard/mod\.rs:' || true
-		)"
-	else
-		offenders="$(
-			find "${REPO_ROOT}/src/kernel" -type f -name '*.rs' -print0 |
-				xargs -0 grep -En '#\[path = ".*(imp|writer|logic_impl|string_impl|memory_impl)\.rs"\]' 2>/dev/null |
-				grep -vE '^.*/(mod|entry|string|memory|vga|kmain)\.rs:|^.*/drivers/keyboard/mod\.rs:' || true
-		)"
-	fi
-
-	if [[ -n "${offenders}" ]]; then
-		echo "FAIL ${CASE}: found private leaf import outside owning facade"
-		printf '%s\n' "${offenders}"
-		return 1
-	fi
-
-	echo "PASS ${CASE}: private leaf imports stay behind facades"
 }
 
 assert_types_has_no_abi_exports() {
@@ -372,26 +276,23 @@ assert_kernel_entrypoint_is_src_main_rs() {
 
 run_case() {
 	case "${CASE}" in
-	target-tree-has-kernel-root)
-		assert_kernel_root_exists
+	kernel-binary-crate-root-exists)
+		assert_kernel_binary_root_exists
 		;;
-	required-architecture-artifacts-exist)
-		assert_required_architecture_artifacts_exist
+	host-library-crate-root-exists)
+		assert_host_library_root_exists
+		;;
+	shared-kernel-module-root-exists)
+		assert_shared_kernel_module_root_exists
+		;;
+	freestanding-support-root-exists)
+		assert_freestanding_support_root_exists
 		;;
 	kernel-first-level-dirs-match-allowlist)
 		assert_first_level_dirs_match_allowlist
 		;;
 	no-top-level-kernel-peer-files)
 		assert_no_top_level_peer_files
-		;;
-	types-layer-contains-only-current-files)
-		assert_types_layer_contains_only_current_files
-		;;
-	private-leaves-stay-under-owning-subsystem)
-		assert_private_leaves_stay_under_owning_subsystem
-		;;
-	forbidden-leaf-imports-are-absent)
-		assert_forbidden_leaf_imports_are_absent
 		;;
 	types-has-no-abi-exports)
 		assert_types_has_no_abi_exports

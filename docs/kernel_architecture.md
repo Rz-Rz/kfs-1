@@ -212,7 +212,7 @@ Current rule:
 - host tests do not `include!` or `#[path]`-mount private production leaf files directly
 
 Examples:
-- [`tests/host_kmain_logic.rs`](/home/motero/Code/kfs-1/tests/host_kmain_logic.rs)
+- [`tests/host_layout_and_vga_cell.rs`](/home/motero/Code/kfs-1/tests/host_layout_and_vga_cell.rs)
 - [`tests/host_string.rs`](/home/motero/Code/kfs-1/tests/host_string.rs)
 - [`tests/host_memory.rs`](/home/motero/Code/kfs-1/tests/host_memory.rs)
 - [`tests/host_types.rs`](/home/motero/Code/kfs-1/tests/host_types.rs)
@@ -220,13 +220,21 @@ Examples:
 ## 10. Enforced rules
 
 The repo enforces the architecture through:
-- tree/layout checks
+- canonical-root and allowed-domain checks
+- private-leaf locality and anti-bypass checks
 - layer-dependency checks
 - export-ownership checks
 - type-contract checks
 - runtime-ownership checks
 - rejection tests
 - boot/runtime tests
+
+The architecture suite intentionally treats only these filesystem facts as hard structural contract:
+- the canonical crate and shared-module roots
+- the allowed first-level ownership domains under `src/kernel/`
+- the single shared `src/kernel/mod.rs` top-level root
+
+It does not treat every current deep leaf filename as permanent architecture law.
 
 Relevant suites:
 - [`scripts/architecture-tests/`](/home/motero/Code/kfs-1/scripts/architecture-tests)

@@ -8,18 +8,22 @@ TMPDIR=""
 list_cases() {
 	cat <<'EOF'
 top-level-peer-file-fails
+missing-host-library-root-fails
 orphan-leaf-location-fails
 cross-facade-leaf-import-fails
-unknown-role-file-fails
+host-test-source-mount-fails
+test-only-path-switching-fails
 EOF
 }
 
 describe_case() {
 	case "$1" in
 	top-level-peer-file-fails) printf '%s\n' "rejects top-level Rust peer files under src/kernel" ;;
+	missing-host-library-root-fails) printf '%s\n' "rejects missing src/lib.rs for host-linked tests" ;;
 	orphan-leaf-location-fails) printf '%s\n' "rejects private leaves outside owning subsystem paths" ;;
 	cross-facade-leaf-import-fails) printf '%s\n' "rejects facade importing another subsystem's private leaf" ;;
-	unknown-role-file-fails) printf '%s\n' "rejects unknown file roles in kernel tree" ;;
+	host-test-source-mount-fails) printf '%s\n' "rejects host tests mounting production source directly" ;;
+	test-only-path-switching-fails) printf '%s\n' "rejects cfg(test) path switching in kernel source" ;;
 	*) return 1 ;;
 	esac
 }
@@ -40,8 +44,12 @@ make_tree() {
 	TMPDIR="$(mktemp -d)"
 
 	mkdir -p "${TMPDIR}/src/kernel"/{core,drivers/vga_text,drivers/serial,klib/string,klib/memory,machine,services,types}
+	mkdir -p "${TMPDIR}/tests" "${TMPDIR}/scripts/tests/unit"
 
 	cat >"${TMPDIR}/src/main.rs" <<'EOF'
+pub mod kernel;
+EOF
+	cat >"${TMPDIR}/src/lib.rs" <<'EOF'
 pub mod kernel;
 EOF
 	cat >"${TMPDIR}/src/kernel/mod.rs" <<'EOF'
@@ -131,6 +139,24 @@ pub fn write_line() {
     serial::initialize();
 }
 EOF
+
+	cat >"${TMPDIR}/tests/host_sample.rs" <<'EOF'
+use kfs::kernel::types::range::KernelRange;
+
+#[test]
+fn host_links_real_library() {
+    let _ = KernelRange::new(0, 1);
+}
+EOF
+
+	cat >"${TMPDIR}/scripts/tests/unit/host-rust-lib.sh" <<'EOF'
+#!/usr/bin/env bash
+HOST_LIB_SOURCE="src/lib.rs"
+run_host_rust_test() {
+	rustc --crate-name kfs --crate-type rlib "${HOST_LIB_SOURCE}" >/dev/null
+	rustc --test --extern kfs=build/libkfs.rlib tests/host_sample.rs >/dev/null
+}
+EOF
 }
 
 expect_failure() {
@@ -149,45 +175,31 @@ expect_failure() {
 check_kernel_root_is_lone_top_level_rs() {
 	local peers
 	[[ -f "${TMPDIR}/src/main.rs" ]] || return 1
+	[[ -f "${TMPDIR}/src/lib.rs" ]] || return 1
 	[[ -f "${TMPDIR}/src/kernel/mod.rs" ]] || return 1
 	peers="$(find "${TMPDIR}/src/kernel" -mindepth 1 -maxdepth 1 -type f -name '*.rs' -printf '%f\n' | sort)"
 	[[ -n "${peers}" ]] && [[ "${peers}" == "mod.rs" ]]
 }
 
-check_subsystem_facade_shapes_valid() {
-	[[ -f "${TMPDIR}/src/kernel/klib/string/mod.rs" ]] || return 1
-	[[ -f "${TMPDIR}/src/kernel/klib/string/imp.rs" ]] || return 1
-	[[ -f "${TMPDIR}/src/kernel/klib/memory/mod.rs" ]] || return 1
-	[[ -f "${TMPDIR}/src/kernel/klib/memory/imp.rs" ]] || return 1
-	[[ -f "${TMPDIR}/src/kernel/drivers/serial/mod.rs" ]] || return 1
-	[[ -f "${TMPDIR}/src/kernel/drivers/vga_text/mod.rs" ]] || return 1
-	[[ -f "${TMPDIR}/src/kernel/drivers/vga_text/writer.rs" ]] || return 1
-	[[ -f "${TMPDIR}/src/kernel/services/console.rs" ]] || return 1
-	[[ -f "${TMPDIR}/src/kernel/services/diagnostics.rs" ]] || return 1
-	return 0
-}
-
 check_private_leaves_owned() {
-	local bad=()
-	local path
+	local offenders
 
-	for path in \
-		"${TMPDIR}/src/kernel/klib/string/imp.rs" \
-		"${TMPDIR}/src/kernel/klib/memory/imp.rs" \
-		"${TMPDIR}/src/kernel/drivers/vga_text/writer.rs"; do
-		[[ -f "${path}" ]] || bad+=("${path#${TMPDIR}/}")
-	done
+	offenders="$(
+		find "${TMPDIR}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' -o -name '*_impl.rs' -o -name 'logic_impl.rs' \) -printf '%P\n' |
+			awk -F/ '
+				{
+					if (NF < 3) {
+						print $0
+						next
+					}
+					if ($1 !~ /^(core|drivers|klib|machine|services|types)$/) {
+						print $0
+					}
+				}
+			'
+	)"
 
-	while IFS= read -r -d '' path; do
-		case "${path#${TMPDIR}/}" in
-		src/kernel/klib/string/imp.rs | src/kernel/klib/memory/imp.rs | src/kernel/drivers/vga_text/writer.rs) ;;
-		*)
-			bad+=("${path#${TMPDIR}/} (unexpected private leaf)")
-			;;
-		esac
-	done < <(find "${TMPDIR}/src/kernel" -type f \( -name 'imp.rs' -o -name 'writer.rs' \) -print0)
-
-	[[ "${#bad[@]}" -eq 0 ]]
+	[[ -z "${offenders}" ]]
 }
 
 check_private_leaf_imports_local() {
@@ -200,39 +212,13 @@ check_private_leaf_imports_local() {
 	[[ -z "${offenders}" ]]
 }
 
-check_unknown_roles() {
-	local path
-	local rel
-	local offenders=()
+check_host_tests_do_not_mount_source() {
+	! rg -n '#\[path[[:space:]]*=[[:space:]]*"\.\./src/|include!\([[:space:]]*"\.\./src/' \
+		"${TMPDIR}/tests" "${TMPDIR}/scripts/tests" -g '*.rs' -g '*.sh' >/dev/null
+}
 
-	while IFS= read -r -d '' path; do
-		rel="${path#${TMPDIR}/}"
-		case "${rel}" in
-		src/main.rs) ;;
-		src/kernel/mod.rs) ;;
-		src/kernel/core/mod.rs) ;;
-		src/kernel/core/entry.rs) ;;
-		src/kernel/core/init.rs) ;;
-		src/kernel/drivers/mod.rs) ;;
-		src/kernel/drivers/serial/mod.rs) ;;
-		src/kernel/drivers/vga_text/mod.rs) ;;
-		src/kernel/drivers/vga_text/writer.rs) ;;
-		src/kernel/klib/mod.rs) ;;
-		src/kernel/klib/string/mod.rs) ;;
-		src/kernel/klib/string/imp.rs) ;;
-		src/kernel/klib/memory/mod.rs) ;;
-		src/kernel/klib/memory/imp.rs) ;;
-		src/kernel/machine/mod.rs) ;;
-		src/kernel/machine/port.rs) ;;
-		src/kernel/services/mod.rs) ;;
-		src/kernel/services/console.rs) ;;
-		src/kernel/services/diagnostics.rs) ;;
-		src/kernel/types/*.rs) ;;
-		*) offenders+=("${rel}") ;;
-		esac
-	done < <(find "${TMPDIR}/src/kernel" -type f -name '*.rs' -print0)
-
-	[[ "${#offenders[@]}" -eq 0 ]]
+check_no_test_only_path_switching() {
+	! rg -n '#\[cfg\((test|not\(test\))\)\]' "${TMPDIR}/src/kernel" -g '*.rs' >/dev/null
 }
 
 run_case() {
@@ -244,6 +230,10 @@ run_case() {
 		printf '\npub fn bad() {}\n' >"${TMPDIR}/src/kernel/extra.rs"
 		expect_failure "top-level peer file" check_kernel_root_is_lone_top_level_rs
 		;;
+	missing-host-library-root-fails)
+		rm -f "${TMPDIR}/src/lib.rs"
+		expect_failure "missing host library root" check_kernel_root_is_lone_top_level_rs
+		;;
 	orphan-leaf-location-fails)
 		printf '\npub fn bad() {}\n' >"${TMPDIR}/src/kernel/services/imp.rs"
 		expect_failure "orphan private leaf location" check_private_leaves_owned
@@ -252,9 +242,13 @@ run_case() {
 		printf '\nuse crate::kernel::klib::string::imp;\n' >>"${TMPDIR}/src/kernel/services/console.rs"
 		expect_failure "cross-facade leaf import" check_private_leaf_imports_local
 		;;
-	unknown-role-file-fails)
-		printf '\npub fn telemetry() {}\n' >"${TMPDIR}/src/kernel/services/telemetry.rs"
-		expect_failure "unknown role file" check_unknown_roles
+	host-test-source-mount-fails)
+		printf '\n#[path = "../src/kernel/core/init.rs"]\nmod mounted_init;\n' >>"${TMPDIR}/tests/host_sample.rs"
+		expect_failure "host test mounting production source" check_host_tests_do_not_mount_source
+		;;
+	test-only-path-switching-fails)
+		printf '\n#[cfg(test)]\nmod fake_root {}\n' >>"${TMPDIR}/src/kernel/core/entry.rs"
+		expect_failure "cfg(test) path switching in kernel source" check_no_test_only_path_switching
 		;;
 	*)
 		die "unknown case: ${CASE}"

@@ -14,7 +14,6 @@ POSITIVE_CASE_SCRIPTS=(
 	"scripts/architecture-tests/export-ownership.sh"
 	"scripts/architecture-tests/runtime-ownership.sh"
 	"scripts/architecture-tests/build-graph.sh"
-	"scripts/architecture-tests/tree-migration.sh"
 	"scripts/architecture-tests/type-contracts.sh"
 	"scripts/tests/unit/type-architecture.sh"
 )
@@ -28,7 +27,6 @@ NEGATIVE_CASE_SCRIPTS=(
 	"scripts/rejection-tests/export-ownership-rejections.sh"
 	"scripts/rejection-tests/runtime-ownership-rejections.sh"
 	"scripts/rejection-tests/build-graph-rejections.sh"
-	"scripts/rejection-tests/tree-migration-rejections.sh"
 	"scripts/rejection-tests/type-architecture-rejections.sh"
 	"scripts/rejection-tests/abi-data-contract-rejections.sh"
 )
@@ -151,8 +149,8 @@ run_coverage_matrix() {
 	negative_cases="$(collect_cases "${NEGATIVE_CASE_SCRIPTS[@]}")"
 
 	declare -A INVARIANT_TITLES=(
-		["tree-migration"]="Tree migration and path cleanup"
-		["file-roles"]="Kernel file roles and facade boundaries"
+		["shared-roots"]="Canonical crate roots and allowed kernel domains"
+		["file-roles"]="Private leaf locality and anti-bypass boundaries"
 		["layer-dependencies"]="Layer dependency direction and ownership"
 		["layer-contracts"]="Layer contracts and raw hardware policy"
 		["abi-markers"]="ABI marker ownership and allowed boundaries"
@@ -164,19 +162,20 @@ run_coverage_matrix() {
 	)
 
 	declare -A POSITIVE_PATTERNS=(
-		["tree-migration"]=$'target-tree-has-kernel-root
-required-architecture-artifacts-exist
+		["shared-roots"]=$'kernel-binary-crate-root-exists
+host-library-crate-root-exists
+shared-kernel-module-root-exists
+freestanding-support-root-exists
 kernel-first-level-dirs-match-allowlist
 no-top-level-kernel-peer-files
-types-layer-contains-only-current-files
-future-architecture-tree-artifacts-exist'
-		["file-roles"]=$'crate-root-is-lone-top-level-rs
+crate-roots-use-single-shared-kernel-root
 kernel-top-level-directories-are-layers-only
-kernel-files-have-recognized-roles
-layer-roots-are-mod-rs
-subsystem-facade-shapes-are-valid
-private-leaves-are-owned-and-located
-private-leaf-imports-are-local'
+layer-roots-are-mod-rs'
+		["file-roles"]=$'private-leaves-stay-under-owning-subsystems
+private-leaf-imports-are-local
+host-tests-link-through-real-library-boundary
+host-tests-do-not-mount-production-source
+kernel-tree-avoids-test-only-path-switching'
 		["layer-dependencies"]=$'core-depends-only-on-services-types-klib
 services-do-not-import-driver-leaves-or-raw-hw
 drivers-do-not-own-boot-policy
@@ -237,13 +236,14 @@ cursor-pos-uses-repr-c'
 	)
 
 	declare -A NEGATIVE_PATTERNS=(
-		["tree-migration"]=$'missing-required-tree-artifact-fails
-new-top-level-kernel-peer-file-fails
-disallowed-first-level-layer-fails'
-		["file-roles"]=$'top-level-peer-file-fails
-orphan-leaf-location-fails
+		["shared-roots"]=$'new-top-level-kernel-peer-file-fails
+disallowed-first-level-layer-fails
+host-library-root-missing-fails
+top-level-peer-file-fails'
+		["file-roles"]=$'orphan-leaf-location-fails
 cross-facade-leaf-import-fails
-unknown-role-file-fails'
+host-test-source-mount-fails
+test-only-path-switching-fails'
 		["layer-dependencies"]=$'core-imports-machine-fails
 services-import-driver-leaf-fails
 drivers-own-boot-policy-fails
@@ -299,7 +299,7 @@ helper-wrapper-missing-extern-c-fails
 private-helper-import-fails'
 	)
 
-	names=(tree-migration file-roles layer-dependencies layer-contracts abi-markers abi-contracts export-ownership runtime-path build-graph type-contracts)
+	names=(shared-roots file-roles layer-dependencies layer-contracts abi-markers abi-contracts export-ownership runtime-path build-graph type-contracts)
 
 	printf '{\n'
 	printf '  \"arch\": \"%s\",\n' "$(json_escape "${ARCH}")"

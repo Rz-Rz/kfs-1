@@ -9,10 +9,8 @@ list_cases() {
 	cat <<'EOF'
 new-top-level-kernel-peer-file-fails
 disallowed-first-level-layer-fails
-missing-required-artifact-fails
-unexpected-types-layer-file-fails
+host-library-root-missing-fails
 types-abi-export-fails
-private-leaf-import-fails
 raw-hardware-in-services-fails
 core-entry-driver-abi-call-fails
 abi-export-outside-target-facade-fails
@@ -25,10 +23,8 @@ describe_case() {
 	case "$1" in
 	new-top-level-kernel-peer-file-fails) printf '%s\n' "rejects a new top-level kernel peer file" ;;
 	disallowed-first-level-layer-fails) printf '%s\n' "rejects a disallowed first-level kernel layer" ;;
-	missing-required-artifact-fails) printf '%s\n' "rejects a missing required future-architecture artifact" ;;
-	unexpected-types-layer-file-fails) printf '%s\n' "rejects unexpected files inside the types layer" ;;
+	host-library-root-missing-fails) printf '%s\n' "rejects a missing host library crate root" ;;
 	types-abi-export-fails) printf '%s\n' "rejects ABI exports in the types layer" ;;
-	private-leaf-import-fails) printf '%s\n' "rejects private leaf imports outside the owning facade" ;;
 	raw-hardware-in-services-fails) printf '%s\n' "rejects raw hardware access in services" ;;
 	core-entry-driver-abi-call-fails) printf '%s\n' "rejects direct driver ABI calls from core entry" ;;
 	abi-export-outside-target-facade-fails) printf '%s\n' "rejects ABI export markers outside target facade files" ;;
@@ -59,6 +55,9 @@ make_target_tree() {
 	mkdir -p "${TMPDIR}/scripts/architecture-tests/fixtures"
 
 	cat >"${TMPDIR}/src/main.rs" <<'EOF'
+pub mod kernel;
+EOF
+	cat >"${TMPDIR}/src/lib.rs" <<'EOF'
 pub mod kernel;
 EOF
 	cat >"${TMPDIR}/src/kernel/mod.rs" <<'EOF'
@@ -218,57 +217,12 @@ EOF
 	[[ "${actual}" == "${expected}" ]]
 }
 
-check_required_artifacts_exist() {
-	local missing=0
-	local path
-
-	while IFS= read -r path; do
-		[[ -f "${TMPDIR}/${path}" ]] || missing=1
-	done <<'EOF'
-src/main.rs
-src/freestanding/mod.rs
-src/freestanding/panic.rs
-src/freestanding/section_markers.rs
-src/kernel/mod.rs
-src/kernel/core/entry.rs
-src/kernel/core/init.rs
-src/kernel/machine/port.rs
-src/kernel/types/range.rs
-src/kernel/types/screen.rs
-src/kernel/klib/string/mod.rs
-src/kernel/klib/string/imp.rs
-src/kernel/klib/memory/mod.rs
-src/kernel/klib/memory/imp.rs
-src/kernel/drivers/serial/mod.rs
-src/kernel/drivers/vga_text/mod.rs
-src/kernel/drivers/vga_text/writer.rs
-src/kernel/services/diagnostics.rs
-src/kernel/services/console.rs
-EOF
-
-	[[ "${missing}" -eq 0 ]]
-}
-
-check_types_layer_contains_only_current_files() {
-	local expected actual
-
-	expected="$(
-		cat <<'EOF'
-mod.rs
-range.rs
-screen.rs
-EOF
-	)"
-	actual="$(find "${TMPDIR}/src/kernel/types" -mindepth 1 -maxdepth 1 -type f -name '*.rs' -printf '%f\n' | sort)"
-	[[ "${actual}" == "${expected}" ]]
-}
-
 check_no_types_abi_export() {
 	! rg -n '#\[no_mangle\]|extern[[:space:]]+"C"' "${TMPDIR}/src/kernel/types" >/dev/null
 }
 
-check_no_private_leaf_imports() {
-	! rg -n '#\[path = ".*(imp|writer)\.rs"\]' "${TMPDIR}/src/kernel" -g '*.rs' | grep -vE ':(#\[path = "imp\.rs"\]|#\[path = "writer\.rs"\])' >/dev/null
+check_host_library_root_exists() {
+	[[ -f "${TMPDIR}/src/lib.rs" ]]
 }
 
 check_no_raw_hardware_in_services() {
@@ -309,21 +263,13 @@ run_case() {
 		mkdir -p "${TMPDIR}/src/kernel/experimental"
 		expect_failure "disallowed first-level kernel layer" check_first_level_allowlist
 		;;
-	missing-required-artifact-fails)
-		rm -f "${TMPDIR}/src/kernel/types/screen.rs"
-		expect_failure "missing required architecture artifact" check_required_artifacts_exist
-		;;
-	unexpected-types-layer-file-fails)
-		printf '\npub struct Unexpected;\n' >"${TMPDIR}/src/kernel/types/bad.rs"
-		expect_failure "unexpected types-layer file" check_types_layer_contains_only_current_files
+	host-library-root-missing-fails)
+		rm -f "${TMPDIR}/src/lib.rs"
+		expect_failure "missing host library crate root" check_host_library_root_exists
 		;;
 	types-abi-export-fails)
 		printf '\n#[no_mangle]\npub extern "C" fn leaked() {}\n' >>"${TMPDIR}/src/kernel/types/range.rs"
 		expect_failure "ABI export in types layer" check_no_types_abi_export
-		;;
-	private-leaf-import-fails)
-		printf '\n#[path = "../klib/string/imp.rs"]\nmod leaked_imp;\n' >>"${TMPDIR}/src/kernel/services/console.rs"
-		expect_failure "private leaf import outside owning facade" check_no_private_leaf_imports
 		;;
 	raw-hardware-in-services-fails)
 		printf '\nconst VGA_PTR: *mut u16 = 0xb8000 as *mut u16;\n' >>"${TMPDIR}/src/kernel/services/console.rs"
