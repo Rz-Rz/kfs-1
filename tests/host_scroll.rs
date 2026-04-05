@@ -173,3 +173,53 @@ fn terminal_backspace_at_newline_boundary_deletes_previous_line_last_character()
         vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'B')
     );
 }
+
+#[test]
+fn terminal_backspace_crosses_empty_lines_after_scroll() {
+    let mut terminal = VgaTerminal::new();
+    terminal.reset();
+
+    for _ in 0..(VGA_TEXT_DIMENSIONS.height() + 3) {
+        terminal.put_byte(b'Z');
+        terminal.put_byte(b'\n');
+        terminal.put_byte(b'\n');
+    }
+
+    assert!(terminal.viewport_top > 0);
+
+    terminal.backspace();
+    assert_eq!(terminal.cursor.col, 0);
+
+    terminal.backspace();
+    assert_eq!(terminal.cursor.col, 0);
+    assert_eq!(
+        terminal.history[terminal.cursor.row * VGA_TEXT_DIMENSIONS.width()],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE)
+    );
+}
+
+#[test]
+fn terminal_backspace_rewinds_to_the_origin_across_blank_lines() {
+    let mut terminal = VgaTerminal::new();
+    terminal.reset();
+
+    terminal.put_byte(b'A');
+    terminal.put_byte(b'\n');
+    terminal.put_byte(b'\n');
+
+    terminal.backspace();
+    assert_eq!(terminal.cursor.row, 1);
+    assert_eq!(terminal.cursor.col, 0);
+
+    terminal.backspace();
+    assert_eq!(terminal.cursor.row, 0);
+    assert_eq!(terminal.cursor.col, 0);
+    assert_eq!(
+        terminal.history[0],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE)
+    );
+
+    terminal.backspace();
+    assert_eq!(terminal.cursor.row, 0);
+    assert_eq!(terminal.cursor.col, 0);
+}

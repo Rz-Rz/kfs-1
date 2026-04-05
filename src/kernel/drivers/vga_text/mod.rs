@@ -89,6 +89,7 @@ pub struct VgaTerminal {
     pub viewport_top: usize,
     pub color: ColorCode,
     pub history: [u16; VGA_TEXT_HISTORY_CELL_COUNT],
+    pub line_lengths: [usize; VGA_TEXT_HISTORY_ROWS],
 }
 
 impl VgaTerminal {
@@ -98,6 +99,7 @@ impl VgaTerminal {
             viewport_top: 0,
             color: VGA_TEXT_DEFAULT_COLOR,
             history: [0; VGA_TEXT_HISTORY_CELL_COUNT],
+            line_lengths: [0; VGA_TEXT_HISTORY_ROWS],
         }
     }
 
@@ -106,10 +108,16 @@ impl VgaTerminal {
         self.viewport_top = 0;
         self.color = VGA_TEXT_DEFAULT_COLOR;
         self.fill_history(vga_text_cell(self.color, VGA_TEXT_BLANK_BYTE));
+        self.fill_line_lengths(0);
     }
 
     pub fn move_cursor(&mut self, row: usize, col: usize) {
         self.cursor.move_to(row, col);
+        let cursor_row = self.cursor.row;
+        unsafe {
+            let line_length = self.line_lengths.get_unchecked_mut(cursor_row);
+            *line_length = (*line_length).max(self.cursor.col);
+        }
         self.viewport_top = vga_text_tail_viewport_top(self.cursor.row);
     }
 
@@ -127,10 +135,19 @@ impl VgaTerminal {
     }
 
     pub fn put_byte(&mut self, byte: u8) {
+        let write_row = self.cursor.row;
+        let write_col = self.cursor.col;
         let result = self.cursor.put_byte(byte);
         if let Some(cell_index) = result.cell_index {
             unsafe {
                 *self.history.get_unchecked_mut(cell_index) = vga_text_cell(self.color, byte);
+                let line_length = self.line_lengths.get_unchecked_mut(write_row);
+                *line_length = (*line_length).max(write_col + 1);
+            }
+        } else {
+            unsafe {
+                let line_length = self.line_lengths.get_unchecked_mut(write_row);
+                *line_length = (*line_length).max(write_col);
             }
         }
         if result.scrolled {
@@ -140,6 +157,7 @@ impl VgaTerminal {
                 VGA_TEXT_HISTORY_ROWS,
                 vga_text_cell(self.color, VGA_TEXT_BLANK_BYTE),
             );
+            vga_text_scroll_rows_up(&mut self.line_lengths, 1, VGA_TEXT_HISTORY_ROWS, 0);
         }
         self.viewport_top = vga_text_tail_viewport_top(self.cursor.row);
     }
@@ -152,11 +170,15 @@ impl VgaTerminal {
 
     pub fn backspace(&mut self) {
         let width = VGA_TEXT_DIMENSIONS.width();
-        let mut cell_index: Option<usize> = self.cursor.backspace_cell();
-
-        if cell_index.is_none() {
-            cell_index = self.backspace_previous_line_last_non_blank(width);
-        }
+        let cell_index = if let Some(index) = self.cursor.backspace_cell() {
+            let row = self.cursor.row;
+            unsafe {
+                *self.line_lengths.get_unchecked_mut(row) = self.cursor.col;
+            }
+            Some(index)
+        } else {
+            self.backspace_previous_line_end(width)
+        };
 
         if let Some(index) = cell_index {
             unsafe {
@@ -167,28 +189,25 @@ impl VgaTerminal {
         self.viewport_top = vga_text_tail_viewport_top(self.cursor.row);
     }
 
-    fn backspace_previous_line_last_non_blank(&mut self, width: usize) -> Option<usize> {
+    fn backspace_previous_line_end(&mut self, width: usize) -> Option<usize> {
         if self.cursor.row == 0 || width == 0 {
             return None;
         }
 
         let previous_row = self.cursor.row - 1;
-        let row_start = previous_row * width;
+        let previous_len = unsafe { *self.line_lengths.get_unchecked(previous_row) }.min(width);
+        self.cursor.row = previous_row;
 
-        let mut col = width;
-        while col > 0 {
-            col -= 1;
-
-            let index = row_start + col;
-            let cell = unsafe { *self.history.get_unchecked(index) };
-            if (cell & 0x00ff) != (VGA_TEXT_BLANK_BYTE as u16) {
-                self.cursor.row = previous_row;
-                self.cursor.col = col;
-                return Some(index);
-            }
+        if previous_len == 0 {
+            self.cursor.col = 0;
+            return None;
         }
 
-        None
+        self.cursor.col = previous_len - 1;
+        unsafe {
+            *self.line_lengths.get_unchecked_mut(previous_row) = previous_len - 1;
+        }
+        Some((previous_row * width) + self.cursor.col)
     }
 
     fn fill_history(&mut self, value: u16) {
@@ -196,6 +215,16 @@ impl VgaTerminal {
         while idx < self.history.len() {
             unsafe {
                 *self.history.get_unchecked_mut(idx) = value;
+            }
+            idx += 1;
+        }
+    }
+
+    fn fill_line_lengths(&mut self, value: usize) {
+        let mut idx = 0;
+        while idx < self.line_lengths.len() {
+            unsafe {
+                *self.line_lengths.get_unchecked_mut(idx) = value;
             }
             idx += 1;
         }

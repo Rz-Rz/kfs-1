@@ -28,6 +28,8 @@ host-vga-history-terminal-tracks-tail-viewport-after-history-scroll
 host-vga-history-terminal-backspace-blanks-the-previous-character-cell
 host-vga-history-terminal-backspace-wraps-from-start-of-line
 host-vga-history-terminal-backspace-crosses-newline-boundary
+host-vga-history-terminal-backspace-crosses-empty-lines-after-scroll
+host-vga-history-terminal-backspace-rewinds-to-origin-across-blank-lines
 source-defines-vga-text-cursor-helpers
 source-defines-vga-text-screen-writer
 source-defines-vga-history-model
@@ -49,6 +51,8 @@ describe_case() {
 	host-vga-history-terminal-backspace-blanks-the-previous-character-cell) printf '%s\n' "host VGA terminal backspace blanks the previous retained-history character cell" ;;
 	host-vga-history-terminal-backspace-wraps-from-start-of-line) printf '%s\n' "host VGA terminal backspace from column-zero moves to previous row for wrapped lines" ;;
 	host-vga-history-terminal-backspace-crosses-newline-boundary) printf '%s\n' "host VGA terminal backspace from column-zero after newline deletes last character on previous line" ;;
+	host-vga-history-terminal-backspace-crosses-empty-lines-after-scroll) printf '%s\n' "host VGA terminal backspace crosses blank scrolled lines instead of stopping at the viewport boundary" ;;
+	host-vga-history-terminal-backspace-rewinds-to-origin-across-blank-lines) printf '%s\n' "host VGA terminal backspace rewinds to the origin across explicit blank lines" ;;
 	source-defines-vga-text-cursor-helpers) printf '%s\n' "VGA text driver defines the cursor normalization helpers" ;;
 	source-defines-vga-text-screen-writer) printf '%s\n' "VGA text driver defines the screen writer helper" ;;
 	source-defines-vga-history-model) printf '%s\n' "VGA text driver defines the retained-history terminal model" ;;
@@ -138,6 +142,12 @@ run_direct_case() {
 	host-vga-history-terminal-backspace-crosses-newline-boundary)
 		run_host_tests "${SCROLL_TEST_SOURCE}" 'terminal_backspace_at_newline_boundary_deletes_previous_line_last_character'
 		;;
+	host-vga-history-terminal-backspace-crosses-empty-lines-after-scroll)
+		run_host_tests "${SCROLL_TEST_SOURCE}" 'terminal_backspace_crosses_empty_lines_after_scroll'
+		;;
+	host-vga-history-terminal-backspace-rewinds-to-origin-across-blank-lines)
+		run_host_tests "${SCROLL_TEST_SOURCE}" 'terminal_backspace_rewinds_to_the_origin_across_blank_lines'
+		;;
 	source-defines-vga-text-cursor-helpers)
 		assert_pattern '\bvga_text_normalize_cursor\b|\bvga_text_normalize_cursor_pos\b' 'VGA text cursor normalization helpers' "${SOURCE_DRIVER}"
 		;;
@@ -148,7 +158,7 @@ run_direct_case() {
 		assert_pattern '\bVgaHistoryCursor\b|\bVgaTerminal\b|\bVgaTerminalBank\b|\bvga_text_tail_viewport_top\b|\bvga_text_blit_viewport\b' 'VGA history terminal model' "${SOURCE_DRIVER}"
 		;;
 	*)
-		die "usage: $0 <arch> {host-vga-history-cursor-normalize-cursor-resets-out-of-bounds-to-zero|host-vga-history-cursor-normalize-cursor-pos-clamps-out-of-bounds-positions|host-vga-history-cursor-advances-on-same-row|host-vga-history-cursor-moves-to-next-row-for-newline|host-vga-history-cursor-wraps-last-column-to-next-row|host-vga-history-scrolls-bottom-row-on-newline|host-vga-history-keeps-latest-rows-visible-after-multiple-scrolls|host-vga-history-tail-viewport-top-follows-live-cursor-row|host-vga-history-blit-viewport-restores-older-history-rows|host-vga-history-terminal-tracks-tail-viewport-after-history-scroll|host-vga-history-terminal-backspace-blanks-the-previous-character-cell|host-vga-history-terminal-backspace-wraps-from-start-of-line|host-vga-history-terminal-backspace-crosses-newline-boundary|source-defines-vga-text-cursor-helpers|source-defines-vga-text-screen-writer|source-defines-vga-history-model}"
+		die "usage: $0 <arch> {host-vga-history-cursor-normalize-cursor-resets-out-of-bounds-to-zero|host-vga-history-cursor-normalize-cursor-pos-clamps-out-of-bounds-positions|host-vga-history-cursor-advances-on-same-row|host-vga-history-cursor-moves-to-next-row-for-newline|host-vga-history-cursor-wraps-last-column-to-next-row|host-vga-history-scrolls-bottom-row-on-newline|host-vga-history-keeps-latest-rows-visible-after-multiple-scrolls|host-vga-history-tail-viewport-top-follows-live-cursor-row|host-vga-history-blit-viewport-restores-older-history-rows|host-vga-history-terminal-tracks-tail-viewport-after-history-scroll|host-vga-history-terminal-backspace-blanks-the-previous-character-cell|host-vga-history-terminal-backspace-wraps-from-start-of-line|host-vga-history-terminal-backspace-crosses-newline-boundary|host-vga-history-terminal-backspace-crosses-empty-lines-after-scroll|host-vga-history-terminal-backspace-rewinds-to-origin-across-blank-lines|source-defines-vga-text-cursor-helpers|source-defines-vga-text-screen-writer|source-defines-vga-history-model}"
 		;;
 	esac
 }
