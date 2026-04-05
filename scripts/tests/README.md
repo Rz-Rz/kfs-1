@@ -278,8 +278,9 @@ discoverable cases such as:
 - `host-vga-cell-unit-tests-pass`
 - `rust-defines-layout-order-check`
 - `rust-defines-vga-text-cell`
-- `rust-kmain-uses-layout-order-check`
-- `rust-kmain-uses-vga-text-cell`
+- `rust-entry-calls-core-init-sequence`
+- `rust-entry-success-path-reaches-console-loop`
+- `rust-core-init-writes-42-through-services-console`
 
 ## Rebase Tips For Older Branches
 

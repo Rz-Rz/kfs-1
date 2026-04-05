@@ -3,10 +3,11 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-}"
-TEST_SOURCE="tests/host_kmain_logic.rs"
-INIT_SOURCE="src/kernel/types/range.rs"
+TEST_SOURCE="tests/host_layout_and_vga_cell.rs"
+RANGE_SOURCE="src/kernel/types/range.rs"
 DRIVER_SOURCE="src/kernel/drivers/vga_text/mod.rs"
 ENTRY_SOURCE="src/kernel/core/entry.rs"
+INIT_SOURCE="src/kernel/core/init.rs"
 source "$(dirname "${BASH_SOURCE[0]}")/host-rust-lib.sh"
 
 list_cases() {
@@ -15,8 +16,9 @@ host-layout-order-unit-tests-pass
 host-vga-cell-unit-tests-pass
 rust-defines-layout-order-check
 rust-defines-vga-text-cell
-rust-kmain-uses-layout-order-check
-rust-kmain-uses-vga-writer
+rust-entry-calls-core-init-sequence
+rust-entry-success-path-reaches-console-loop
+rust-core-init-writes-42-through-services-console
 EOF
 }
 
@@ -26,8 +28,9 @@ describe_case() {
 	host-vga-cell-unit-tests-pass) printf '%s\n' "host VGA text cell unit tests pass" ;;
 	rust-defines-layout-order-check) printf '%s\n' "Rust defines the pure layout-order helper" ;;
 	rust-defines-vga-text-cell) printf '%s\n' "Rust defines the VGA text cell helper" ;;
-	rust-kmain-uses-layout-order-check) printf '%s\n' "kmain uses the shared layout-order helper" ;;
-	rust-kmain-uses-vga-writer) printf '%s\n' "kmain uses the VGA writer interface" ;;
+	rust-entry-calls-core-init-sequence) printf '%s\n' "core entry delegates to the early-init sequence" ;;
+	rust-entry-success-path-reaches-console-loop) printf '%s\n' "core entry success path reaches the console loop" ;;
+	rust-core-init-writes-42-through-services-console) printf '%s\n' "core init writes 42 through services console" ;;
 	*) return 1 ;;
 	esac
 }
@@ -39,9 +42,10 @@ die() {
 
 ensure_sources_exist() {
 	[[ -r "${TEST_SOURCE}" ]] || die "missing host unit test source: ${TEST_SOURCE}"
-	[[ -r "${INIT_SOURCE}" ]] || die "missing range source: ${INIT_SOURCE}"
+	[[ -r "${RANGE_SOURCE}" ]] || die "missing range source: ${RANGE_SOURCE}"
 	[[ -r "${DRIVER_SOURCE}" ]] || die "missing VGA driver source: ${DRIVER_SOURCE}"
 	[[ -r "${ENTRY_SOURCE}" ]] || die "missing core entry source: ${ENTRY_SOURCE}"
+	[[ -r "${INIT_SOURCE}" ]] || die "missing core init source: ${INIT_SOURCE}"
 }
 
 find_pattern() {
@@ -87,19 +91,22 @@ run_direct_case() {
 		run_host_tests 'vga_text_cell_'
 		;;
 	rust-defines-layout-order-check)
-		assert_pattern '\bfn[[:space:]]+layout_order_is_sane\b' 'layout_order_is_sane definition' "${INIT_SOURCE}"
+		assert_pattern '\bfn[[:space:]]+layout_order_is_sane\b' 'layout_order_is_sane definition' "${RANGE_SOURCE}"
 		;;
 	rust-defines-vga-text-cell)
 		assert_pattern '\bfn[[:space:]]+vga_text_cell\b' 'vga_text_cell definition' "${DRIVER_SOURCE}"
 		;;
-	rust-kmain-uses-layout-order-check)
+	rust-entry-calls-core-init-sequence)
 		assert_pattern '\brun_early_init\(' 'kmain call to core init sequencing' "${ENTRY_SOURCE}"
 		;;
-	rust-kmain-uses-vga-writer)
-		assert_pattern '\brun_early_init\(' 'kmain delegates to init before console path' "${ENTRY_SOURCE}"
+	rust-entry-success-path-reaches-console-loop)
+		assert_pattern '\bconsole::start_keyboard_echo_loop\(' 'kmain success path reaches console loop' "${ENTRY_SOURCE}"
+		;;
+	rust-core-init-writes-42-through-services-console)
+		assert_pattern '\bconsole::write_bytes\(b"42"\)' 'core init writes 42 through services console' "${INIT_SOURCE}"
 		;;
 	*)
-		die "usage: $0 <arch> {host-layout-order-unit-tests-pass|host-vga-cell-unit-tests-pass|rust-defines-layout-order-check|rust-defines-vga-text-cell|rust-kmain-uses-layout-order-check|rust-kmain-uses-vga-writer}"
+		die "usage: $0 <arch> {host-layout-order-unit-tests-pass|host-vga-cell-unit-tests-pass|rust-defines-layout-order-check|rust-defines-vga-text-cell|rust-entry-calls-core-init-sequence|rust-entry-success-path-reaches-console-loop|rust-core-init-writes-42-through-services-console}"
 		;;
 	esac
 }

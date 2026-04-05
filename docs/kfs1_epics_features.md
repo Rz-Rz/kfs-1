@@ -1765,7 +1765,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Assertion:
     - the release runtime path reaches `kfs_strlen` and emits `STRLEN_OK`
   - Evidence:
-    - `scripts/boot-tests/string-runtime.sh i386 release-kmain-calls-kfs-strlen`
+    - `scripts/boot-tests/string-runtime.sh i386 release-core-init-calls-string-strlen`
     - `scripts/boot-tests/string-runtime.sh i386 runtime-confirms-strlen`
   - Failure caught:
     - dead code or fake linkage-only proof
@@ -1973,7 +1973,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Assertion:
     - the release runtime path reaches `kfs_strcmp` and emits `STRCMP_OK`
   - Evidence:
-    - `scripts/boot-tests/string-runtime.sh i386 release-kmain-calls-kfs-strcmp`
+    - `scripts/boot-tests/string-runtime.sh i386 release-core-init-calls-string-strcmp`
     - `scripts/boot-tests/string-runtime.sh i386 runtime-confirms-strcmp`
   - Failure caught:
     - helper linked but not actually used in the running kernel
@@ -2106,8 +2106,8 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Assertion:
     - the release path reaches `kfs_strlen` and `kfs_strcmp`
   - Evidence:
-    - `scripts/boot-tests/string-runtime.sh i386 release-kmain-calls-kfs-strlen`
-    - `scripts/boot-tests/string-runtime.sh i386 release-kmain-calls-kfs-strcmp`
+    - `scripts/boot-tests/string-runtime.sh i386 release-core-init-calls-string-strlen`
+    - `scripts/boot-tests/string-runtime.sh i386 release-core-init-calls-string-strcmp`
     - `scripts/boot-tests/string-runtime.sh i386 runtime-confirms-string-helpers`
   - Failure caught:
     - helpers linked but dead in the running kernel
@@ -2454,7 +2454,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Assertion:
     - the release runtime path reaches `kfs_memcpy` and emits `MEMCPY_OK`
   - Evidence:
-    - `scripts/boot-tests/memory-runtime.sh i386 release-kmain-calls-kfs-memcpy`
+    - `scripts/boot-tests/memory-runtime.sh i386 release-core-init-calls-memory-memcpy`
     - `scripts/boot-tests/memory-runtime.sh i386 runtime-confirms-memcpy`
   - Failure caught:
     - linked helper code that is never executed by the running kernel
@@ -2657,7 +2657,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Assertion:
     - the release runtime path reaches `kfs_memset` and emits `MEMSET_OK`
   - Evidence:
-    - `scripts/boot-tests/memory-runtime.sh i386 release-kmain-calls-kfs-memset`
+    - `scripts/boot-tests/memory-runtime.sh i386 release-core-init-calls-memory-memset`
     - `scripts/boot-tests/memory-runtime.sh i386 runtime-confirms-memset`
   - Failure caught:
     - linked helper code that is never executed by the running kernel
@@ -2763,8 +2763,8 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - Assertion:
     - the running kernel reaches the memory-helper path
   - Evidence:
-    - `scripts/boot-tests/memory-runtime.sh i386 release-kmain-calls-kfs-memcpy`
-    - `scripts/boot-tests/memory-runtime.sh i386 release-kmain-calls-kfs-memset`
+    - `scripts/boot-tests/memory-runtime.sh i386 release-core-init-calls-memory-memcpy`
+    - `scripts/boot-tests/memory-runtime.sh i386 release-core-init-calls-memory-memset`
     - `scripts/boot-tests/memory-runtime.sh i386 runtime-confirms-memory-helpers`
   - Failure caught:
     - helpers linked but dead in the running kernel
@@ -2858,7 +2858,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - the current VGA leaf writes packed 16-bit text cells directly to `0xB8000`
 - Status: exists now
   - source/boundary proof assets exist:
-    - `tests/host_kmain_logic.rs`
+    - `tests/host_layout_and_vga_cell.rs`
     - `scripts/tests/unit/kmain-logic.sh`
     - `scripts/boot-tests/vga-writer.sh`
     - `scripts/architecture-tests/runtime-ownership.sh`
@@ -2975,7 +2975,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
   - `src/kernel/drivers/vga_text/mod.rs`
   - `src/kernel/drivers/vga_text/writer.rs`
   - `src/kernel/core/init.rs` as the current mandatory-output caller
-  - `tests/host_kmain_logic.rs`
+  - `tests/host_layout_and_vga_cell.rs`
   - `tests/host_vga_writer.rs`
   - `scripts/tests/unit/kmain-logic.sh`
   - `scripts/tests/unit/vga-writer-model.sh`
@@ -3160,7 +3160,7 @@ Negative / rejection proofs (real bad-terminal-behavior cases, not mocks):
 - `src/kernel/drivers/vga_text/mod.rs`
 - `src/kernel/drivers/vga_text/writer.rs`
 - `src/kernel/core/init.rs`
-- `tests/host_kmain_logic.rs`
+- `tests/host_layout_and_vga_cell.rs`
 - `tests/host_vga_writer.rs`
 - `scripts/tests/unit/kmain-logic.sh`
 - `scripts/tests/unit/vga-writer-model.sh`

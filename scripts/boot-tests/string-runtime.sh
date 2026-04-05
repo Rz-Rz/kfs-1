@@ -11,9 +11,9 @@ INIT_SOURCE="src/kernel/core/init.rs"
 
 list_cases() {
 	cat <<'EOF'
-release-kmain-calls-kfs-strlen
+release-core-init-calls-string-strlen
 runtime-confirms-strlen
-release-kmain-calls-kfs-strcmp
+release-core-init-calls-string-strcmp
 runtime-confirms-strcmp
 runtime-confirms-string-helpers
 runtime-string-markers-are-ordered
@@ -22,9 +22,9 @@ EOF
 
 describe_case() {
 	case "$1" in
-	release-kmain-calls-kfs-strlen) printf '%s\n' "release core init calls string::strlen in the string sanity path" ;;
+	release-core-init-calls-string-strlen) printf '%s\n' "release core init calls string::strlen in the string sanity path" ;;
 	runtime-confirms-strlen) printf '%s\n' "runtime emits STRLEN_OK" ;;
-	release-kmain-calls-kfs-strcmp) printf '%s\n' "release core init calls string::strcmp in the string sanity path" ;;
+	release-core-init-calls-string-strcmp) printf '%s\n' "release core init calls string::strcmp in the string sanity path" ;;
 	runtime-confirms-strcmp) printf '%s\n' "runtime emits STRCMP_OK" ;;
 	runtime-confirms-string-helpers) printf '%s\n' "runtime emits STRING_HELPERS_OK" ;;
 	runtime-string-markers-are-ordered) printf '%s\n' "runtime emits STRLEN_OK then STRCMP_OK then STRING_HELPERS_OK in order" ;;
@@ -59,6 +59,20 @@ assert_pattern() {
 	fi
 
 	echo "PASS src: ${label}"
+	return 0
+}
+
+assert_pattern_absent() {
+	local pattern="$1"
+	local label="$2"
+	shift 2
+
+	if find_pattern "${pattern}" "$@"; then
+		echo "FAIL src: unexpected ${label}"
+		return 1
+	fi
+
+	echo "PASS src: ${label} absent"
 	return 0
 }
 
@@ -123,15 +137,17 @@ run_direct_case() {
 	run_qemu_capture
 
 	case "${CASE}" in
-	release-kmain-calls-kfs-strlen)
+	release-core-init-calls-string-strlen)
 		assert_pattern 'string::strlen\(' 'string::strlen call in core init' "${INIT_SOURCE}"
+		assert_pattern_absent '\bkfs_strlen\(' 'kfs_strlen call in core init' "${INIT_SOURCE}"
 		assert_log_contains "STRLEN_OK"
 		;;
 	runtime-confirms-strlen)
 		assert_log_contains "STRLEN_OK"
 		;;
-	release-kmain-calls-kfs-strcmp)
+	release-core-init-calls-string-strcmp)
 		assert_pattern 'string::strcmp\(' 'string::strcmp call in core init' "${INIT_SOURCE}"
+		assert_pattern_absent '\bkfs_strcmp\(' 'kfs_strcmp call in core init' "${INIT_SOURCE}"
 		assert_log_contains "STRCMP_OK"
 		;;
 	runtime-confirms-strcmp)
@@ -144,7 +160,7 @@ run_direct_case() {
 		assert_log_order "STRLEN_OK" "STRCMP_OK" "STRING_HELPERS_OK"
 		;;
 	*)
-		die "usage: $0 <arch> {release-kmain-calls-kfs-strlen|runtime-confirms-strlen|release-kmain-calls-kfs-strcmp|runtime-confirms-strcmp|runtime-confirms-string-helpers|runtime-string-markers-are-ordered}"
+		die "usage: $0 <arch> {release-core-init-calls-string-strlen|runtime-confirms-strlen|release-core-init-calls-string-strcmp|runtime-confirms-strcmp|runtime-confirms-string-helpers|runtime-string-markers-are-ordered}"
 		;;
 	esac
 }

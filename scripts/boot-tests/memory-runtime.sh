@@ -11,9 +11,9 @@ INIT_SOURCE="src/kernel/core/init.rs"
 
 list_cases() {
 	cat <<'EOF'
-release-kmain-calls-kfs-memcpy
+release-core-init-calls-memory-memcpy
 runtime-confirms-memcpy
-release-kmain-calls-kfs-memset
+release-core-init-calls-memory-memset
 runtime-confirms-memset
 runtime-confirms-memory-helpers
 runtime-memory-markers-are-ordered
@@ -22,9 +22,9 @@ EOF
 
 describe_case() {
 	case "$1" in
-	release-kmain-calls-kfs-memcpy) printf '%s\n' "release core init calls memory::memcpy in the memory sanity path" ;;
+	release-core-init-calls-memory-memcpy) printf '%s\n' "release core init calls memory::memcpy in the memory sanity path" ;;
 	runtime-confirms-memcpy) printf '%s\n' "runtime emits MEMCPY_OK" ;;
-	release-kmain-calls-kfs-memset) printf '%s\n' "release core init calls memory::memset in the memory sanity path" ;;
+	release-core-init-calls-memory-memset) printf '%s\n' "release core init calls memory::memset in the memory sanity path" ;;
 	runtime-confirms-memset) printf '%s\n' "runtime emits MEMSET_OK" ;;
 	runtime-confirms-memory-helpers) printf '%s\n' "runtime emits MEMORY_HELPERS_OK" ;;
 	runtime-memory-markers-are-ordered) printf '%s\n' "runtime emits MEMCPY_OK then MEMSET_OK then MEMORY_HELPERS_OK in order" ;;
@@ -59,6 +59,20 @@ assert_pattern() {
 	fi
 
 	echo "PASS src: ${label}"
+	return 0
+}
+
+assert_pattern_absent() {
+	local pattern="$1"
+	local label="$2"
+	shift 2
+
+	if find_pattern "${pattern}" "$@"; then
+		echo "FAIL src: unexpected ${label}"
+		return 1
+	fi
+
+	echo "PASS src: ${label} absent"
 	return 0
 }
 
@@ -123,15 +137,17 @@ run_direct_case() {
 	run_qemu_capture
 
 	case "${CASE}" in
-	release-kmain-calls-kfs-memcpy)
+	release-core-init-calls-memory-memcpy)
 		assert_pattern 'memory::memcpy\(' 'memory::memcpy call in core init' "${INIT_SOURCE}"
+		assert_pattern_absent '\bkfs_memcpy\(' 'kfs_memcpy call in core init' "${INIT_SOURCE}"
 		assert_log_contains "MEMCPY_OK"
 		;;
 	runtime-confirms-memcpy)
 		assert_log_contains "MEMCPY_OK"
 		;;
-	release-kmain-calls-kfs-memset)
+	release-core-init-calls-memory-memset)
 		assert_pattern 'memory::memset\(' 'memory::memset call in core init' "${INIT_SOURCE}"
+		assert_pattern_absent '\bkfs_memset\(' 'kfs_memset call in core init' "${INIT_SOURCE}"
 		assert_log_contains "MEMSET_OK"
 		;;
 	runtime-confirms-memset)
@@ -144,7 +160,7 @@ run_direct_case() {
 		assert_log_order "MEMCPY_OK" "MEMSET_OK" "MEMORY_HELPERS_OK"
 		;;
 	*)
-		die "usage: $0 <arch> {release-kmain-calls-kfs-memcpy|runtime-confirms-memcpy|release-kmain-calls-kfs-memset|runtime-confirms-memset|runtime-confirms-memory-helpers|runtime-memory-markers-are-ordered}"
+		die "usage: $0 <arch> {release-core-init-calls-memory-memcpy|runtime-confirms-memcpy|release-core-init-calls-memory-memset|runtime-confirms-memset|runtime-confirms-memory-helpers|runtime-memory-markers-are-ordered}"
 		;;
 	esac
 }
