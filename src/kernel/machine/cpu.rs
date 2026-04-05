@@ -7,6 +7,7 @@ use core::arch::x86::__cpuid;
 use core::arch::x86_64::__cpuid;
 
 const CPUID_EDX_MMX: u32 = 1 << 23;
+const CPUID_EDX_FXSR: u32 = 1 << 24;
 const CPUID_EDX_SSE: u32 = 1 << 25;
 const CPUID_EDX_SSE2: u32 = 1 << 26;
 const FLAGS_ID_BIT: u64 = 1 << 21;
@@ -14,6 +15,7 @@ const FLAGS_ID_BIT: u64 = 1 << 21;
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct SimdDetection {
     pub cpuid_supported: bool,
+    pub fxsr: bool,
     pub mmx: bool,
     pub sse: bool,
     pub sse2: bool,
@@ -24,6 +26,7 @@ impl SimdDetection {
     pub const fn no_cpuid() -> Self {
         Self {
             cpuid_supported: false,
+            fxsr: false,
             mmx: false,
             sse: false,
             sse2: false,
@@ -34,6 +37,7 @@ impl SimdDetection {
     pub const fn forced_scalar(mmx: bool, sse: bool, sse2: bool) -> Self {
         Self {
             cpuid_supported: true,
+            fxsr: sse || sse2,
             mmx,
             sse,
             sse2,
@@ -44,11 +48,16 @@ impl SimdDetection {
     pub const fn from_cpuid_leaf1_edx(edx: u32, forced_scalar: bool) -> Self {
         Self {
             cpuid_supported: true,
+            fxsr: (edx & CPUID_EDX_FXSR) != 0,
             mmx: (edx & CPUID_EDX_MMX) != 0,
             sse: (edx & CPUID_EDX_SSE) != 0,
             sse2: (edx & CPUID_EDX_SSE2) != 0,
             forced_scalar,
         }
+    }
+
+    pub const fn has_any_feature(self) -> bool {
+        self.mmx || self.sse || self.sse2
     }
 }
 

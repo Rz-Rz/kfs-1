@@ -53,6 +53,7 @@ assert_runtime_path_artifacts() {
 		"src/kernel/core/init.rs" \
 		"src/kernel/services/diagnostics.rs" \
 		"src/kernel/services/simd.rs" \
+		"src/kernel/machine/fpu.rs" \
 		"src/kernel/drivers/serial/mod.rs" \
 		"src/kernel/services/console.rs" \
 		"src/kernel/drivers/vga_text/mod.rs" \

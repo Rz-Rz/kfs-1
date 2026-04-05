@@ -9,15 +9,15 @@
 
 - [ ] **COMP-01**: Kernel remains GRUB-bootable after SIMD/MMX support work lands
 - [ ] **COMP-02**: Final kernel artifact remains statically linked with no host runtime library dependencies
-- [ ] **COMP-03**: Scalar fallback path remains available when runtime policy or CPU capability does not allow MMX/SSE/SSE2 acceleration
-- [ ] **COMP-04**: Architecture docs explain the SIMD policy, CPU baseline, and freestanding constraints without ambiguity
+- [x] **COMP-03**: Scalar fallback path remains available when runtime policy or CPU capability does not allow MMX/SSE/SSE2 acceleration
+- [x] **COMP-04**: Architecture docs explain the SIMD policy, CPU baseline, and freestanding constraints without ambiguity
 
 ### Hardware & Runtime Ownership
 
-- [ ] **HW-01**: Kernel determines MMX/SSE/SSE2 capability before entering any accelerated path
-- [ ] **HW-02**: Kernel initializes required FPU/MMX/SSE control state before any MMX/SSE/SSE2 instruction is executed
-- [ ] **HW-03**: Kernel defines and enforces behavior for unsupported or unavailable FP/SIMD execution paths
-- [ ] **HW-04**: Kernel defines how FP/SIMD state is preserved or explicitly constrained across execution boundaries
+- [x] **HW-01**: Kernel determines MMX/SSE/SSE2 capability before entering any accelerated path
+- [x] **HW-02**: Kernel initializes required FPU/MMX/SSE control state before any MMX/SSE/SSE2 instruction is executed
+- [x] **HW-03**: Kernel defines and enforces behavior for unsupported or unavailable FP/SIMD execution paths
+- [x] **HW-04**: Kernel defines how FP/SIMD state is preserved or explicitly constrained across execution boundaries
 
 ### Accelerated Primitives
 
@@ -55,12 +55,12 @@
 |-------------|-------|--------|
 | COMP-01 | Phase 5 | Pending |
 | COMP-02 | Phase 5 | Pending |
-| COMP-03 | Phase 2 | Pending |
-| COMP-04 | Phase 1 | Pending |
-| HW-01 | Phase 2 | Pending |
-| HW-02 | Phase 3 | Pending |
-| HW-03 | Phase 2 | Pending |
-| HW-04 | Phase 3 | Pending |
+| COMP-03 | Phase 2 | Complete |
+| COMP-04 | Phase 1 | Complete |
+| HW-01 | Phase 2 | Complete |
+| HW-02 | Phase 3 | Complete |
+| HW-03 | Phase 2 | Complete |
+| HW-04 | Phase 3 | Complete |
 | ACC-01 | Phase 4 | Pending |
 | ACC-02 | Phase 4 | Pending |
 | ACC-03 | Phase 4 | Pending |
@@ -76,4 +76,4 @@
 
 ---
 *Requirements defined: 2026-04-05*
-*Last updated: 2026-04-05 after branch bootstrap*
+*Last updated: 2026-04-05 after Phase 3 closeout*

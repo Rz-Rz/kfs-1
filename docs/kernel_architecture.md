@@ -215,9 +215,10 @@ Current hardware ownership:
 
 Current SIMD policy wiring:
 - [`src/kernel/machine/cpu.rs`](/home/motero/Code/kfs-1/src/kernel/machine/cpu.rs) owns typed CPUID/MMX/SSE/SSE2 capability detection
-- [`src/kernel/services/simd.rs`](/home/motero/Code/kfs-1/src/kernel/services/simd.rs) translates machine detection into a runtime policy installation step
-- [`src/kernel/klib/simd.rs`](/home/motero/Code/kfs-1/src/kernel/klib/simd.rs) owns the canonical scalar-only guardrail state that future helper families can query
-- [`src/kernel/core/init.rs`](/home/motero/Code/kfs-1/src/kernel/core/init.rs) sequences SIMD policy installation through the services layer during early init
+- [`src/kernel/machine/fpu.rs`](/home/motero/Code/kfs-1/src/kernel/machine/fpu.rs) owns typed CR0/CR4/x87/MXCSR runtime-state initialization
+- [`src/kernel/services/simd.rs`](/home/motero/Code/kfs-1/src/kernel/services/simd.rs) translates detection plus machine-state ownership into the canonical installed runtime policy
+- [`src/kernel/klib/simd.rs`](/home/motero/Code/kfs-1/src/kernel/klib/simd.rs) owns the canonical runtime-owned-but-deferred guardrail state that future helper families can query
+- [`src/kernel/core/init.rs`](/home/motero/Code/kfs-1/src/kernel/core/init.rs) sequences SIMD runtime-state ownership through the services layer during early init
 
 Current serial reality:
 - serial driver register access is owned by [`src/kernel/drivers/serial/mod.rs`](/home/motero/Code/kfs-1/src/kernel/drivers/serial/mod.rs)

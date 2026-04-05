@@ -20,13 +20,21 @@ pub enum ScalarBlockReason {
     NoSupportedFeatures = 2,
     ForcedByPolicy = 3,
     RuntimeStateDisabled = 4,
+    AccelerationDeferred = 5,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct RuntimePolicy {
+    pub cpuid_supported: bool,
+    pub fxsr_detected: bool,
     pub mmx_detected: bool,
     pub sse_detected: bool,
     pub sse2_detected: bool,
+    pub x87_initialized: bool,
+    pub mxcsr_initialized: bool,
+    pub mmx_ready: bool,
+    pub sse_ready: bool,
+    pub sse2_ready: bool,
     pub mmx_allowed: bool,
     pub sse_allowed: bool,
     pub sse2_allowed: bool,
@@ -36,9 +44,16 @@ pub struct RuntimePolicy {
 impl RuntimePolicy {
     pub const fn uninitialized() -> Self {
         Self {
+            cpuid_supported: false,
+            fxsr_detected: false,
             mmx_detected: false,
             sse_detected: false,
             sse2_detected: false,
+            x87_initialized: false,
+            mxcsr_initialized: false,
+            mmx_ready: false,
+            sse_ready: false,
+            sse2_ready: false,
             mmx_allowed: false,
             sse_allowed: false,
             sse2_allowed: false,
@@ -48,6 +63,7 @@ impl RuntimePolicy {
 
     pub const fn phase2(
         cpuid_supported: bool,
+        fxsr: bool,
         forced_scalar: bool,
         mmx: bool,
         sse: bool,
@@ -58,21 +74,66 @@ impl RuntimePolicy {
         }
 
         if forced_scalar {
-            return Self::forced_scalar(mmx, sse, sse2);
+            return Self::forced_scalar(fxsr, mmx, sse, sse2);
         }
 
         if !mmx && !sse && !sse2 {
             return Self::no_supported_features();
         }
 
-        Self::runtime_blocked(mmx, sse, sse2)
+        Self::runtime_blocked(fxsr, mmx, sse, sse2)
+    }
+
+    pub const fn phase3(
+        cpuid_supported: bool,
+        fxsr: bool,
+        forced_scalar: bool,
+        mmx: bool,
+        sse: bool,
+        sse2: bool,
+        runtime_state: RuntimeStateSummary,
+    ) -> Self {
+        if !cpuid_supported {
+            return Self::no_cpuid();
+        }
+
+        if forced_scalar {
+            return Self::forced_scalar(fxsr, mmx, sse, sse2);
+        }
+
+        if !mmx && !sse && !sse2 {
+            return Self::no_supported_features();
+        }
+
+        if runtime_state.runtime_owned {
+            return Self::acceleration_deferred(
+                fxsr,
+                mmx,
+                sse,
+                sse2,
+                runtime_state.x87_initialized,
+                runtime_state.mxcsr_initialized,
+                runtime_state.mmx_ready,
+                runtime_state.sse_ready,
+                runtime_state.sse2_ready,
+            );
+        }
+
+        Self::runtime_blocked(fxsr, mmx, sse, sse2)
     }
 
     pub const fn no_cpuid() -> Self {
         Self {
+            cpuid_supported: false,
+            fxsr_detected: false,
             mmx_detected: false,
             sse_detected: false,
             sse2_detected: false,
+            x87_initialized: false,
+            mxcsr_initialized: false,
+            mmx_ready: false,
+            sse_ready: false,
+            sse2_ready: false,
             mmx_allowed: false,
             sse_allowed: false,
             sse2_allowed: false,
@@ -82,9 +143,16 @@ impl RuntimePolicy {
 
     pub const fn no_supported_features() -> Self {
         Self {
+            cpuid_supported: true,
+            fxsr_detected: false,
             mmx_detected: false,
             sse_detected: false,
             sse2_detected: false,
+            x87_initialized: false,
+            mxcsr_initialized: false,
+            mmx_ready: false,
+            sse_ready: false,
+            sse2_ready: false,
             mmx_allowed: false,
             sse_allowed: false,
             sse2_allowed: false,
@@ -92,11 +160,18 @@ impl RuntimePolicy {
         }
     }
 
-    pub const fn forced_scalar(mmx: bool, sse: bool, sse2: bool) -> Self {
+    pub const fn forced_scalar(fxsr: bool, mmx: bool, sse: bool, sse2: bool) -> Self {
         Self {
+            cpuid_supported: true,
+            fxsr_detected: fxsr,
             mmx_detected: mmx,
             sse_detected: sse,
             sse2_detected: sse2,
+            x87_initialized: false,
+            mxcsr_initialized: false,
+            mmx_ready: false,
+            sse_ready: false,
+            sse2_ready: false,
             mmx_allowed: false,
             sse_allowed: false,
             sse2_allowed: false,
@@ -104,11 +179,18 @@ impl RuntimePolicy {
         }
     }
 
-    pub const fn runtime_blocked(mmx: bool, sse: bool, sse2: bool) -> Self {
+    pub const fn runtime_blocked(fxsr: bool, mmx: bool, sse: bool, sse2: bool) -> Self {
         Self {
+            cpuid_supported: true,
+            fxsr_detected: fxsr,
             mmx_detected: mmx,
             sse_detected: sse,
             sse2_detected: sse2,
+            x87_initialized: false,
+            mxcsr_initialized: false,
+            mmx_ready: false,
+            sse_ready: false,
+            sse2_ready: false,
             mmx_allowed: false,
             sse_allowed: false,
             sse2_allowed: false,
@@ -116,16 +198,37 @@ impl RuntimePolicy {
         }
     }
 
+    pub const fn acceleration_deferred(
+        fxsr: bool,
+        mmx: bool,
+        sse: bool,
+        sse2: bool,
+        x87_initialized: bool,
+        mxcsr_initialized: bool,
+        mmx_ready: bool,
+        sse_ready: bool,
+        sse2_ready: bool,
+    ) -> Self {
+        Self {
+            cpuid_supported: true,
+            fxsr_detected: fxsr,
+            mmx_detected: mmx,
+            sse_detected: sse,
+            sse2_detected: sse2,
+            x87_initialized,
+            mxcsr_initialized,
+            mmx_ready,
+            sse_ready,
+            sse2_ready,
+            mmx_allowed: false,
+            sse_allowed: false,
+            sse2_allowed: false,
+            block_reason: ScalarBlockReason::AccelerationDeferred,
+        }
+    }
+
     pub const fn has_cpuid(self) -> bool {
-        self.mmx_detected
-            || self.sse_detected
-            || self.sse2_detected
-            || matches!(
-                self.block_reason,
-                ScalarBlockReason::NoSupportedFeatures
-                    | ScalarBlockReason::ForcedByPolicy
-                    | ScalarBlockReason::RuntimeStateDisabled
-            )
+        self.cpuid_supported
     }
 
     pub const fn is_scalar_only(self) -> bool {
@@ -138,7 +241,8 @@ impl RuntimePolicy {
             ScalarBlockReason::NoCpuid
             | ScalarBlockReason::NoSupportedFeatures
             | ScalarBlockReason::ForcedByPolicy
-            | ScalarBlockReason::RuntimeStateDisabled => SimdExecutionMode::ScalarOnly,
+            | ScalarBlockReason::RuntimeStateDisabled
+            | ScalarBlockReason::AccelerationDeferred => SimdExecutionMode::ScalarOnly,
         }
     }
 
@@ -155,6 +259,58 @@ impl RuntimePolicy {
             SimdFeature::Mmx => self.mmx_allowed,
             SimdFeature::Sse => self.sse_allowed,
             SimdFeature::Sse2 => self.sse2_allowed,
+        }
+    }
+
+    pub const fn ready(self, feature: SimdFeature) -> bool {
+        match feature {
+            SimdFeature::Mmx => self.mmx_ready,
+            SimdFeature::Sse => self.sse_ready,
+            SimdFeature::Sse2 => self.sse2_ready,
+        }
+    }
+
+    pub const fn runtime_owned(self) -> bool {
+        self.x87_initialized || self.mxcsr_initialized || self.mmx_ready || self.sse_ready || self.sse2_ready
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct RuntimeStateSummary {
+    pub runtime_owned: bool,
+    pub x87_initialized: bool,
+    pub mxcsr_initialized: bool,
+    pub mmx_ready: bool,
+    pub sse_ready: bool,
+    pub sse2_ready: bool,
+}
+
+impl RuntimeStateSummary {
+    pub const fn blocked() -> Self {
+        Self {
+            runtime_owned: false,
+            x87_initialized: false,
+            mxcsr_initialized: false,
+            mmx_ready: false,
+            sse_ready: false,
+            sse2_ready: false,
+        }
+    }
+
+    pub const fn owned(
+        x87_initialized: bool,
+        mxcsr_initialized: bool,
+        mmx_ready: bool,
+        sse_ready: bool,
+        sse2_ready: bool,
+    ) -> Self {
+        Self {
+            runtime_owned: true,
+            x87_initialized,
+            mxcsr_initialized,
+            mmx_ready,
+            sse_ready,
+            sse2_ready,
         }
     }
 }

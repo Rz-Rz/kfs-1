@@ -69,13 +69,14 @@ This limitation must remain explicit until it is either resolved or accepted as 
 ## 4. Current Kernel SIMD Policy
 
 Today the kernel policy is:
-- no MMX/SSE/SSE2 implementation is enabled in the freestanding kernel
-- accelerated helper routines are not yet part of the runtime contract
-- accidental XMM/SSE-family instruction emission is treated as a regression
+- early init owns the required CR0/CR4/x87/SSE control state through the approved `services -> machine` path
+- accelerated helper routines are still not part of the runtime contract
+- runtime ownership is explicit, but acceleration remains deferred until Phase 4 wires real helper implementations
+- accidental SIMD data-path instruction emission is still treated as a regression; only approved control-state instructions are allowed in freestanding artifacts
 
 This is a runtime-safety and toolchain-policy choice, not a subject-only choice.
 
-The current no-SSE artifact gate lives in
+The current freestanding SIMD artifact gate lives in
 [`scripts/stability-tests/freestanding-simd.sh`](/home/motero/Code/kfs-1/scripts/stability-tests/freestanding-simd.sh).
 
 ## 5. Preconditions For Future Enablement
@@ -90,6 +91,7 @@ Later phases must not introduce MMX/SSE/SSE2 execution until all of the followin
 2. Machine-state initialization
 - required control-register and processor-state setup before accelerated instructions are legal
 - explicit ordering relative to the existing boot and early-init path
+- for SSE/SSE2, explicit masked control-state expectations (`MXCSR`) before data-path use
 
 3. Execution-boundary rules
 - how floating-point/SIMD state is preserved, restored, or deliberately constrained
@@ -138,8 +140,9 @@ Expected ownership split:
 
 Current Phase 2 realization:
 - `src/kernel/machine/cpu.rs` owns CPUID-based capability probing
-- `src/kernel/services/simd.rs` installs the Phase 2 scalar-only runtime policy
-- `src/kernel/klib/simd.rs` exposes the canonical guardrail state that helper families can query
+- `src/kernel/machine/fpu.rs` owns typed CR0/CR4/x87/MXCSR state initialization
+- `src/kernel/services/simd.rs` installs the current runtime-owned-but-deferred policy
+- `src/kernel/klib/simd.rs` exposes the canonical guardrail and runtime-ownership state that helper families can query
 - `src/kernel/klib/memory/mod.rs` exposes the current memory-facing guardrail seam without importing `machine`
 
 Disallowed pattern:
@@ -159,7 +162,7 @@ Minimum proof obligations:
 - prove pre-init execution is impossible or rejected
 
 3. artifact-policy proof
-- if the repo continues to forbid unconditional SIMD emission, keep artifact checks that catch accidental XMM/SSE-family instructions
+- if the repo continues to defer accelerated execution, keep artifact checks that catch accidental SIMD data-path instructions and only permit the approved state-management surface
 - if policy changes, update the artifact checks in the same change
 
 4. semantic parity proof
@@ -177,6 +180,16 @@ The following questions remain intentionally unresolved after Phase 1:
 - **x87 interaction:** the repo does not yet define a full x87 policy and does not currently prove absence of every floating-point instruction family
 - **MMX cleanup and transition rules:** later phases must define how MMX state and any required cleanup interact with subsequent floating-point/SSE use
 - **Future minimum CPU policy:** the branch has not yet decided whether optional acceleration remains permanent or later evolves into a stronger CPU baseline requirement
+
+## 11. Current Phase 3 Runtime Contract
+
+The current runtime contract is intentionally conservative:
+- early init eagerly owns FP/SIMD state; there is no lazy switching in this kernel stage
+- the kernel still behaves as a single global owner of FP/SIMD state for the whole boot lifetime
+- `CR4.OSFXSR` may be enabled when SSE/SSE2 support is detected, but `CR4.OSXMMEXCPT` remains deferred until the kernel owns the relevant exception path
+- `MXCSR` is initialized to the masked default before later SSE/SSE2 data-path use is considered legal
+- later MMX helper paths must treat `EMMS` cleanup as mandatory before returning to generic code
+- task-switch preservation, interrupt-time save/restore, and user-mode FP/SIMD ABI support remain deferred work
 
 These are design risks to manage explicitly, not details to hand-wave away in later implementation phases.
 

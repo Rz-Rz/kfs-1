@@ -7,8 +7,8 @@ This roadmap adds optional MMX/SSE/SSE2 acceleration to the existing freestandin
 ## Phases
 
 - [x] **Phase 1: SIMD Policy & Subject Contract** - define CPU baseline, subject interpretation, and acceptance boundaries for SIMD work (completed 2026-04-05)
-- [ ] **Phase 2: Capability Detection & Runtime Guardrails** - introduce explicit feature policy before any accelerated path can execute
-- [ ] **Phase 3: FPU/MMX/SSE State Ownership** - add the machine-state initialization and preservation model required for safe SIMD use
+- [x] **Phase 2: Capability Detection & Runtime Guardrails** - introduce explicit feature policy before any accelerated path can execute (completed 2026-04-05)
+- [x] **Phase 3: FPU/MMX/SSE State Ownership** - add the machine-state initialization and preservation model required for safe SIMD use (completed 2026-04-05)
 - [ ] **Phase 4: Accelerated Memory Primitives** - implement optional accelerated helper routines with scalar fallback
 - [ ] **Phase 5: Kernel Integration & Proof Hardening** - wire accelerated paths selectively and extend artifact/runtime tests
 - [ ] **Phase 6: Documentation & Future Expansion** - finish sign-off docs and define post-v1 SIMD follow-on work
@@ -41,9 +41,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: add CPU feature discovery and a canonical runtime policy surface
-- [ ] 02-02: expose guardrails to klib and future call sites without leaking architecture shortcuts
-- [ ] 02-03: add tests and rejection cases for unsupported or disabled SIMD paths
+- [x] 02-01: add CPU feature discovery and a canonical runtime policy surface
+- [x] 02-02: expose guardrails to klib and future call sites without leaking architecture shortcuts
+- [x] 02-03: add tests and rejection cases for unsupported or disabled SIMD paths
 
 ### Phase 3: FPU/MMX/SSE State Ownership
 **Goal**: Own the machine-state setup needed before MMX/SSE/SSE2 instructions are legal in kernel code.
@@ -56,9 +56,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: implement/control-register setup and early-init sequencing for FP/SIMD enablement
-- [ ] 03-02: define save/restore or execution-boundary constraints appropriate to the current kernel model
-- [ ] 03-03: add low-level proofs for init ordering and forbidden pre-init use
+- [x] 03-01: implement/control-register setup and early-init sequencing for FP/SIMD enablement
+- [x] 03-02: define save/restore or execution-boundary constraints appropriate to the current kernel model
+- [x] 03-03: add low-level proofs for init ordering and forbidden pre-init use
 
 ### Phase 4: Accelerated Memory Primitives
 **Goal**: Introduce optional accelerated `memcpy` and `memset` implementations with semantic parity to the existing scalar routines.
@@ -112,8 +112,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. SIMD Policy & Subject Contract | 3/3 | Complete    | 2026-04-05 |
-| 2. Capability Detection & Runtime Guardrails | 0/3 | Planned    |  |
-| 3. FPU/MMX/SSE State Ownership | 0/3 | Not started | - |
+| 2. Capability Detection & Runtime Guardrails | 3/3 | Complete    | 2026-04-05 |
+| 3. FPU/MMX/SSE State Ownership | 3/3 | Complete    | 2026-04-05 |
 | 4. Accelerated Memory Primitives | 0/3 | Not started | - |
 | 5. Kernel Integration & Proof Hardening | 0/3 | Not started | - |
 | 6. Documentation & Future Expansion | 0/2 | Not started | - |
