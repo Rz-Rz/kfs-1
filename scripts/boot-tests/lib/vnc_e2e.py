@@ -1725,6 +1725,35 @@ SCENARIOS: dict[str, list[dict]] = {
             "message": "boot text did not render exact 42",
         },
     ],
+    "boot-flow-renders-42-then-enters-live-console-loop": [
+        {"op": "capture", "name": "boot", "region": "boot_text", "wait_boot": True},
+        {
+            "op": "assert_boot_text_42",
+            "sample": "boot",
+            "message": "boot text did not render exact 42 before input",
+        },
+        {
+            "op": "capture",
+            "name": "screen_before_input",
+            "region": "top_left_text",
+            "wait_boot": False,
+        },
+        {"op": "type_text", "text": "a", "after": 0.25},
+        {
+            "op": "capture_wait_change",
+            "from": "screen_before_input",
+            "name": "screen_after_input",
+            "region": "top_left_text",
+            "message": "visible screen did not change after real keyboard input",
+            "timeout_secs": 2.5,
+        },
+        {
+            "op": "assert_ne",
+            "left": "screen_before_input",
+            "right": "screen_after_input",
+            "message": "visible screen did not change after real keyboard input",
+        },
+    ],
     "vga-buffer-uses-default-attribute": [
         {"op": "capture", "name": "boot", "region": "boot_text", "wait_boot": True},
         {
