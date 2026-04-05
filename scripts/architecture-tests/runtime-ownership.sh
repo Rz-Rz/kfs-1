@@ -12,6 +12,7 @@ runtime-path-artifacts-exist
 boot-start-hand-off-only-to-kmain
 start-not-direct-to-driver-or-helper
 entry-calls-core-init-sequence
+core-init-calls-simd-policy-service
 core-init-calls-services-console
 services-console-calls-driver-facade
 entry-no-direct-driver-abi-calls
@@ -24,6 +25,7 @@ describe_case() {
 	boot-start-hand-off-only-to-kmain) printf '%s\n' "boot start handoff enters kmain directly" ;;
 	start-not-direct-to-driver-or-helper) printf '%s\n' "boot handoff does not jump directly to driver/helper surfaces" ;;
 	entry-calls-core-init-sequence) printf '%s\n' "core entry invokes the core init sequence" ;;
+	core-init-calls-simd-policy-service) printf '%s\n' "core init installs SIMD policy through the services layer instead of importing machine directly" ;;
 	core-init-calls-services-console) printf '%s\n' "core init delegates console work to services console" ;;
 	services-console-calls-driver-facade) printf '%s\n' "services console reaches VGA through driver facade" ;;
 	entry-no-direct-driver-abi-calls) printf '%s\n' "core entry does not call or declare VGA driver ABI directly" ;;
@@ -50,6 +52,7 @@ assert_runtime_path_artifacts() {
 		"src/kernel/core/entry.rs" \
 		"src/kernel/core/init.rs" \
 		"src/kernel/services/diagnostics.rs" \
+		"src/kernel/services/simd.rs" \
 		"src/kernel/drivers/serial/mod.rs" \
 		"src/kernel/services/console.rs" \
 		"src/kernel/drivers/vga_text/mod.rs" \
@@ -109,6 +112,27 @@ assert_entry_init_chain() {
 	fi
 
 	echo "PASS ${CASE}: kmain references core init sequencing"
+}
+
+assert_core_init_calls_simd_service() {
+	local init_file="${REPO_ROOT}/src/kernel/core/init.rs"
+
+	[[ -f "${init_file}" ]] || {
+		echo "FAIL ${CASE}: missing core init source ${init_file}"
+		return 1
+	}
+
+	if ! rg -n '\bservices::simd\b' "${init_file}" >/dev/null; then
+		echo "FAIL ${CASE}: core init does not install SIMD policy through services"
+		return 1
+	fi
+
+	if rg -n '\bmachine::simd\b' "${init_file}" >/dev/null; then
+		echo "FAIL ${CASE}: core init imports machine-owned SIMD policy directly"
+		return 1
+	fi
+
+	echo "PASS ${CASE}: core init uses services-owned SIMD policy initialization"
 }
 
 assert_core_init_calls_services() {
@@ -188,6 +212,7 @@ run_case() {
 	boot-start-hand-off-only-to-kmain) assert_boot_handoff_to_kmain ;;
 	start-not-direct-to-driver-or-helper) assert_boot_does_not_jump_to_driver ;;
 	entry-calls-core-init-sequence) assert_entry_init_chain ;;
+	core-init-calls-simd-policy-service) assert_core_init_calls_simd_service ;;
 	core-init-calls-services-console) assert_core_init_calls_services ;;
 	services-console-calls-driver-facade) assert_services_console_calls_driver_facade ;;
 	entry-no-direct-driver-abi-calls) assert_entry_no_driver_abi ;;

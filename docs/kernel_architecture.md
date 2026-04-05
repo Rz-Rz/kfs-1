@@ -210,8 +210,14 @@ Also present:
 Current hardware ownership:
 - direct VGA MMIO and volatile writes belong in `drivers`
 - raw assembly entry/runtime helpers stay in `arch`
-- typed port I/O inline assembly belongs in `machine`
+- typed port I/O and CPU capability probing belong in `machine`
 - linker symbols stay at the `arch`/entry boundary
+
+Current SIMD policy wiring:
+- [`src/kernel/machine/cpu.rs`](/home/motero/Code/kfs-1/src/kernel/machine/cpu.rs) owns typed CPUID/MMX/SSE/SSE2 capability detection
+- [`src/kernel/services/simd.rs`](/home/motero/Code/kfs-1/src/kernel/services/simd.rs) translates machine detection into a runtime policy installation step
+- [`src/kernel/klib/simd.rs`](/home/motero/Code/kfs-1/src/kernel/klib/simd.rs) owns the canonical scalar-only guardrail state that future helper families can query
+- [`src/kernel/core/init.rs`](/home/motero/Code/kfs-1/src/kernel/core/init.rs) sequences SIMD policy installation through the services layer during early init
 
 Current serial reality:
 - serial driver register access is owned by [`src/kernel/drivers/serial/mod.rs`](/home/motero/Code/kfs-1/src/kernel/drivers/serial/mod.rs)

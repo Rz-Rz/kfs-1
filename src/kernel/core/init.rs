@@ -30,7 +30,11 @@ pub(crate) fn run_early_init() -> Result<(), EarlyInitFailure> {
         diagnostics::write_line("LAYOUT_OK");
     }
 
-    let _ = simd::initialize_runtime_policy(entry::is_test_mode());
+    let _ = simd::initialize_runtime_policy(
+        entry::simd_force_no_cpuid_requested(),
+        entry::simd_force_disable_requested(),
+        entry::is_test_mode(),
+    );
 
     if !string_helpers_are_sane() {
         return Err(EarlyInitFailure::StringHelpers);

@@ -136,6 +136,12 @@ Expected ownership split:
 - `src/kernel/klib/` owns scalar and accelerated helper dispatch once runtime policy says acceleration is legal
 - `docs/` and `scripts/` own the written contract and the proof harness that guards it
 
+Current Phase 2 realization:
+- `src/kernel/machine/cpu.rs` owns CPUID-based capability probing
+- `src/kernel/services/simd.rs` installs the Phase 2 scalar-only runtime policy
+- `src/kernel/klib/simd.rs` exposes the canonical guardrail state that helper families can query
+- `src/kernel/klib/memory/mod.rs` exposes the current memory-facing guardrail seam without importing `machine`
+
 Disallowed pattern:
 - ad hoc inline assembly or target-policy shortcuts scattered through unrelated service/driver/helper code
 

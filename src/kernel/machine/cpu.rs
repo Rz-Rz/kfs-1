@@ -6,11 +6,6 @@ use core::arch::x86::__cpuid;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::__cpuid;
 
-unsafe extern "C" {
-    fn kfs_arch_force_no_cpuid() -> u32;
-    fn kfs_arch_force_disable_simd() -> u32;
-}
-
 const CPUID_EDX_MMX: u32 = 1 << 23;
 const CPUID_EDX_SSE: u32 = 1 << 25;
 const CPUID_EDX_SSE2: u32 = 1 << 26;
@@ -36,50 +31,34 @@ impl SimdDetection {
         }
     }
 
-    pub const fn forced_scalar() -> Self {
+    pub const fn forced_scalar(mmx: bool, sse: bool, sse2: bool) -> Self {
         Self {
             cpuid_supported: true,
-            mmx: false,
-            sse: false,
-            sse2: false,
+            mmx,
+            sse,
+            sse2,
             forced_scalar: true,
         }
     }
 
-    pub const fn from_cpuid_leaf1_edx(edx: u32) -> Self {
+    pub const fn from_cpuid_leaf1_edx(edx: u32, forced_scalar: bool) -> Self {
         Self {
             cpuid_supported: true,
             mmx: (edx & CPUID_EDX_MMX) != 0,
             sse: (edx & CPUID_EDX_SSE) != 0,
             sse2: (edx & CPUID_EDX_SSE2) != 0,
-            forced_scalar: false,
+            forced_scalar,
         }
     }
 }
 
 pub fn detect_simd() -> SimdDetection {
-    if force_no_cpuid_requested() {
-        return SimdDetection::no_cpuid();
-    }
-
     if !cpuid_is_supported() {
         return SimdDetection::no_cpuid();
     }
 
-    if force_disable_simd_requested() {
-        return SimdDetection::forced_scalar();
-    }
-
     let leaf = __cpuid(1);
-    SimdDetection::from_cpuid_leaf1_edx(leaf.edx)
-}
-
-fn force_no_cpuid_requested() -> bool {
-    unsafe { kfs_arch_force_no_cpuid() != 0 }
-}
-
-fn force_disable_simd_requested() -> bool {
-    unsafe { kfs_arch_force_disable_simd() != 0 }
+    SimdDetection::from_cpuid_leaf1_edx(leaf.edx, false)
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
