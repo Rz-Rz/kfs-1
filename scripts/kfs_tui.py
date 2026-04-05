@@ -224,6 +224,7 @@ Screen {{
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 EVENT_PREFIX = "KFS_EVENT|"
 KNOWN_SECTIONS = {
+    "LINT",
     "SETUP",
     "TESTS",
     "ARCHITECTURE TESTS",
@@ -232,6 +233,7 @@ KNOWN_SECTIONS = {
     "BOOT TESTS",
 }
 SECTION_TO_PANEL = {
+    "LINT": 0,
     "SETUP": 0,
     "TESTS": 1,
     "ARCHITECTURE TESTS": 2,
@@ -239,14 +241,15 @@ SECTION_TO_PANEL = {
     "REJECTION TESTS": 2,
     "BOOT TESTS": 3,
 }
-PANEL_TITLES = ["SETUP", "TESTS", "ARCHITECTURE / STABILITY / REJECTION", "BOOT TESTS"]
+PANEL_TITLES = ["LINT / SETUP", "TESTS", "ARCHITECTURE / STABILITY / REJECTION", "BOOT TESTS"]
 PANEL_SECTIONS = {
-    0: ["SETUP"],
+    0: ["LINT", "SETUP"],
     1: ["TESTS"],
     2: ["ARCHITECTURE TESTS", "STABILITY TESTS", "REJECTION TESTS"],
     3: ["BOOT TESTS"],
 }
 SECTION_LABELS = {
+    "LINT": "LINT",
     "SETUP": "SETUP",
     "TESTS": "TESTS",
     "ARCHITECTURE TESTS": "ARCH",
@@ -277,12 +280,19 @@ BOOT_FRAMES = [
 """,
 ]
 DEMO_LINES = """KFS_EVENT|suite|i386
-KFS_EVENT|suite_total|5
-KFS_EVENT|section_total|SETUP|2
+KFS_EVENT|suite_total|6
+KFS_EVENT|section_total|LINT|1
+KFS_EVENT|section_total|SETUP|3
 KFS_EVENT|section_total|ARCHITECTURE TESTS|1
 KFS_EVENT|section_total|BOOT TESTS|2
+KFS_EVENT|declare|LINT|-|Run lint checks|-|-
 KFS_EVENT|declare|SETUP|-|Rebuild the container toolchain image|-|-
 KFS_EVENT|declare|SETUP|-|Verify tools exist|-|-
+KFS_EVENT|declare|SETUP|-|Verify host test tools exist|-|-
+KFS_EVENT|section|LINT
+KFS_EVENT|start|LINT|-|Run lint checks|-|-
+Run lint checks PASS
+KFS_EVENT|result|LINT|-|Run lint checks|pass|-|-
 KFS_EVENT|declare|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
 KFS_EVENT|declare|BOOT TESTS|-|runtime reaches Rust kmain|scripts/boot-tests/release-kmain-symbol.sh|runtime-reaches-kmain
 KFS_EVENT|declare|BOOT TESTS|-|runtime markers appear in the expected order|scripts/boot-tests/runtime-markers.sh|runtime-markers-ordered
@@ -293,6 +303,9 @@ KFS_EVENT|result|SETUP|-|Rebuild the container toolchain image|pass|-|-
 KFS_EVENT|start|SETUP|-|Verify tools exist|-|-
 Verify tools exist PASS
 KFS_EVENT|result|SETUP|-|Verify tools exist|pass|-|-
+KFS_EVENT|start|SETUP|-|Verify host test tools exist|-|-
+Verify host test tools exist PASS
+KFS_EVENT|result|SETUP|-|Verify host test tools exist|pass|-|-
 KFS_EVENT|section|ARCHITECTURE TESTS
 KFS_EVENT|start|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
 kernel architecture files stay in allowed directories PASS

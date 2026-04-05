@@ -7,6 +7,7 @@ VERBOSE="${KFS_VERBOSE:-0}"
 TUI_PROTOCOL="${KFS_TUI_PROTOCOL:-0}"
 SKIP_TUI_MANIFEST="${KFS_TUI_SKIP_MANIFEST:-0}"
 DEBUG_DIR="${KFS_TEST_DEBUG_DIR:-}"
+RUN_LINT="${KFS_RUN_LINT:-0}"
 SCRIPT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 DEBUG_INDEX=""
 
@@ -186,8 +187,12 @@ build_manifest() {
 	local entries="$1"
 
 	: >"${entries}"
+	if [[ "${RUN_LINT}" == "1" ]]; then
+		printf '%s\t%s\t%s\t%s\t%s\n' "LINT" "-" "-" "-" "Run lint checks" >>"${entries}"
+	fi
 	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Rebuild the container toolchain image" >>"${entries}"
 	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify tools exist" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify host test tools exist" >>"${entries}"
 	collect_section_entries "TESTS" "${SCRIPT_ROOT}/tests" "${entries}"
 	if [[ -d "${SCRIPT_ROOT}/architecture-tests" ]]; then
 		collect_section_entries "ARCHITECTURE TESTS" "${SCRIPT_ROOT}/architecture-tests" "${entries}"
@@ -211,7 +216,7 @@ emit_manifest() {
 	total="$(wc -l <"${entries}")"
 	emit_event "suite" "${ARCH}" "${total}"
 
-	for section in "SETUP" "TESTS" "ARCHITECTURE TESTS" "STABILITY TESTS" "REJECTION TESTS" "BOOT TESTS"; do
+	for section in "LINT" "SETUP" "TESTS" "ARCHITECTURE TESTS" "STABILITY TESTS" "REJECTION TESTS" "BOOT TESTS"; do
 		count="$(awk -F'\t' -v section="${section}" '$1 == section { count += 1 } END { print count + 0 }' "${entries}")"
 		emit_event "section_total" "${section}" "${count}"
 	done
@@ -324,6 +329,19 @@ info "arch: ${ARCH}"
 printf '\n'
 if [[ "${SKIP_TUI_MANIFEST}" != "1" ]]; then
 	emit_manifest "${entries}"
+fi
+
+if [[ "${RUN_LINT}" == "1" ]]; then
+	color "1;34"
+	printf '%s\n' "LINT"
+	reset_color
+	emit_event "section" "LINT"
+	if ! run_item "LINT" "-" "Run lint checks" "-" "-" \
+		bash scripts/lint.sh; then
+		emit_event "summary" "fail"
+		exit 1
+	fi
+	printf '\n'
 fi
 
 color "1;34"

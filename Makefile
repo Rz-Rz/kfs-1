@@ -214,16 +214,19 @@ test-vga: container-image-force
 		bash scripts/boot-tests/vga-memory.sh $(arch)
 
 test:
-	@if [ "$(KFS_SKIP_LINT)" != "1" ]; then \
-		"$(MAKE)" --no-print-directory lint; \
-	fi
 	@bash -lc 'set -euo pipefail; \
 		mode="$${KFS_TEST_UI:-auto}"; \
+		run_lint="$${KFS_SKIP_LINT:-0}"; \
+		if [[ "$${run_lint}" == "1" ]]; then \
+			run_lint=0; \
+		else \
+			run_lint=1; \
+		fi; \
 		if [[ "$${mode}" == "0" ]] || [[ -n "$${CI:-}" ]] || [[ -n "$${GITHUB_ACTIONS:-}" ]] || [[ ! -t 1 ]]; then \
-			exec bash scripts/test-host.sh $(arch); \
+			exec env KFS_RUN_LINT="$${run_lint}" bash scripts/test-host.sh $(arch); \
 		fi; \
 		if "$(test_ui_python)" -c "import textual" >/dev/null 2>&1; then \
-			exec "$(test_ui_python)" scripts/kfs_tui.py --arch "$(arch)" --make-target test-plain; \
+			exec env KFS_RUN_LINT="$${run_lint}" "$(test_ui_python)" scripts/kfs_tui.py --arch "$(arch)" --make-target test; \
 		fi; \
 		if [[ "$${mode}" == "1" ]]; then \
 			echo "error: Textual is not installed. Run '\''make test-ui-bootstrap'\'' first." >&2; \
