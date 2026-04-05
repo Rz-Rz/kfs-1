@@ -42,7 +42,7 @@ Implementation scope:
 
 Proof / tests (definition of done):
 - WP-I0.1-1 (QEMU uses isa-debug-exit): `make -n test-qemu arch=i386 | rg -n "isa-debug-exit.*iobase=0xf4"`
-- WP-I0.1-2 (PASS gives expected exit code): `make test-qemu arch=i386; echo $?` (expect the configured PASS code)
+- WP-I0.1-2 (PASS gives expected exit code): `make test-qemu; echo $?` (expect the configured PASS code)
 - WP-I0.1-3 (hang is caught): run the harness with a tiny timeout and confirm it fails when the kernel never exits
 
 Definition of Done (I0):
@@ -331,7 +331,7 @@ Proof / tests (definition of done):
 - WP-M0.1-1 (ELF32 + i386): `KERNEL=build/kernel-i386.bin; readelf -h "$KERNEL" | rg -q "Class:\\s+ELF32" && readelf -h "$KERNEL" | rg -q "Machine:\\s+Intel 80386"`
 - WP-M0.1-2 (object format): `file build/arch/i386/*.o | rg -q "ELF 32-bit"`
 - WP-M0.1-3 (QEMU target wired): `make -n run arch=i386 | rg -q "qemu-system-i386"`
-- MANUAL-M0.1-1 (boots): `make run arch=i386` and confirm the kernel reaches its entry behavior (e.g., prints or halts as expected). (Automation: prefer AUTO-M0.1-1)
+- MANUAL-M0.1-1 (boots): `make run` and confirm the kernel reaches its entry behavior (e.g., prints or halts as expected). (Automation: prefer AUTO-M0.1-1)
 - AUTO-M0.1-1 (preferred for CI): use **Infra I0.1** (isa-debug-exit PASS/FAIL) to assert “kernel reached checkpoint”; use **Infra I1.1** only if you want richer boot logs
 
 ### Feature M0.2: Enforce "no host libs" and "freestanding" compilation rules
@@ -345,7 +345,7 @@ Technical rationale:
 Repo enforcement note:
 - The hard gate is `make test`, which runs `scripts/boot-tests/freestanding-kernel.sh` on the freshly built
   test kernel (`build/kernel-i386-test.bin`).
-- The script requires the symbol `kfs_rust_marker` so the checks are enforced on an **ASM + Rust** linked kernel
+- The script requires the symbol `kmain` so the checks are enforced on an **ASM + Rust** linked kernel
   artifact (not ASM-only).
 
 Acceptance criteria:
@@ -367,7 +367,7 @@ Proof / tests (definition of done):
 - WP-M0.2-5 (build flags present; configuration proof): `rg -n "(ffreestanding|nostdlib|fno-builtin|panic=abort|#!\\[no_std\\])" -S .`
 
 Stability / adversarial proofs (recommended in visible CI output):
-- AT-M0.2-1 (the gate is enforced on an ASM + Rust linked kernel, not ASM-only): `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
+- AT-M0.2-1 (the gate is enforced on an ASM + Rust linked kernel, not ASM-only): `nm -n build/kernel-i386-test.bin | rg -n "\\bkmain\\b"`
   Why it matters: an ASM-only kernel can accidentally look freestanding while the chosen-language
   path is missing or not linked at all.
 - AT-M0.2-2 (release artifact can also be checked, not only the fast test artifact): `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/freestanding-kernel.sh i386 all`
@@ -500,7 +500,7 @@ Implementation scope:
 Proof / tests (definition of done):
 - WP-M2.1-1 (section exists + early placement): `KERNEL=build/kernel-i386.bin; readelf -SW "$KERNEL" | rg -n "\\.boot|\\.multiboot_header"`
 - WP-M2.1-2 (magic at .boot start): `KERNEL=build/kernel-i386.bin; OFF=$(readelf -S "$KERNEL" | awk '$3==\".boot\"{print $6; exit}'); test -n \"$OFF\" && od -An -tx4 -N4 -j $((16#$OFF)) \"$KERNEL\" | tr -d \" \\n\" | rg -q \"^e85250d6$\"`
-- MANUAL-M2.1-1 (GRUB accepts it): `make run arch=i386` and confirm no multiboot header errors. (Automation: prefer AUTO-M2.1-1)
+- MANUAL-M2.1-1 (GRUB accepts it): `make run` and confirm no multiboot header errors. (Automation: prefer AUTO-M2.1-1)
 - AUTO-M2.1-1 (preferred for CI): use **Infra I0.1** as “GRUB accepted header and entered kernel”; keep this MANUAL check for defense-only
 
 ### Feature M2.2: ASM entry point sets up a safe execution environment
@@ -735,7 +735,7 @@ Implementation scope:
 - `RUST` (+ `ASM` call site)
 
 Proof / tests (definition of done):
-- WP-M4.1-1 (Rust defines the canonical entry signature): `rg -n "#\\[no_mangle\\]|extern\\s+\"C\"\\s+fn\\s+kmain\\s*\\(\\)\\s*->\\s*!" -S src/kernel src/rust`
+- WP-M4.1-1 (Rust defines the canonical entry signature): `rg -n "#\\[no_mangle\\]|extern\\s+\"C\"\\s+fn\\s+kmain\\s*\\(\\)\\s*->\\s*!" -S src`
 - WP-M4.1-2 (release kernel exports `kmain` as text): `KERNEL=build/kernel-i386.bin; nm -n "$KERNEL" | rg -n "[[:space:]]T[[:space:]]+kmain$"`
 - WP-M4.1-3 (release boot entry calls `kmain` from `start`): `objdump -d build/kernel-i386.bin | sed -n '/<start>:/,/^$/p' | rg -n "call[[:space:]]+.*<kmain>"`
 - WP-M4.1-4 (repo proof scripts cover the release symbol + callsite): `bash scripts/boot-tests/release-kmain-symbol.sh i386 release-kernel-exports-kmain`, `bash scripts/boot-tests/release-kmain-callsite.sh i386 release-boot-calls-kmain`
@@ -797,7 +797,7 @@ Implementation scope:
 Proof / tests (definition of done):
 - WP-M4.2-1 (Rust defines a dedicated zero-init canary in BSS): `rg -n "\\bstatic\\s+mut\\b|\\bstatic\\b" -S src | rg -n "BSS|ZERO|CANARY"`
 - WP-M4.2-2 (Rust early-init code references the exported layout bounds): `rg -n "kernel_start|kernel_end|bss_start|bss_end" -S src`
-- WP-M4.2-3 (boot path reaches a dedicated early-init step before the normal output path): `rg -n "early_init|init" -S src/kernel src/rust`
+- WP-M4.2-3 (boot path reaches a dedicated early-init step before the normal output path): `rg -n "early_init|init" -S src`
 - WP-M4.2-4 (runtime proves ordered success markers): `bash scripts/boot-tests/runtime-markers.sh i386 runtime-markers-are-ordered`
 
 Stability / adversarial proofs (recommended in visible CI output):
@@ -3234,7 +3234,7 @@ Implementation scope:
 Proof / tests (definition of done):
 - WP-M7.3-1 (ld uses -m elf_i386 and the project script): `make -n all arch=i386 | rg -n "\\bld\\b" | rg -q "(-m\\s+elf_i386).*\\s-T\\s+src/arch/i386/linker\\.ld"`
 - WP-M7.3-2 (link command includes ASM and chosen-language objects): `make -n all arch=i386 | rg -n "build/arch/i386/.*\\.o.*build/arch/i386/rust/.*\\.o|build/arch/i386/rust/.*\\.o.*build/arch/i386/.*\\.o"`
-- MANUAL-M7.3-1 (boots): `make run arch=i386` and confirm GRUB loads the kernel and reaches your entry. (Automation: prefer AUTO-M7.3-1)
+- MANUAL-M7.3-1 (boots): `make run` and confirm GRUB loads the kernel and reaches your entry. (Automation: prefer AUTO-M7.3-1)
 - AUTO-M7.3-1 (preferred for CI): use **Infra I0.1** as the boot gate; if kernel exits PASS, the link + GRUB load path succeeded
 
 ### Feature M7.4: Provide standard targets (`all`, `clean`, `iso`, `run`)
@@ -3246,8 +3246,8 @@ Implementation scope:
 
 Proof / tests (definition of done):
 - WP-M7.4-1 (targets exist): `make -qp | rg -n "^(all:|clean:|iso:|run:)" -n`
-- MANUAL-M7.4-1 (clean build works): `make clean && make run arch=i386`. (Automation: prefer AUTO-M7.4-1)
-- AUTO-M7.4-1 (preferred for CI): `make clean && make iso arch=i386 && make test-qemu arch=i386` (Infra I0.1) so the test terminates deterministically
+- MANUAL-M7.4-1 (clean build works): `make clean && make run`. (Automation: prefer AUTO-M7.4-1)
+- AUTO-M7.4-1 (preferred for CI): `make clean && make iso && make test-qemu` (Infra I0.1) so the test terminates deterministically
 
 ### Definition of Done (M7)
 - Makefile is the single source of truth for build/link/image/run.
@@ -3270,9 +3270,9 @@ Implementation scope:
 - `DOC` + `MAKE` (+ optional `AUTOMATION`)
 
 Proof / tests (definition of done):
-- WP-M8.1-1 (fresh clone build): `make clean && make iso arch=i386` succeeds on a machine with required tooling installed
-- MANUAL-M8.1-1 (peer boot): on another machine: clone → `make run arch=i386` → observe boot. (Automation: see AUTO-M8.1-1 notes; cannot fully replace)
-- AUTO-M8.1-1 (cannot replace): CI can run `make test-qemu arch=i386` (Infra I0.1), but the “peer boot on another machine” is still a defense requirement-style manual proof
+- WP-M8.1-1 (fresh clone build): `make clean && make iso` succeeds on a machine with required tooling installed
+- MANUAL-M8.1-1 (peer boot): on another machine: clone -> `make run` -> observe boot. (Automation: see AUTO-M8.1-1 notes; cannot fully replace)
+- AUTO-M8.1-1 (cannot replace): CI can run `make test-qemu` (Infra I0.1), but the “peer boot on another machine” is still a defense requirement-style manual proof
 
 ### Feature M8.2: Enforce the 10 MB upper bound
 Implementation tasks:
@@ -3325,7 +3325,7 @@ Implementation scope:
 - `RUST` (screen module; buffer model recommended)
 
 Proof / tests (definition of done):
-- UT-B1.1-1 (cursor unit tests): create `tests/host_cursor_state.rs` and run `rustc --test -o build/ut_cursor_state tests/host_cursor_state.rs && ./build/ut_cursor_state`
+- UT-B1.1-1 (cursor unit tests): add the host test under `tests/` and verify it through the real library boundary with `make test`
 - MANUAL-B1.1-1 (runtime): boot and print characters across line boundaries; observe cursor behavior is stable. (Automation: prefer AUTO-B1.1-1)
 - AUTO-B1.1-1 (preferred): rely on UT-B1.1-1 for cursor correctness; optionally add an end-to-end VGA assertion with **Infra I2.1** if you want CI coverage
 
@@ -3341,7 +3341,7 @@ Implementation scope:
 - `RUST` (buffer operations; unit-testable on host)
 
 Proof / tests (definition of done):
-- UT-B1.2-1 (scroll unit tests): create `tests/host_scroll.rs` and run `rustc --test -o build/ut_scroll tests/host_scroll.rs && ./build/ut_scroll`
+- UT-B1.2-1 (scroll unit tests): add the host test under `tests/` and verify it through the real library boundary with `make test`
 - MANUAL-B1.2-1 (runtime): boot and print 30+ lines; confirm older lines scroll off and new lines remain readable. (Automation: prefer AUTO-B1.2-1)
 - AUTO-B1.2-1 (preferred): rely on UT-B1.2-1 for scrolling logic; optionally add an end-to-end VGA assertion with **Infra I2.1** to prove the visible buffer matches expectations
 
@@ -3378,7 +3378,7 @@ Implementation scope:
 - `RUST` (screen module)
 
 Proof / tests (definition of done):
-- UT-B2.1-1 (attribute encoding tests): create `tests/host_color.rs` and run `rustc --test -o build/ut_color tests/host_color.rs && ./build/ut_color`
+- UT-B2.1-1 (attribute encoding tests): add the host test under `tests/` and verify it through the real library boundary with `make test`
 - MANUAL-B2.1-1 (runtime): boot and print two words in different colors. (Automation: prefer AUTO-B2.1-1)
 - AUTO-B2.1-1 (preferred): UT-B2.1-1 proves encoding; to prove “on screen” without GUI, use **Infra I2.1** and assert the VGA attribute bytes in memory
 
@@ -3416,7 +3416,7 @@ Implementation scope:
 - `RUST` (pure formatting code; unit-testable on host)
 
 Proof / tests (definition of done):
-- UT-B3.1-1 (formatter unit tests): create `tests/host_format.rs` and run `rustc --test -o build/ut_format tests/host_format.rs && ./build/ut_format`
+- UT-B3.1-1 (formatter unit tests): add the host test under `tests/` and verify it through the real library boundary with `make test`
 - WP-B3.1-2 (no allocation): `rg -n "\\b(Vec|String|Box|alloc::)\\b" -S src | rg -v "tests?/|host"`
 
 ### Feature B3.2: `printk` wrapper that prints to screen
@@ -3467,7 +3467,7 @@ Implementation scope:
 - `RUST` (pure mapping logic; unit-testable on host)
 
 Proof / tests (definition of done):
-- UT-B4.2-1 (mapping unit tests): create `tests/host_scancode.rs` and run `rustc --test -o build/ut_scancode tests/host_scancode.rs && ./build/ut_scancode`
+- UT-B4.2-1 (mapping unit tests): add the host test under `tests/` and verify it through the real library boundary with `make test`
 
 ### Feature B4.3: Echo typed characters to screen
 Implementation tasks:
@@ -3502,7 +3502,7 @@ Implementation scope:
 - `RUST` (buffer/state management; unit-testable on host)
 
 Proof / tests (definition of done):
-- UT-B5.1-1 (buffer isolation tests): create `tests/host_vt.rs` and run `rustc --test -o build/ut_vt tests/host_vt.rs && ./build/ut_vt`
+- UT-B5.1-1 (buffer isolation tests): add the host test under `tests/` and verify it through the real library boundary with `make test`
 
 ### Feature B5.2: Shortcuts to switch active terminal
 Implementation tasks:

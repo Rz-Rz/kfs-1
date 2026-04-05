@@ -7,7 +7,7 @@ CUSTOM_KERNEL="${KFS_M0_2_KERNEL:-}"
 
 list_cases() {
 	cat <<'EOF'
-rust-marker-symbol-present
+rust-entry-symbol-present
 asm-entry-symbol-present
 no-pt-interp-segment
 no-interp-section
@@ -20,7 +20,7 @@ EOF
 
 describe_case() {
 	case "$1" in
-	rust-marker-symbol-present) printf '%s\n' "kernel includes the Rust marker symbol" ;;
+	rust-entry-symbol-present) printf '%s\n' "kernel includes the Rust entry symbol" ;;
 	asm-entry-symbol-present) printf '%s\n' "kernel exposes the ASM entry symbol" ;;
 	no-pt-interp-segment) printf '%s\n' "kernel has no PT_INTERP segment" ;;
 	no-interp-section) printf '%s\n' "kernel has no .interp section" ;;
@@ -37,7 +37,7 @@ die() {
 	exit 2
 }
 
-assert_rust_marker_symbol() {
+assert_rust_entry_symbol() {
 	local kernel="$1"
 	if ! nm -n "${kernel}" | grep -qw 'kmain'; then
 		echo "FAIL ${kernel}: Rust entry symbol missing (kmain)"
@@ -114,7 +114,7 @@ run_case_against_kernel() {
 	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel}"
 
 	case "${CASE}" in
-	rust-marker-symbol-present) assert_rust_marker_symbol "${kernel}" ;;
+	rust-entry-symbol-present) assert_rust_entry_symbol "${kernel}" ;;
 	asm-entry-symbol-present) assert_asm_entry_symbol "${kernel}" ;;
 	no-pt-interp-segment) assert_no_pt_interp_segment "${kernel}" ;;
 	no-interp-section) assert_no_interp_section "${kernel}" ;;
@@ -133,7 +133,7 @@ run_all_cases_against_kernel() {
 	local original_case="${CASE}"
 
 	for case_name in \
-		rust-marker-symbol-present \
+		rust-entry-symbol-present \
 		asm-entry-symbol-present \
 		no-pt-interp-segment \
 		no-interp-section \
@@ -157,7 +157,7 @@ run_all_cases_against_kernel() {
 
 run_direct() {
 	case "${CASE}" in
-	all | rust-marker-symbol-present | asm-entry-symbol-present | no-pt-interp-segment | no-interp-section | no-dynamic-section | no-undefined-symbols | no-libc-strings | no-loader-strings) ;;
+	all | rust-entry-symbol-present | asm-entry-symbol-present | no-pt-interp-segment | no-interp-section | no-dynamic-section | no-undefined-symbols | no-libc-strings | no-loader-strings) ;;
 	*) die "unknown case: ${CASE}" ;;
 	esac
 

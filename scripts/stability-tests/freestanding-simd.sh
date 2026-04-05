@@ -16,7 +16,7 @@ list_cases() {
 	cat <<'EOF'
 default-freestanding-kernel-disables-simd-instructions
 compact-freestanding-kernel-disables-simd-instructions
-makefile-disables-simd-target-features
+makefile-uses-non-simd-rust-target
 EOF
 }
 
@@ -24,7 +24,7 @@ describe_case() {
 	case "$1" in
 	default-freestanding-kernel-disables-simd-instructions) printf '%s\n' "default freestanding kernel object code stays free of SIMD register and SSE instruction usage" ;;
 	compact-freestanding-kernel-disables-simd-instructions) printf '%s\n' "compact freestanding kernel object code stays free of SIMD register and SSE instruction usage" ;;
-	makefile-disables-simd-target-features) printf '%s\n' "Makefile disables SIMD target features for freestanding rustc builds" ;;
+	makefile-uses-non-simd-rust-target) printf '%s\n' "Makefile uses a non-SIMD x86 Rust target for freestanding builds" ;;
 	*) return 1 ;;
 	esac
 }
@@ -35,10 +35,8 @@ ensure_tools() {
 }
 
 assert_makefile_wiring() {
-	rg -n 'rust_target[[:space:]]*:=[[:space:]]*i686-unknown-linux-gnu' "${MAKEFILE_SOURCE}" >/dev/null ||
+	rg -n 'rust_target[[:space:]]*:=[[:space:]]*i586-unknown-linux-gnu' "${MAKEFILE_SOURCE}" >/dev/null ||
 		die "Makefile does not define the freestanding Rust target"
-	rg -n 'RUST_CODEGEN_FLAGS[[:space:]]*:=[[:space:]]*-C target-feature=-sse,-sse2' "${MAKEFILE_SOURCE}" >/dev/null ||
-		die "Makefile does not disable freestanding SIMD codegen"
 }
 
 build_kernel() {
@@ -81,19 +79,19 @@ run_case() {
 	compact-freestanding-kernel-disables-simd-instructions)
 		assert_kernel_has_no_simd "compact40x10"
 		;;
-	makefile-disables-simd-target-features)
+	makefile-uses-non-simd-rust-target)
 		assert_makefile_wiring
-		echo "PASS Makefile: freestanding SIMD disabling flags are present"
+		echo "PASS Makefile: freestanding Rust target avoids the i686 SIMD ABI requirement"
 		;;
 	*)
-		die "usage: $0 <arch> {default-freestanding-kernel-disables-simd-instructions|compact-freestanding-kernel-disables-simd-instructions|makefile-disables-simd-target-features}"
+		die "usage: $0 <arch> {default-freestanding-kernel-disables-simd-instructions|compact-freestanding-kernel-disables-simd-instructions|makefile-uses-non-simd-rust-target}"
 		;;
 	esac
 }
 
 run_host_case() {
 	case "${CASE}" in
-	makefile-disables-simd-target-features)
+	makefile-uses-non-simd-rust-target)
 		run_case
 		return 0
 		;;

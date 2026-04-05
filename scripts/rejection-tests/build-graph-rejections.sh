@@ -97,7 +97,7 @@ EOF
 	cat >"${TMPDIR}/Makefile" <<'EOF'
 arch ?= i386
 rust_source_files := src/main.rs
-rust_source_files += src/rust/kernel_marker.rs
+rust_source_files += src/freestanding/marker.rs
 rust_object_files := $(patsubst src/%.rs, build/arch/$(arch)/rust/%.o, $(rust_source_files))
 
 build/arch/$(arch)/%.o: src/%.rs
@@ -109,11 +109,11 @@ build/arch/$(arch)/%.o: src/%.rs
 		$$<
 EOF
 
-	# src/rust input keeps fixture deterministic for make -np expansion.
-	mkdir -p "${TMPDIR}/src/rust"
-	cat >"${TMPDIR}/src/rust/kernel_marker.rs" <<'EOF'
+	# Extra non-root Rust input keeps fixture deterministic for make -np expansion.
+	mkdir -p "${TMPDIR}/src/freestanding"
+	cat >"${TMPDIR}/src/freestanding/marker.rs" <<'EOF'
 #[no_mangle]
-pub extern "C" fn kfs_rust_marker() {}
+pub extern "C" fn kfs_freestanding_marker() {}
 EOF
 }
 

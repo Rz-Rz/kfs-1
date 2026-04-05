@@ -37,7 +37,7 @@ ENV PATH=/opt/cargo/bin:$PATH
 
 RUN mkdir -p "${RUSTUP_HOME}" "${CARGO_HOME}" \
   && curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable \
-  && rustup target add i686-unknown-linux-gnu \
+  && rustup target add i586-unknown-linux-gnu \
   && rustup component add rustfmt
 
 RUN python3 -m pip install --no-cache-dir \

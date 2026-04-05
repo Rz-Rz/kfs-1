@@ -35,14 +35,14 @@ Adversarial / rejection suite:
 - `bash scripts/rejection-tests/freestanding-rejections.sh i386 unresolved-external-symbol`
 - `bash scripts/rejection-tests/freestanding-rejections.sh i386 host-runtime-marker-strings`
 
-### Why the tests require a Rust marker symbol
+### Why the tests require a Rust entry symbol
 KFS_1 requires at least two languages (ASM + the chosen language). An ASM-only kernel can
 accidentally satisfy the ELF freestanding checks while the chosen language build is still
 missing or not linked.
 
-So the script first asserts the final linked kernel includes a tiny Rust object by requiring
-the symbol `kfs_rust_marker` (from `src/rust/kernel_marker.rs`). This makes the M0.2 proofs
-apply to an **ASM + Rust** kernel artifact, not an ASM-only artifact.
+So the script first asserts the final linked kernel includes the real Rust entrypoint by requiring
+the symbol `kmain` from the canonical crate-root path (`src/main.rs` -> `src/kernel/core/entry.rs`).
+This makes the M0.2 proofs apply to an **ASM + Rust** kernel artifact, not an ASM-only artifact.
 
 ---
 

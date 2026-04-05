@@ -16,7 +16,7 @@ assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 assembly_object_files_test := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/test/%.o, $(assembly_source_files))
 
-rust_target := i686-unknown-linux-gnu
+rust_target := i586-unknown-linux-gnu
 rust_source_files := src/main.rs
 rust_object_files := build/arch/$(arch)/rust/kernel.o
 rust_output_dir := build/arch/$(arch)/rust
@@ -34,7 +34,7 @@ RUST_CFG_FLAGS :=
 ifeq ($(KFS_SCREEN_GEOMETRY_PRESET),compact40x10)
 RUST_CFG_FLAGS += --cfg kfs_geometry_preset_compact40x10
 endif
-RUST_CODEGEN_FLAGS := -C target-feature=-sse,-sse2
+RUST_CODEGEN_FLAGS :=
 
 TEST_ASM_DEFS := -DKFS_TEST=1
 ifeq ($(KFS_TEST_FORCE_FAIL),1)

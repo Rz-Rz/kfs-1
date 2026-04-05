@@ -13,7 +13,7 @@ As-of snapshot:
 - Kernel artifact present: `build/kernel-i386.bin` (ELF32, Intel 80386)
 - ISO artifact present: `build/os-i386.iso` (bootable ISO9660, <= 10 MB)
 - Disk-image artifact present: `build/os-i386.img` (bootable ISO9660, <= 10 MB; boots via QEMU `-drive`)
-- Sources present in ASM under `src/arch/i386/` and Rust under `src/rust/` + `src/kernel/`
+- Sources present in ASM under `src/arch/i386/` and Rust under `src/main.rs`, `src/lib.rs`, `src/freestanding/`, and `src/kernel/`
 - Chosen language: **Rust** (`kmain` exists, is called from ASM, and currently prints `42`)
 
 ---
@@ -43,8 +43,8 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 - Base Epic M6 DoD: ✅ YES
   - Proof: the mandatory screen path exists, the normal success flow prints `42` through it, and cursor/scroll behavior remains bonus-owned follow-up work rather than a base-epic blocker
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
-  - Proof: `make -n all arch=i386 | rg -n "\\brustc\\b"`
-  - Proof: `make all arch=i386 && nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
+  - Proof: `make -n all | rg -n "\\brustc\\b"`
+  - Proof: `make all && nm -n build/kernel-i386.bin | rg -n "\\bkmain\\b"`
 - Base Epic M8 DoD: ⚠️ PARTIAL
   - Proof: ISO exists and is small, and a `README.md` quickstart exists
 
@@ -106,13 +106,13 @@ Proof:
 ### Feature M0.2: Enforce "no host libs" and "freestanding" rules
 Status: ✅ Done (exercised by Rust + enforced via `make test`)
 Evidence:
-- Rust code is compiled and linked into the kernel image (symbol `kfs_rust_marker`).
+- Rust code is compiled and linked into the kernel image (symbol `kmain`).
 - M0.2 is enforced by inspecting the linked ELF (no dynamic loader/sections, no undefined symbols, no libc/loader markers).
 - Dedicated rejection tests now contaminate a real kernel build with hosted-runtime metadata and prove the gate fails.
 Proof:
 - `make test` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
-- `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
-- `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"` (release kernel also links Rust)
+- `nm -n build/kernel-i386-test.bin | rg -n "\\bkmain\\b"`
+- `nm -n build/kernel-i386.bin | rg -n "\\bkmain\\b"` (release kernel also links Rust)
 - `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/freestanding-kernel.sh i386 all` (checks both test + release kernels)
 - `bash scripts/rejection-tests/freestanding-rejections.sh i386 interp-pt-interp-present`
 - `bash scripts/rejection-tests/freestanding-rejections.sh i386 dynamic-section-present`
@@ -465,7 +465,7 @@ Evidence:
 - Infra Epic **I1** (Serial console assertions): ❌ Not done
 - Infra Epic **I2** (VGA memory assertions): ✅ Done
   - Proof: `make test` includes headless VGA-memory checks for the first `42` screen cells plus repeated monitor snapshots for buffer stability
-  - Proof: `make test-vga arch=i386`
+  - Proof: `make test-vga`
 
 ---
 

@@ -224,7 +224,7 @@ These old broad cases were split into clearer one-behavior cases.
 
 | Old case | New case(s) |
 | --- | --- |
-| `langs` | `rust-marker-symbol-present`, `asm-entry-symbol-present` |
+| `langs` | `rust-entry-symbol-present`, `asm-entry-symbol-present` |
 | `interp` | `no-pt-interp-segment` |
 | `dynamic` | `no-interp-section`, `no-dynamic-section` |
 | `undef` | `no-undefined-symbols` |

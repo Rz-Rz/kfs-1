@@ -192,7 +192,8 @@ Also present:
 
 Current hardware ownership:
 - direct VGA MMIO and volatile writes belong in `drivers`
-- inline assembly stays in `arch`
+- raw assembly entry/runtime helpers stay in `arch`
+- typed port I/O inline assembly belongs in `machine`
 - linker symbols stay at the `arch`/entry boundary
 
 Current serial reality:
