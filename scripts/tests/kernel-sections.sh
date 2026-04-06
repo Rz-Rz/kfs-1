@@ -9,6 +9,8 @@ list_cases() {
 	cat <<'EOF'
 release-iso-bootable
 release-img-bootable
+release-iso-is-within-10mb
+release-img-is-within-10mb
 linker-script-defines-rodata-section
 linker-script-defines-data-section
 linker-script-defines-bss-section
@@ -27,6 +29,8 @@ describe_case() {
 	case "$1" in
 	release-iso-bootable) printf '%s\n' "release ISO is bootable" ;;
 	release-img-bootable) printf '%s\n' "release IMG is bootable" ;;
+	release-iso-is-within-10mb) printf '%s\n' "release ISO stays within the 10 MB upper bound" ;;
+	release-img-is-within-10mb) printf '%s\n' "release IMG stays within the 10 MB upper bound" ;;
 	linker-script-defines-rodata-section) printf '%s\n' "linker script defines .rodata" ;;
 	linker-script-defines-data-section) printf '%s\n' "linker script defines .data" ;;
 	linker-script-defines-bss-section) printf '%s\n' "linker script defines .bss" ;;
@@ -102,6 +106,14 @@ run_host_case() {
 	release-img-bootable)
 		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
 			bash -lc "make clean >/dev/null 2>&1 || true; make -B img arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760 && file build/os-${ARCH}.img | grep -q 'ISO 9660' && cmp -s build/os-${ARCH}.iso build/os-${ARCH}.img"
+		;;
+	release-iso-is-within-10mb)
+		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+			bash -lc "make clean >/dev/null 2>&1 || true; make -B iso arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.iso && test \$(wc -c < build/os-${ARCH}.iso) -le 10485760"
+		;;
+	release-img-is-within-10mb)
+		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
+			bash -lc "make clean >/dev/null 2>&1 || true; make -B img arch='${ARCH}' >/dev/null && test -f build/os-${ARCH}.img && test \$(wc -c < build/os-${ARCH}.img) -le 10485760"
 		;;
 	linker-script-defines-rodata-section)
 		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
