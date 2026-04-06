@@ -3,6 +3,8 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-}"
+# shellcheck disable=SC2034
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
 list_cases() {
 	cat <<'EOF'
@@ -127,33 +129,8 @@ expected_message() {
 }
 
 run_direct_case() {
-	local linker="build/m3.3-negative-${CASE}.ld"
-	local log="build/m3.3-negative-${CASE}.log"
-	local expected
-	expected="$(expected_message)"
-
-	bash scripts/with-build-lock.sh make clean >/dev/null 2>&1 || true
-	mkdir -p build
-	write_invalid_linker_script "${linker}"
-
-	if bash scripts/with-build-lock.sh make -B all arch="${ARCH}" linker_script="${linker}" >"${log}" 2>&1; then
-		echo "FAIL ${CASE}: wrong linker script unexpectedly passed the build gate" >&2
-		cat "${log}" >&2
-		exit 1
-	fi
-
-	if ! grep -qF "${expected}" "${log}"; then
-		echo "FAIL ${CASE}: expected rejection message not found: ${expected}" >&2
-		cat "${log}" >&2
-		exit 1
-	fi
-
-	echo "PASS ${CASE}"
-}
-
-run_host_case() {
-	bash scripts/container.sh run -- \
-		bash -lc "KFS_HOST_TEST_DIRECT=1 bash scripts/rejection-tests/layout-symbol-rejections.sh '${ARCH}' '${CASE}'"
+	local stamp="build/rejections/layout-${ARCH}-${CASE}.stamp"
+	[[ -r "${stamp}" ]] || die "missing rejection proof: ${stamp} (build it with make test-artifacts arch=${ARCH})"
 }
 
 main() {
@@ -168,11 +145,6 @@ main() {
 	fi
 
 	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
-
-	if [[ -n "${CASE}" ]] && describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
-		return 0
-	fi
 
 	run_direct_case
 }
