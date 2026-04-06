@@ -465,7 +465,7 @@ test: test-prep
 			exec env KFS_RUN_LINT=0 bash scripts/test-host.sh $(arch); \
 		fi; \
 		if "$(test_ui_python)" -c "import textual" >/dev/null 2>&1; then \
-			exec env KFS_RUN_LINT=0 "$(test_ui_python)" scripts/kfs_tui.py --arch "$(arch)" --make-target test-host; \
+			exec env KFS_RUN_LINT=0 "$(test_ui_python)" scripts/kfs_tui.py --arch "$(arch)" --runner-target test-host; \
 		fi; \
 		if $(container_engine) run --rm -e KFS_INSIDE_CONTAINER=1 -v $(container_mount) -w $(toolchain_workdir) $(container_user_args) "$(toolchain_image)" python3 -c "import textual" >/dev/null 2>&1; then \
 			exec $(container_engine) run --rm $(container_interactive_args) \
@@ -475,7 +475,7 @@ test: test-prep
 				-v $(container_mount) -w $(toolchain_workdir) \
 				$(container_user_args) \
 				"$(toolchain_image)" \
-				python3 scripts/kfs_tui.py --arch "$(arch)" --make-target test-host; \
+				python3 scripts/kfs_tui.py --arch "$(arch)" --runner-target test-host; \
 		fi; \
 		if [[ "$${mode}" == "1" ]]; then \
 			echo "error: Textual is not installed on the host or in the toolchain image. Run '\''make test-ui-bootstrap'\'' or rebuild the image." >&2; \
@@ -529,7 +529,7 @@ host-rust-test: container-image
 		bash -lc '\''set -euo pipefail; tmpdir="$$(mktemp -d)"; trap "rm -rf \"$$tmpdir\"" EXIT; rustc $${KFS_HOST_LIB_RUSTC_FLAGS:-} --crate-name kfs --crate-type rlib --edition=2021 -o "$$tmpdir/libkfs.rlib" "$${KFS_HOST_LIB_SOURCE}" >/dev/null; rustc --test $${KFS_HOST_TEST_RUSTC_FLAGS:-} --edition=2021 --extern kfs="$$tmpdir/libkfs.rlib" -o "$$tmpdir/$${KFS_HOST_TEST_BIN_NAME}" "$${KFS_HOST_TEST_SOURCE}" >/dev/null; if [[ -n "$${KFS_HOST_TEST_FILTER:-}" ]]; then "$$tmpdir/$${KFS_HOST_TEST_BIN_NAME}" "$${KFS_HOST_TEST_FILTER}"; else "$$tmpdir/$${KFS_HOST_TEST_BIN_NAME}"; fi'\'''
 
 test-plain:
-	@$(PYTHON) scripts/kfs_test_runner.py --arch $(arch) --make-target test-plain
+	@$(PYTHON) scripts/kfs_test_runner.py --arch $(arch) --runner-target test-plain
 
 test-ui:
 	@KFS_TEST_UI=1 $(MAKE) --no-print-directory test arch=$(arch)

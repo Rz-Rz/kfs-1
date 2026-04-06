@@ -806,6 +806,13 @@ class MetricsBar(Vertical):
                 widget.add_class("metric-card-idle")
 
 
+def runner_command(target: str, arch: str) -> list[str]:
+    normalized = "test-host" if target == "test-plain" else target
+    if normalized == "test-host":
+        return ["bash", "scripts/test-host.sh", arch]
+    raise ValueError(f"unsupported runner target: {target}")
+
+
 class KFSApp(App):
     CSS = CSS
     BINDINGS = [
@@ -814,11 +821,11 @@ class KFSApp(App):
         Binding("escape", "quit", "Quit"),
     ]
 
-    def __init__(self, mode: str, arch: str, make_target: str, **kwargs):
+    def __init__(self, mode: str, arch: str, runner_target: str, **kwargs):
         super().__init__(**kwargs)
         self.mode = mode
         self.arch = arch
-        self.make_target = make_target
+        self.runner_target = runner_target
         self.current_section: Optional[str] = None
         self.suite_total = 0
         self.discovered_total = 0
@@ -895,7 +902,7 @@ class KFSApp(App):
             self.call_from_thread(overlay.set_frame, frame)
             time.sleep(0.45)
         manifest_loaded = False
-        if self.mode == "make":
+        if self.mode == "runner":
             manifest_loaded = self._prefetch_manifest()
         self.call_from_thread(self._hide_boot)
         time.sleep(0.2)
@@ -911,7 +918,8 @@ class KFSApp(App):
             if manifest_loaded:
                 env["KFS_TUI_SKIP_MANIFEST"] = "1"
             process = subprocess.Popen(
-                ["make", self.make_target, f"arch={self.arch}"],
+                runner_command(self.runner_target, self.arch),
+                cwd=self.repo_root,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -1496,14 +1504,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--arch", default="i386")
     parser.add_argument("--demo", action="store_true")
     parser.add_argument("--stdin", action="store_true")
-    parser.add_argument("--make-target", default="test-plain")
+    parser.add_argument("--runner-target", default="test-plain")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    mode = "demo" if args.demo else "stdin" if args.stdin else "make"
-    app = KFSApp(mode=mode, arch=args.arch, make_target=args.make_target)
+    mode = "demo" if args.demo else "stdin" if args.stdin else "runner"
+    app = KFSApp(mode=mode, arch=args.arch, runner_target=args.runner_target)
     app.run()
 
 

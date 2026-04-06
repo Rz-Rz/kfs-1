@@ -153,8 +153,7 @@ EOF
 #!/usr/bin/env bash
 HOST_LIB_SOURCE="src/lib.rs"
 run_host_rust_test() {
-	rustc --crate-name kfs --crate-type rlib "${HOST_LIB_SOURCE}" >/dev/null
-	rustc --test --extern kfs=build/libkfs.rlib tests/host_sample.rs >/dev/null
+	:
 }
 EOF
 }

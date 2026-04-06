@@ -89,8 +89,15 @@ class ProtocolCapture:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run KFS tests and persist history")
     parser.add_argument("--arch", default="i386")
-    parser.add_argument("--make-target", default="test-plain")
+    parser.add_argument("--runner-target", default="test-plain")
     return parser.parse_args()
+
+
+def runner_command(target: str, arch: str) -> list[str]:
+    normalized = "test-host" if target == "test-plain" else target
+    if normalized == "test-host":
+        return ["bash", "scripts/test-host.sh", arch]
+    raise ValueError(f"unsupported runner target: {target}")
 
 
 def main() -> int:
@@ -104,8 +111,7 @@ def main() -> int:
     case_logs_dir = debug_dir / "cases"
     raw_log_path = debug_dir / "runner.raw.log"
     latest_path = debug_root(repo_root) / f"latest-{args.arch}.path"
-    # Keep the public test-plain alias, but execute the real host target.
-    make_target = "test-host" if args.make_target == "test-plain" else args.make_target
+    command = runner_command(args.runner_target, args.arch)
 
     debug_dir.mkdir(parents=True, exist_ok=True)
     case_logs_dir.mkdir(parents=True, exist_ok=True)
@@ -113,7 +119,7 @@ def main() -> int:
     latest_path.write_text(f"{debug_dir.relative_to(repo_root)}\n", encoding="utf-8")
 
     process = subprocess.Popen(
-        ["make", "--no-print-directory", make_target, f"arch={args.arch}"],
+        command,
         cwd=repo_root,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -145,7 +151,7 @@ def main() -> int:
             finished_at=finished_at.isoformat(),
             duration_ms=int((finished_at - started_at).total_seconds() * 1000),
             arch=args.arch,
-            make_target=args.make_target,
+            make_target=args.runner_target,
             exit_code=exit_code,
             suite_total=capture.suite_total or len(capture.cases),
             passed=sum(1 for case in capture.cases.values() if case.status == "pass"),
