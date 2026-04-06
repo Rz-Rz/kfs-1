@@ -2,6 +2,7 @@
 
 Workflow: build and test using the container toolchain so Fedora and Ubuntu WSL run the same commands.
 Release artifact reproducibility is tracked separately from runtime correctness: the build now derives `SOURCE_DATE_EPOCH` from Git, remaps Rust build paths, and checks that release artifacts match across clean rebuilds.
+The container also pins Ubuntu package resolution to a fixed snapshot timestamp so `apt` stops drifting over time.
 
 ## Quickstart
 
