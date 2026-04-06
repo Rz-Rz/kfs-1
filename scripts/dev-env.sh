@@ -2,81 +2,103 @@
 set -euo pipefail
 
 die() {
-  echo "error: $*" >&2
-  exit 1
+	echo "error: $*" >&2
+	exit 1
 }
 
 want_color() {
-  [[ -z "${NO_COLOR:-}" ]] || return 1
-  [[ "${KFS_COLOR:-}" == "1" ]] && return 0
-  [[ -t 1 ]]
+	[[ -z "${NO_COLOR:-}" ]] || return 1
+	[[ "${KFS_COLOR:-}" == "1" ]] && return 0
+	[[ -t 1 ]]
 }
 
 color() {
-  local code="$1"
-  if want_color; then
-    printf '\033[%sm' "${code}"
-  fi
+	local code="$1"
+	if want_color; then
+		printf '\033[%sm' "${code}"
+	fi
 }
 
 reset_color() {
-  if want_color; then
-    printf '\033[0m'
-  fi
+	if want_color; then
+		printf '\033[0m'
+	fi
 }
 
 ok() {
-  color "32"
-  printf '%s' "$*"
-  reset_color
-  printf '\n'
+	color "32"
+	printf '%s' "$*"
+	reset_color
+	printf '\n'
 }
 
 need_cmd() {
-  local cmd="$1"
-  command -v "${cmd}" >/dev/null 2>&1 || die "missing required tool: ${cmd}"
+	local cmd="$1"
+	command -v "${cmd}" >/dev/null 2>&1 || die "missing required tool: ${cmd}"
 }
 
 cmd_check() {
-  echo "dev-env: checking required tools..."
-  need_cmd bash
-  need_cmd make
-  need_cmd timeout
-  need_cmd ld
-  need_cmd readelf
-  need_cmd objdump
-  need_cmd nm
-  need_cmd strings
-  need_cmd nasm
-  need_cmd file
-  need_cmd rustc
-  need_cmd cc
-  need_cmd rg
+	echo "dev-env: checking required tools..."
+	need_cmd bash
+	need_cmd make
+	need_cmd timeout
+	need_cmd ld
+	need_cmd readelf
+	need_cmd objdump
+	need_cmd nm
+	need_cmd strings
+	need_cmd nasm
+	need_cmd file
+	need_cmd rustc
+	need_cmd cc
+	need_cmd rg
 
-  need_cmd grub-mkrescue
-  need_cmd xorriso
-  need_cmd mtools
+	need_cmd grub-mkrescue
+	need_cmd xorriso
+	need_cmd mtools
 
-  need_cmd qemu-system-i386
+	need_cmd python3
+	need_cmd shellcheck
+	need_cmd shfmt
+	need_cmd qemu-system-i386
+	need_cmd socat
+	need_cmd vncviewer
+	need_cmd xdotool
+	need_cmd Xvfb
+	need_cmd ruff
+	need_cmd black
+	need_cmd rustfmt
 
-  printf '%s ' "dev-env:"
-  ok "OK"
-  echo "  nasm: $(nasm -v | head -n 1)"
-  echo "  ld: $(ld -v | head -n 1)"
-  echo "  grub-mkrescue: $(grub-mkrescue --version | head -n 1)"
-  echo "  qemu-system-i386: $(qemu-system-i386 --version | head -n 1)"
-  echo "  xorriso: $(xorriso -version 2>/dev/null | head -n 1)"
+	printf '%s ' "dev-env:"
+	ok "OK"
+	echo "  nasm: $(nasm -v | head -n 1)"
+	echo "  ld: $(ld -v | head -n 1)"
+	echo "  shellcheck: $(shellcheck --version 2>&1 | head -n 1 | sed 's/ShellCheck //')"
+	echo "  shfmt: $(shfmt -version)"
+	echo "  grub-mkrescue: $(grub-mkrescue --version | head -n 1)"
+	echo "  qemu-system-i386: $(qemu-system-i386 --version | head -n 1)"
+	echo "  python3: $(python3 --version)"
+	echo "  socat: $(socat -V 2>&1 | head -n 1)"
+	echo "  vncviewer: $(vncviewer --version 2>&1 | head -n 1)"
+	echo "  xdotool: $(xdotool -v)"
+	echo "  Xvfb: $(Xvfb -help 2>&1 | head -n 1)"
+	echo "  xorriso: $(xorriso -version 2>/dev/null | head -n 1)"
+	echo "  ruff: $(ruff --version)"
+	echo "  black: $(black --version | head -n 1)"
+	echo "  rustfmt: $(rustfmt --version)"
 }
 
 cmd_install_hint() {
-  cat <<'EOF'
+	cat <<'EOF'
 This repo's canonical workflow uses the container toolchain (recommended):
   make container-image
   make container-env-check
 
 Optional host-side TUI dependencies:
   python3, python3-venv
+  python3-pip, ruff, black
   make test-ui-bootstrap
+  shellcheck, shfmt, rustfmt
 
 If you still want to install tools natively, you need at least:
   nasm, qemu-system-i386, grub-mkrescue, xorriso, mtools, make, binutils
@@ -84,7 +106,7 @@ EOF
 }
 
 usage() {
-  cat <<'EOF'
+	cat <<'EOF'
 Usage:
   scripts/dev-env.sh check
   scripts/dev-env.sh install-hint
@@ -92,13 +114,16 @@ EOF
 }
 
 main() {
-  local cmd="${1:-}"
-  case "${cmd}" in
-    check) cmd_check ;;
-    install-hint) cmd_install_hint ;;
-    -h|--help|"") usage; exit 0 ;;
-    *) die "unknown command: ${cmd}" ;;
-  esac
+	local cmd="${1:-}"
+	case "${cmd}" in
+	check) cmd_check ;;
+	install-hint) cmd_install_hint ;;
+	-h | --help | "")
+		usage
+		exit 0
+		;;
+	*) die "unknown command: ${cmd}" ;;
+	esac
 }
 
 main "$@"

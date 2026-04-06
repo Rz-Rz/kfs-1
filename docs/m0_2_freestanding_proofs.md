@@ -17,12 +17,13 @@ These checks do **not** guarantee:
 - The kernel boots correctly (that’s covered by QEMU boot tests).
 - The kernel prints `42` or implements the subject features (M2–M6).
 - The kernel is “correct” or safe—only that it is **self-contained** from a dynamic-linking standpoint.
+- Whether MMX/SSE/SSE2 instructions are allowed or forbidden by policy. Freestanding linkage proofs and SIMD policy are separate concerns.
 
 ### Where the checks run
 - Script: `scripts/boot-tests/freestanding-kernel.sh`
-- Hard gate: `make test arch=i386`
+- Hard gate: `make test`
 
-The hard gate (`make test arch=i386`) checks:
+The hard gate (`make test`) checks:
 - `build/kernel-i386-test.bin` (fresh test kernel built by `make iso-test`)
 
 Optional (manual) check for the release kernel:
@@ -35,14 +36,14 @@ Adversarial / rejection suite:
 - `bash scripts/rejection-tests/freestanding-rejections.sh i386 unresolved-external-symbol`
 - `bash scripts/rejection-tests/freestanding-rejections.sh i386 host-runtime-marker-strings`
 
-### Why the tests require a Rust marker symbol
+### Why the tests require a Rust entry symbol
 KFS_1 requires at least two languages (ASM + the chosen language). An ASM-only kernel can
 accidentally satisfy the ELF freestanding checks while the chosen language build is still
 missing or not linked.
 
-So the script first asserts the final linked kernel includes a tiny Rust object by requiring
-the symbol `kfs_rust_marker` (from `src/rust/kernel_marker.rs`). This makes the M0.2 proofs
-apply to an **ASM + Rust** kernel artifact, not an ASM-only artifact.
+So the script first asserts the final linked kernel includes the real Rust entrypoint by requiring
+the symbol `kmain` from the canonical crate-root path (`src/main.rs` -> `src/kernel/core/entry.rs`).
+This makes the M0.2 proofs apply to an **ASM + Rust** kernel artifact, not an ASM-only artifact.
 
 ---
 
@@ -123,3 +124,6 @@ The rejection suite complements the positive proofs above:
   runnable kernel artifact can be produced.
 - The libc/loader string case proves the heuristic marker checks are wired and fail loudly when
   host-runtime identifiers leak into the image.
+
+For the current MMX/SSE/SSE2 policy, including why SIMD is not itself a host-linkage question, see
+[`docs/simd_policy.md`](/home/motero/Code/kfs-1/docs/simd_policy.md).

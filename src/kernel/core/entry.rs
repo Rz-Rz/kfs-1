@@ -1,5 +1,5 @@
 use crate::kernel::core::init::{self, EarlyInitFailure};
-use crate::kernel::services::diagnostics;
+use crate::kernel::services::{console, diagnostics};
 use crate::kernel::types::KernelRange;
 
 unsafe extern "C" {
@@ -13,6 +13,8 @@ unsafe extern "C" {
     fn kfs_arch_should_fail_layout() -> u32;
     fn kfs_arch_should_fail_string() -> u32;
     fn kfs_arch_should_fail_memory() -> u32;
+    fn kfs_arch_force_no_cpuid() -> u32;
+    fn kfs_arch_force_disable_simd() -> u32;
     fn kfs_arch_qemu_exit(code: u8) -> !;
     fn kfs_arch_halt_forever() -> !;
 }
@@ -34,7 +36,7 @@ pub extern "C" fn kmain() -> ! {
                 diagnostics::write_line("KMAIN_FLOW_OK");
                 qemu_exit(QEMU_EXIT_PASS);
             }
-            halt_forever()
+            console::start_keyboard_echo_loop()
         }
         Err(EarlyInitFailure::BssCanary) => runtime_fail("BSS_FAIL"),
         Err(EarlyInitFailure::Layout) => runtime_fail("LAYOUT_FAIL"),
@@ -61,6 +63,14 @@ pub(crate) fn string_override_requested() -> bool {
 
 pub(crate) fn memory_override_requested() -> bool {
     unsafe { kfs_arch_should_fail_memory() != 0 }
+}
+
+pub(crate) fn simd_force_no_cpuid_requested() -> bool {
+    unsafe { kfs_arch_force_no_cpuid() != 0 }
+}
+
+pub(crate) fn simd_force_disable_requested() -> bool {
+    unsafe { kfs_arch_force_disable_simd() != 0 }
 }
 
 pub(crate) fn kernel_range() -> KernelRange {

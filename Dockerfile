@@ -13,10 +13,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     findutils \
     make \
     libc6-dev \
+    python3-pip \
     mtools \
     nasm \
+    shellcheck \
+    shfmt \
+    python3 \
     qemu-system-x86 \
+    qemu-system-gui \
     ripgrep \
+    socat \
+    tigervnc-viewer \
+    xdotool \
+    xvfb \
     grub-common \
     grub-pc-bin \
     xorriso \
@@ -28,6 +37,11 @@ ENV PATH=/opt/cargo/bin:$PATH
 
 RUN mkdir -p "${RUSTUP_HOME}" "${CARGO_HOME}" \
   && curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable \
-  && rustup target add i686-unknown-linux-gnu
+  && rustup target add i586-unknown-linux-gnu \
+  && rustup component add rustfmt
+
+RUN python3 -m pip install --no-cache-dir \
+    ruff \
+    black
 
 WORKDIR /work

@@ -1,7 +1,9 @@
 use crate::kernel::core::entry;
+use crate::kernel::klib::memory::MemoryBackend;
 use crate::kernel::klib::{memory, string};
 use crate::kernel::services::console;
 use crate::kernel::services::diagnostics;
+use crate::kernel::services::simd;
 use crate::kernel::types::range::layout_order_is_sane;
 
 #[derive(Copy, Clone)]
@@ -28,6 +30,12 @@ pub(crate) fn run_early_init() -> Result<(), EarlyInitFailure> {
     if entry::is_test_mode() {
         diagnostics::write_line("LAYOUT_OK");
     }
+
+    let _ = simd::initialize_runtime_policy(
+        entry::simd_force_no_cpuid_requested(),
+        entry::simd_force_disable_requested(),
+        entry::is_test_mode(),
+    );
 
     if !string_helpers_are_sane() {
         return Err(EarlyInitFailure::StringHelpers);
@@ -121,6 +129,7 @@ fn memory_helpers_are_sane() -> bool {
     }
 
     if entry::is_test_mode() {
+        emit_memcpy_backend_marker(memory::memcpy_backend());
         diagnostics::write_line("MEMCPY_OK");
     }
 
@@ -137,8 +146,23 @@ fn memory_helpers_are_sane() -> bool {
     }
 
     if entry::is_test_mode() {
+        emit_memset_backend_marker(memory::memset_backend());
         diagnostics::write_line("MEMSET_OK");
     }
 
     true
+}
+
+fn emit_memcpy_backend_marker(backend: MemoryBackend) {
+    match backend {
+        MemoryBackend::Scalar => diagnostics::write_line("MEMCPY_BACKEND_SCALAR"),
+        MemoryBackend::Sse2 => diagnostics::write_line("MEMCPY_BACKEND_SSE2"),
+    }
+}
+
+fn emit_memset_backend_marker(backend: MemoryBackend) {
+    match backend {
+        MemoryBackend::Scalar => diagnostics::write_line("MEMSET_BACKEND_SCALAR"),
+        MemoryBackend::Sse2 => diagnostics::write_line("MEMSET_BACKEND_SSE2"),
+    }
 }

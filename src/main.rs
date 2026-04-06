@@ -2,5 +2,5 @@
 #![no_main]
 #![no_builtins]
 
-pub mod kernel;
 mod freestanding;
+pub mod kernel;

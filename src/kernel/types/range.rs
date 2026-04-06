@@ -31,11 +31,7 @@ impl KernelRange {
     }
 }
 
-pub fn layout_order_is_sane(
-    kernel: KernelRange,
-    bss: KernelRange,
-    layout_override: bool,
-) -> bool {
+pub fn layout_order_is_sane(kernel: KernelRange, bss: KernelRange, layout_override: bool) -> bool {
     if layout_override {
         return false;
     }

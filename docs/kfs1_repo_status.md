@@ -13,7 +13,7 @@ As-of snapshot:
 - Kernel artifact present: `build/kernel-i386.bin` (ELF32, Intel 80386)
 - ISO artifact present: `build/os-i386.iso` (bootable ISO9660, <= 10 MB)
 - Disk-image artifact present: `build/os-i386.img` (bootable ISO9660, <= 10 MB; boots via QEMU `-drive`)
-- Sources present in ASM under `src/arch/i386/` and Rust under `src/rust/` + `src/kernel/`
+- Sources present in ASM under `src/arch/i386/` and Rust under `src/main.rs`, `src/lib.rs`, `src/freestanding/`, and `src/kernel/`
 - Chosen language: **Rust** (`kmain` exists, is called from ASM, and currently prints `42`)
 
 ---
@@ -25,26 +25,26 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 
 - Base Epic M0 DoD: ✅ YES (i386 target + freestanding/no-host-libs enforced in `make test` on a Rust-linked kernel)
   - Proof: `readelf -h build/kernel-i386.bin` -> `Class: ELF32`, `Machine: Intel 80386`
-  - Proof: `make test arch=i386` (builds a Rust-linked test kernel and enforces the M0.2 checks on it)
+  - Proof: `make test` (builds a Rust-linked test kernel and enforces the M0.2 checks on it)
 - Base Epic M1 DoD: ✅ YES (ISO + disk-image artifacts + automated boot checks)
   - Proof: `file build/os-i386.iso` -> ISO 9660 (bootable)
   - Proof: `file build/os-i386.img` -> ISO 9660 (bootable)
   - Proof: `test $(wc -c < build/os-i386.iso) -le 10485760` (<= 10 MB)
   - Proof: `test $(wc -c < build/os-i386.img) -le 10485760` (<= 10 MB)
-  - Proof: `make test arch=i386` (checks the tracked release ISO/IMG size/type and boots both test ISO and test IMG headlessly)
+  - Proof: `make test` (checks the tracked release ISO/IMG size/type and boots both test ISO and test IMG headlessly)
 - Base Epic M2 DoD: ✅ YES (header is placed early, ASM sets a stack, and control reaches `kmain`)
-  - Proof: `make test arch=i386` (includes the ASM entry, stack, and `call kmain` path in the release kernel build + boot flow)
+  - Proof: `make test` (includes the ASM entry, stack, and `call kmain` path in the release kernel build + boot flow)
 - Base Epic M3 DoD: ✅ YES (custom linker script, standard sections, exported layout symbols)
-  - Proof: `make test arch=i386` (includes M3.2 + M3.3 checks)
+  - Proof: `make test` (includes M3.2 + M3.3 checks)
 - Base Epic M4 DoD: ✅ YES (Rust entry, early-init/runtime assumptions, and halt behavior are all proven)
-  - Proof: `make test arch=i386` (includes release-kernel `kmain` export/callsite checks, ordered runtime markers, runtime rejection tests, and halt-path checks)
+  - Proof: `make test` (includes release-kernel `kmain` export/callsite checks, ordered runtime markers, runtime rejection tests, and halt-path checks)
 - Base Epic M5 DoD: ✅ YES
-  - Proof: `make test arch=i386` now proves `M5.1`, `M5.2`, and `M5.3` end to end (`Port`, `KernelRange`, string-helper ABI, memory-helper ABI, runtime integration, and rejection gates)
+  - Proof: `make test` now proves `M5.1`, `M5.2`, and `M5.3` end to end (`Port`, `KernelRange`, string-helper ABI, memory-helper ABI, runtime integration, and rejection gates)
 - Base Epic M6 DoD: ✅ YES
   - Proof: the mandatory screen path exists, the normal success flow prints `42` through it, and cursor/scroll behavior remains bonus-owned follow-up work rather than a base-epic blocker
 - Base Epic M7 DoD: ✅ YES (Makefile builds ASM+Rust, links with custom `.ld`, produces ISO/IMG, runs QEMU)
-  - Proof: `make -n all arch=i386 | rg -n "\\brustc\\b"`
-  - Proof: `make all arch=i386 && nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"`
+  - Proof: `make -n all | rg -n "\\brustc\\b"`
+  - Proof: `make all && nm -n build/kernel-i386.bin | rg -n "\\bkmain\\b"`
 - Base Epic M8 DoD: ⚠️ PARTIAL
   - Proof: ISO exists and is small, and a `README.md` quickstart exists
 
@@ -106,13 +106,13 @@ Proof:
 ### Feature M0.2: Enforce "no host libs" and "freestanding" rules
 Status: ✅ Done (exercised by Rust + enforced via `make test`)
 Evidence:
-- Rust code is compiled and linked into the kernel image (symbol `kfs_rust_marker`).
+- Rust code is compiled and linked into the kernel image (symbol `kmain`).
 - M0.2 is enforced by inspecting the linked ELF (no dynamic loader/sections, no undefined symbols, no libc/loader markers).
 - Dedicated rejection tests now contaminate a real kernel build with hosted-runtime metadata and prove the gate fails.
 Proof:
-- `make test arch=i386` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
-- `nm -n build/kernel-i386-test.bin | rg -n "\\bkfs_rust_marker\\b"`
-- `nm -n build/kernel-i386.bin | rg -n "\\bkfs_rust_marker\\b"` (release kernel also links Rust)
+- `make test` (asserts the test kernel includes ASM+Rust symbols, then runs the four “no host libs (ELF checks)” steps)
+- `nm -n build/kernel-i386-test.bin | rg -n "\\bkmain\\b"`
+- `nm -n build/kernel-i386.bin | rg -n "\\bkmain\\b"` (release kernel also links Rust)
 - `KFS_M0_2_INCLUDE_RELEASE=1 bash scripts/boot-tests/freestanding-kernel.sh i386 all` (checks both test + release kernels)
 - `bash scripts/rejection-tests/freestanding-rejections.sh i386 interp-pt-interp-present`
 - `bash scripts/rejection-tests/freestanding-rejections.sh i386 dynamic-section-present`
@@ -144,7 +144,7 @@ Proof:
 - `file build/os-i386.iso`
 - `test $(wc -c < build/os-i386.iso) -le 10485760 && echo "ISO <= 10MB"`
 Automated proof:
-- `make test arch=i386` (includes ISO build + size/type checks and a headless GRUB boot gate)
+- `make test` (includes ISO build + size/type checks and a headless GRUB boot gate)
 
 ### Feature M1.2: "Install GRUB on a virtual image" (alternate path: tiny disk image)
 Status: ✅ Done (repo implementation: ISO-content disk image, booted via `-drive`)
@@ -154,7 +154,7 @@ Evidence:
 Proof:
 - `make img arch=i386` (produces `build/os-i386.img`)
 - `test $(wc -c < build/os-i386.img) -le 10485760 && echo "IMG <= 10MB"`
-- `make test arch=i386` (includes build + checks + `scripts/boot-tests/qemu-boot.sh i386 drive`)
+- `make test` (includes build + checks + `scripts/boot-tests/qemu-boot.sh i386 drive`)
 
 ### Feature M1.3: GRUB config uses a consistent Multiboot version
 Status: ✅ Done (Multiboot2 consistently used)
@@ -384,7 +384,7 @@ Proof:
 - `bash scripts/rejection-tests/string-rejections.sh i386 bad-string-stops-before-normal-flow`
 - `rg -n "kfs_strlen|kfs_strcmp|strlen|strcmp" -S src/kernel/klib/string src/kernel/core/init.rs`
 - `rg -n "kfs_memcpy|kfs_memset|memcpy|memset" -S src/kernel/klib/memory src/kernel/core/init.rs`
-- `make test arch=i386`
+- `make test`
 What’s left:
 - No open `M5` gaps remain on this branch; the next unfinished base work is still `M6`
 
@@ -419,8 +419,10 @@ Proof:
 - `bash scripts/architecture-tests/runtime-ownership.sh i386 services-console-calls-driver-facade`
 - `bash scripts/boot-tests/runtime-markers.sh i386 runtime-completes-early-init`
 - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-starts-with-42`
+- `bash scripts/boot-tests/boot-flow.sh i386 boot-flow-renders-42-then-enters-live-console-loop`
 - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-uses-default-attribute`
 - `bash scripts/boot-tests/vga-memory.sh i386 vga-buffer-stable-across-snapshots`
+- `bash scripts/boot-tests/ui-interaction.sh i386 newline-moves-visible-output-to-the-next-row`
 - `bash scripts/boot-tests/vga-writer.sh i386 release-kernel-omits-vga-abi-exports`
 
 ---
@@ -451,16 +453,90 @@ What’s left:
 Status: ⚠️ Partial
 Evidence:
 - Infra Epic **I0** (Deterministic QEMU PASS/FAIL): ✅ Done
-  - Proof: `make test arch=i386` exits deterministically (PASS) and never hangs
-  - Proof: `make test arch=i386 KFS_TEST_FORCE_FAIL=1` fails deterministically
+  - Proof: `make test` exits deterministically (PASS) and never hangs
+  - Proof: `make test KFS_TEST_FORCE_FAIL=1` fails deterministically
 - Infra Epic **I3** (Reproducible Dev Environment): ✅ Done
   - Proof: `make container-env-check`
 - Infra Epic **I4** (Linker / ELF Hygiene Gates): ⚠️ Partial
-  - Proof: `make test arch=i386` includes visible subsection / COMMON / allocatable-section hygiene checks
+  - Proof: `make test` includes visible subsection / COMMON / allocatable-section hygiene checks
   - Gap: no linker map file generation/check yet
   - Gap: no `--orphan-handling=error` gate yet
   - Gap: no explicit per-section denylist step yet (current allowlist already caught `.eh_frame`)
 - Infra Epic **I1** (Serial console assertions): ❌ Not done
 - Infra Epic **I2** (VGA memory assertions): ✅ Done
-  - Proof: `make test arch=i386` includes headless VGA-memory checks for the first `42` screen cells plus repeated monitor snapshots for buffer stability
-  - Proof: `make test-vga arch=i386`
+  - Proof: `make test` includes headless VGA-memory checks for the first `42` screen cells plus repeated monitor snapshots for buffer stability
+  - Proof: `make test-vga`
+
+---
+
+## Deferred Bonus / Extension Status (B1–B6)
+
+These items are not required for the base KFS_1 subject, but this branch now carries them on top of `main`'s architecture.
+
+High-level status:
+- Bonus Epic B1 (scroll + cursor support): ✅ Done
+- Bonus Epic B2 (color support in the screen I/O interface): ✅ Done
+- Bonus Epic B3 (`printk` / formatted printing): ✅ Done
+- Bonus Epic B4 (keyboard input + echo): ✅ Done
+- Bonus Epic B5 (multiple screens + keyboard shortcuts): ✅ Done
+- Bonus Epic B6 (screen geometry / different screen sizes): ✅ Done
+
+### Bonus Epic B1: Scroll + Cursor Support
+
+Status: ✅ Done
+Evidence:
+- Cursor state, scroll behavior, and hardware cursor programming now live in `src/kernel/drivers/vga_text/writer.rs`.
+- Host coverage for cursor and scroll behavior lives in `tests/host_cursor.rs` and `tests/host_scroll.rs`.
+Proof:
+- `bash scripts/check-b1.3-hw-cursor.sh i386`
+- `bash scripts/tests/unit/vga-history.sh i386`
+
+### Bonus Epic B2: Color Support in the Screen I/O Interface
+
+Status: ✅ Done
+Evidence:
+- Screen color types live in `src/kernel/types/screen.rs`.
+- VGA color state is applied by `src/kernel/drivers/vga_text/mod.rs` and `src/kernel/drivers/vga_text/writer.rs`.
+Proof:
+- `bash scripts/tests/unit/vga-color.sh i386`
+
+### Bonus Epic B3: `printk` / Formatted Printing
+
+Status: ✅ Done
+Evidence:
+- Allocation-free formatting and screen printing now flow through `src/kernel/services/console.rs`.
+- Host formatting coverage lives in `tests/host_vga_format.rs`.
+Proof:
+- `bash scripts/tests/unit/console-format.sh i386`
+
+### Bonus Epic B4: Keyboard Input + Echo
+
+Status: ✅ Done
+Evidence:
+- Keyboard decode and shortcut routing now live under `src/kernel/drivers/keyboard/`.
+- The service layer echoes printable input and editing actions through `src/kernel/services/console.rs`.
+Proof:
+- `bash scripts/tests/unit/keyboard-input.sh i386`
+
+### Bonus Epic B5: Multiple Screens + Keyboard Shortcuts
+
+Status: ✅ Done
+Evidence:
+- Per-terminal history, redraw, and active-terminal state now live in `src/kernel/drivers/vga_text/mod.rs`.
+- Keyboard shortcut routing for terminal selection and lifecycle now lives in `src/kernel/drivers/keyboard/mod.rs` and `src/kernel/drivers/keyboard/imp.rs`.
+Proof:
+- `bash scripts/tests/unit/vga-vt.sh i386`
+- `bash scripts/tests/unit/keyboard-input.sh i386`
+
+### Bonus Epic B6: Screen Geometry / Different Screen Sizes
+
+Status: ✅ Done
+Evidence:
+- Geometry types and preset selection now live in `src/kernel/types/screen.rs`.
+- The VGA text driver renders the logical viewport into the fixed `80x25` hardware buffer through `src/kernel/drivers/vga_text/mod.rs` and `src/kernel/drivers/vga_text/writer.rs`.
+- Build-time preset selection is exposed through `KFS_SCREEN_GEOMETRY_PRESET` in `Makefile`.
+Proof:
+- `bash scripts/tests/unit/vga-geometry.sh i386`
+- `bash scripts/tests/unit/vga-geometry-writer.sh i386`
+- `bash scripts/tests/unit/vga-geometry-preset.sh i386`
+- `KFS_SCREEN_GEOMETRY_PRESET=compact40x10 make -B all arch=i386`
