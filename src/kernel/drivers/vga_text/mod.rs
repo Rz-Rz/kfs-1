@@ -388,6 +388,30 @@ pub fn terminal_label(index: usize) -> &'static [u8] {
     }
 }
 
+pub const fn terminal_label_color(index: usize) -> ColorCode {
+    // Keep backgrounds in the low VGA range so the attribute high bit never turns into blink.
+    let label_index = if index >= VGA_TEXT_TERMINAL_COUNT {
+        VGA_TEXT_TERMINAL_COUNT - 1
+    } else {
+        index
+    };
+
+    match label_index {
+        0 => ColorCode::vga(VgaColor::Yellow.code(), VgaColor::Blue.code()),
+        1 => ColorCode::vga(VgaColor::White.code(), VgaColor::Red.code()),
+        2 => ColorCode::vga(VgaColor::Black.code(), VgaColor::LightGray.code()),
+        3 => ColorCode::vga(VgaColor::White.code(), VgaColor::Green.code()),
+        4 => ColorCode::vga(VgaColor::Yellow.code(), VgaColor::Magenta.code()),
+        5 => ColorCode::vga(VgaColor::Black.code(), VgaColor::Cyan.code()),
+        6 => ColorCode::vga(VgaColor::White.code(), VgaColor::Brown.code()),
+        7 => ColorCode::vga(VgaColor::LightGreen.code(), VgaColor::Black.code()),
+        8 => ColorCode::vga(VgaColor::LightRed.code(), VgaColor::Blue.code()),
+        9 => ColorCode::vga(VgaColor::LightCyan.code(), VgaColor::Red.code()),
+        10 => ColorCode::vga(VgaColor::Black.code(), VgaColor::Green.code()),
+        _ => ColorCode::vga(VgaColor::LightMagenta.code(), VgaColor::Black.code()),
+    }
+}
+
 fn terminal_label_overlay(index: usize) -> &'static [u8; VGA_TEXT_TERMINAL_LABEL_WIDTH] {
     match index.min(VGA_TEXT_TERMINAL_COUNT - 1) {
         0 => b"  alpha",

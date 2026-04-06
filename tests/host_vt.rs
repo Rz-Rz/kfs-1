@@ -1,7 +1,7 @@
 use kfs::kernel::drivers::vga_text::{
-    build_terminal_label_cells, vga_text_blit_viewport, vga_text_cell, VgaHistoryCursor,
-    VgaTerminalBank, VGA_TEXT_BLANK_BYTE, VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_TERMINAL_COUNT,
-    VGA_TEXT_TERMINAL_LABEL_WIDTH,
+    build_terminal_label_cells, terminal_label_color, vga_text_blit_viewport, vga_text_cell,
+    VgaHistoryCursor, VgaTerminalBank, VGA_TEXT_BLANK_BYTE, VGA_TEXT_DEFAULT_COLOR,
+    VGA_TEXT_TERMINAL_COUNT, VGA_TEXT_TERMINAL_LABEL_WIDTH,
 };
 use kfs::kernel::types::screen::VGA_TEXT_DIMENSIONS;
 
@@ -18,7 +18,10 @@ fn terminal_buffers_keep_output_and_cursor_state_isolated() {
     terminal_one.put_byte(b'C');
 
     let first = bank.terminal(0).expect("terminal 0");
-    assert_eq!(first.history[0], vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'A'));
+    assert_eq!(
+        first.history[0],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'A')
+    );
     assert_eq!(
         first.history[VGA_TEXT_DIMENSIONS.width()],
         vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE)
@@ -26,7 +29,10 @@ fn terminal_buffers_keep_output_and_cursor_state_isolated() {
     assert_eq!(first.cursor, VgaHistoryCursor { row: 0, col: 1 });
 
     let second = bank.terminal(1).expect("terminal 1");
-    assert_eq!(second.history[0], vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'B'));
+    assert_eq!(
+        second.history[0],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'B')
+    );
     assert_eq!(
         second.history[VGA_TEXT_DIMENSIONS.width()],
         vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'C')
@@ -76,7 +82,9 @@ fn creating_a_terminal_focuses_the_new_terminal() {
 
     bank.active_mut().put_byte(b'B');
     assert_eq!(
-        bank.terminal(bank.active_slot()).expect("active slot").history[0],
+        bank.terminal(bank.active_slot())
+            .expect("active slot")
+            .history[0],
         vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'B')
     );
 
@@ -159,15 +167,25 @@ fn switching_active_terminal_changes_the_visible_view() {
 #[test]
 // This checks that the indicator helper always renders a full-width overlay and changes by label index.
 fn terminal_label_overlay_changes_with_active_label_index() {
-    let first = build_terminal_label_cells(0, VGA_TEXT_DEFAULT_COLOR);
-    let second = build_terminal_label_cells(1, VGA_TEXT_DEFAULT_COLOR);
-    let blank = vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE);
+    let first_color = terminal_label_color(0);
+    let second_color = terminal_label_color(1);
+    let first = build_terminal_label_cells(0, first_color);
+    let second = build_terminal_label_cells(1, second_color);
+    let first_blank = vga_text_cell(first_color, VGA_TEXT_BLANK_BYTE);
+    let second_blank = vga_text_cell(second_color, VGA_TEXT_BLANK_BYTE);
 
     assert_eq!(first.len(), VGA_TEXT_TERMINAL_LABEL_WIDTH);
     assert_eq!(second.len(), VGA_TEXT_TERMINAL_LABEL_WIDTH);
+    assert_ne!(first_color, second_color);
     assert_ne!(first, second);
-    assert!(first.iter().any(|&cell| cell != blank));
-    assert!(second.iter().any(|&cell| cell != blank));
+    assert!(first.iter().any(|&cell| cell != first_blank));
+    assert!(second.iter().any(|&cell| cell != second_blank));
+    assert!(first
+        .iter()
+        .all(|&cell| ((cell >> 8) as u8) == first_color.as_u8()));
+    assert!(second
+        .iter()
+        .all(|&cell| ((cell >> 8) as u8) == second_color.as_u8()));
 
     for &cell in &first {
         assert_ne!(cell, 0);
