@@ -1,15 +1,5 @@
 # KFS_1 Defense Prep
 
-This file is a repo-grounded oral-defense sheet for `docs/subject.pdf`.
-
-It is not generic OSDev theory.
-It is a list of questions you should be able to answer directly for this repository, with:
-- the expected answer
-- the proof path in this repo
-- short code snippets from the actual implementation
-
----
-
 ## 1. What the subject actually requires
 
 From [`docs/subject.pdf`](./subject.pdf), the mandatory part is:
@@ -32,15 +22,9 @@ The bonus part includes:
 3. `printf` / `printk`.
 4. Keyboard handling.
 5. Multiple screens and shortcuts.
-
-Critical defense point:
-
-- Do not present bonus features as if they were mandatory.
-- Do explain that this repo implements several bonus features, but the mandatory defense still has to stand on its own.
-
 ---
 
-## 2. The mental model you should give first
+## 2. Summary
 
 If someone asks "what does your project do?", the short defense answer is:
 
