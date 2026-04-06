@@ -11,7 +11,6 @@ One command:
 - `make test`
 
 Optional:
-- `make test-ui-bootstrap` installs the host-side Python TUI dependencies into `.venv-test-ui`
 - `make run-ui` builds `build/os-i386.img` through the normal Dockerized build graph, then launches the manual UI path
 - `make test-artifacts` prebuilds the shared release, test, compact-geometry, and negative-runtime artifacts that the suite consumes
 - `make reproducible-builds` proves that release kernel/ISO/IMG artifacts are byte-identical across clean rebuilds and copied workdirs
@@ -59,7 +58,7 @@ It also includes runtime serial-marker proofs for M4 under QEMU.
 - `make run-ui`
   - Use when: build the IMG if needed, then boot the manual UI path
 - `make test-artifacts`
-  - Use when: prebuild every shared artifact that the host-side test suite consumes
+  - Use when: prebuild every shared artifact that the container-backed test suite consumes
 - `make reproducible-builds`
   - Use when: run only the release-artifact reproducibility proofs
 - `make test`
@@ -67,7 +66,7 @@ It also includes runtime serial-marker proofs for M4 under QEMU.
 - `make test-vga`
   - Use when: run only the headless VGA-memory assertion path
 - `make test-ui`
-  - Use when: force the retro Textual TUI on an interactive host terminal
+  - Use when: force the retro Textual TUI through the toolchain container on an interactive terminal
 - `make test-plain`
   - Use when: force the plain shell output even on an interactive terminal
 - `make dev`

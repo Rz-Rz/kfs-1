@@ -59,6 +59,7 @@ cmd_check() {
 	need_cmd mtools
 
 	need_cmd python3
+	need_cmd rsync
 	need_cmd shellcheck
 	need_cmd shfmt
 	need_cmd qemu-system-i386
@@ -95,12 +96,6 @@ cmd_install_hint() {
 This repo's canonical workflow uses the container toolchain (recommended):
   make container-image
   make container-env-check
-
-Optional host-side TUI dependencies:
-  python3, python3-venv
-  python3-pip, ruff, black
-  make test-ui-bootstrap
-  shellcheck, shfmt, rustfmt
 
 If you still want to install tools natively, you need at least:
   nasm, qemu-system-i386, grub-mkrescue, xorriso, mtools, make, binutils

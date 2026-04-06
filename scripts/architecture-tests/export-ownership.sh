@@ -74,34 +74,41 @@ is_disallowed_export_file() {
 extract_no_mangle_exports() {
 	local file="$1"
 
-	awk '
-    BEGIN { pending = 0 }
-    {
-      gsub(/\r/, "", $0)
-      line = $0
+	python3 - "$file" <<'PY'
+import re
+import sys
 
-      if (line ~ /^[[:space:]]*#\[no_mangle\][[:space:]]*$/) {
-        pending = 1
-        next
-      }
+path = sys.argv[1]
+pending = False
+inline = re.compile(r'^\s*#\[no_mangle\].*(?:fn|const|static)\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)')
+pending_decl = re.compile(
+    r'^\s*pub\s+(?:unsafe\s+)?(?:extern\s+"C"\s+)?(?:fn|const|static)\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)'
+)
 
-      if (match(line, /^[[:space:]]*#\[no_mangle\].*(fn|const|static)[[:space:]]+(mut[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)/, name)) {
-        print name[3]
-        pending = 0
-        next
-      }
+with open(path, encoding="utf-8") as handle:
+    for raw_line in handle:
+        line = raw_line.rstrip("\r\n")
+        inline_match = inline.match(line)
+        if inline_match:
+            print(inline_match.group(1))
+            pending = False
+            continue
 
-      if (pending == 1) {
-        if (line ~ /^[[:space:]]*$/ || line ~ /^[[:space:]]*\/\// || line ~ /^[[:space:]]*#\[/) {
-          next
-        }
-        if (match(line, /^[[:space:]]*pub[[:space:]]+(unsafe[[:space:]]+)?(extern[[:space:]]+"C"[[:space:]]+)?(fn|const|static)[[:space:]]+(mut[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)/, name)) {
-          print name[5]
-        }
-        pending = 0
-      }
-    }
-  ' "$file"
+        if re.match(r'^\s*#\[no_mangle\]\s*$', line):
+            pending = True
+            continue
+
+        if not pending:
+            continue
+
+        if re.match(r'^\s*$', line) or re.match(r'^\s*//', line) or re.match(r'^\s*#\[', line):
+            continue
+
+        pending_match = pending_decl.match(line)
+        if pending_match:
+            print(pending_match.group(1))
+        pending = False
+PY
 }
 
 collect_source_exports() {

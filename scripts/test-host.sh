@@ -20,6 +20,7 @@ ACTIVE_LOCAL_JOBS=0
 ACTIVE_HEAVY_JOBS=0
 WORKSPACE_POOL_ROOT=""
 WORKSPACE_COUNT=0
+MAKE_BIN="${MAKE:-make}"
 declare -A ACTIVE_CASE_SECTION=()
 declare -A ACTIVE_CASE_SUBGROUP=()
 declare -A ACTIVE_CASE_TITLE=()
@@ -32,6 +33,25 @@ declare -A ACTIVE_CASE_STARTED_MS=()
 declare -A PRINTED_SECTION_HEADERS=()
 declare -a WORKSPACE_DIRS=()
 declare -a WORKSPACE_BUSY=()
+declare -a MANIFEST_SECTIONS=(
+	"LINT"
+	"TOOLCHAIN"
+	"BUILD"
+	"ARTIFACT CHECKS"
+	"HOST UNIT TESTS"
+	"ARCHITECTURE TESTS"
+	"STABILITY TESTS"
+	"REJECTION TESTS"
+	"BOOT TESTS"
+)
+declare -a EXECUTION_SECTIONS=(
+	"ARTIFACT CHECKS"
+	"HOST UNIT TESTS"
+	"ARCHITECTURE TESTS"
+	"STABILITY TESTS"
+	"REJECTION TESTS"
+	"BOOT TESTS"
+)
 
 if [[ "${ARCH}" == "--manifest" ]]; then
 	MODE="manifest"
@@ -183,22 +203,11 @@ resolved_parallel_jobs() {
 	esac
 }
 
-heavy_parallel_jobs() {
-	local total="$1"
-
-	if ((total <= 1)); then
-		printf '0\n'
-		return 0
-	fi
-
-	printf '%s\n' $(((total + 1) / 2))
-}
-
 case_execution_mode() {
-	local path="$1"
+	local section="$1"
 
-	case "${path}" in
-	*/tests/unit/*)
+	case "${section}" in
+	"ARTIFACT CHECKS" | "HOST UNIT TESTS")
 		printf '%s\n' "local"
 		;;
 	*)
@@ -311,31 +320,56 @@ persist_case_log() {
 	fi
 }
 
+append_script_cases() {
+	local title="$1"
+	local base_dir="$2"
+	local path="$3"
+	local entries="$4"
+	local subgroup
+	local test_case
+	local description
+
+	subgroup="$(dirname "${path}")"
+	subgroup="${subgroup#"${base_dir}"}"
+	subgroup="${subgroup#/}"
+	[[ -n "${subgroup}" ]] || subgroup="-"
+
+	while IFS= read -r test_case; do
+		[[ -n "${test_case}" ]] || continue
+		description="$(bash "${path}" --description "${test_case}")"
+		[[ -n "${description}" ]] || die "missing description in ${path} for case ${test_case}"
+		printf '%s\t%s\t%s\t%s\t%s\n' "${title}" "${subgroup}" "${path}" "${test_case}" "${description}" >>"${entries}"
+	done < <(bash "${path}" --list)
+}
+
 collect_section_entries() {
 	local title="$1"
 	local dir="$2"
 	local entries="$3"
 	local path
-	local subgroup
-	local test_case
-	local description
 
 	[[ -d "${dir}" ]] || die "missing test directory: ${dir}"
 
 	while IFS= read -r path; do
 		[[ -n "${path}" ]] || continue
-		subgroup="$(dirname "${path}")"
-		subgroup="${subgroup#"${dir}"}"
-		subgroup="${subgroup#/}"
-		[[ -n "${subgroup}" ]] || subgroup="-"
-		while IFS= read -r test_case; do
-			[[ -n "${test_case}" ]] || continue
-
-			description="$(bash "${path}" --description "${test_case}")"
-			[[ -n "${description}" ]] || die "missing description in ${path} for case ${test_case}"
-			printf '%s\t%s\t%s\t%s\t%s\n' "${title}" "${subgroup}" "${path}" "${test_case}" "${description}" >>"${entries}"
-		done < <(bash "${path}" --list)
+		append_script_cases "${title}" "${dir}" "${path}" "${entries}"
 	done < <(find "${dir}" -type f -name '*.sh' | sort)
+}
+
+collect_tests_entries() {
+	local entries="$1"
+	local path
+
+	[[ -d "${SCRIPT_ROOT}/tests" ]] || die "missing test directory: ${SCRIPT_ROOT}/tests"
+
+	while IFS= read -r path; do
+		[[ -n "${path}" ]] || continue
+		if [[ "${path}" == */tests/unit/* ]]; then
+			append_script_cases "HOST UNIT TESTS" "${SCRIPT_ROOT}/tests/unit" "${path}" "${entries}"
+		else
+			append_script_cases "ARTIFACT CHECKS" "${SCRIPT_ROOT}/tests" "${path}" "${entries}"
+		fi
+	done < <(find "${SCRIPT_ROOT}/tests" -type f -name '*.sh' | sort)
 }
 
 format_subsection_title() {
@@ -356,9 +390,14 @@ build_manifest() {
 	if [[ "${RUN_LINT}" == "1" ]]; then
 		printf '%s\t%s\t%s\t%s\t%s\n' "LINT" "-" "-" "-" "Run lint checks" >>"${entries}"
 	fi
-	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify host test tools exist" >>"${entries}"
-	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify shared release/test/variant artifacts exist" >>"${entries}"
-	collect_section_entries "TESTS" "${SCRIPT_ROOT}/tests" "${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "TOOLCHAIN" "-" "-" "-" "Ensure the toolchain container image is ready" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "TOOLCHAIN" "-" "-" "-" "Validate the container toolchain environment" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build canonical release ISO and IMG artifacts" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build test and variant ISO and IMG artifacts" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build compact UI ISO artifact" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build rejection proof artifacts" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build reproducibility proof artifacts" >>"${entries}"
+	collect_tests_entries "${entries}"
 	if [[ -d "${SCRIPT_ROOT}/architecture-tests" ]]; then
 		collect_section_entries "ARCHITECTURE TESTS" "${SCRIPT_ROOT}/architecture-tests" "${entries}"
 	fi
@@ -381,7 +420,7 @@ emit_manifest() {
 	total="$(wc -l <"${entries}")"
 	emit_event "suite" "${ARCH}" "${total}"
 
-	for section in "LINT" "SETUP" "TESTS" "ARCHITECTURE TESTS" "STABILITY TESTS" "REJECTION TESTS" "BOOT TESTS"; do
+	for section in "${MANIFEST_SECTIONS[@]}"; do
 		count="$(awk -F'\t' -v section="${section}" '$1 == section { count += 1 } END { print count + 0 }' "${entries}")"
 		emit_event "section_total" "${section}" "${count}"
 	done
@@ -571,10 +610,11 @@ reap_next_case() {
 	complete_case "${pid}" "${rc}"
 }
 
-run_parallel_cases() {
-	local entries="$1"
-	local max_jobs="$2"
-	local heavy_jobs="$3"
+run_parallel_section() {
+	local title="$1"
+	local entries="$2"
+	local max_jobs="$3"
+	local effective_heavy_jobs=0
 	local local_jobs=0
 	local local_pending=()
 	local heavy_pending=()
@@ -591,30 +631,42 @@ run_parallel_cases() {
 	local scheduled
 
 	while IFS=$'\t' read -r section subgroup path test_case description; do
-		case "${section}" in
-		"TESTS" | "ARCHITECTURE TESTS" | "STABILITY TESTS" | "REJECTION TESTS" | "BOOT TESTS")
-			mode="$(case_execution_mode "${path}")"
-			item="${section}"$'\t'"${subgroup}"$'\t'"${path}"$'\t'"${test_case}"$'\t'"${description}"
-			if [[ "${mode}" == "workspace" ]]; then
-				heavy_pending+=("${item}")
-			else
-				local_pending+=("${item}")
-			fi
-			;;
-		*)
+		if [[ "${section}" != "${title}" ]]; then
 			continue
-			;;
-		esac
+		fi
+
+		mode="$(case_execution_mode "${section}")"
+		item="${section}"$'\t'"${subgroup}"$'\t'"${path}"$'\t'"${test_case}"$'\t'"${description}"
+		if [[ "${mode}" == "workspace" ]]; then
+			heavy_pending+=("${item}")
+		else
+			local_pending+=("${item}")
+		fi
 	done <"${entries}"
 
-	local_jobs=$((max_jobs - heavy_jobs))
+	if ((${#heavy_pending[@]} == 0 && ${#local_pending[@]} == 0)); then
+		return 0
+	fi
+
+	if ((${#heavy_pending[@]} > 0)); then
+		effective_heavy_jobs="${max_jobs}"
+		if ((${#local_pending[@]} > 0 && max_jobs > 1)); then
+			effective_heavy_jobs=$((max_jobs / 2))
+			((effective_heavy_jobs >= 1)) || effective_heavy_jobs=1
+			((effective_heavy_jobs < max_jobs)) || effective_heavy_jobs=$((max_jobs - 1))
+		fi
+	fi
+
+	local_jobs=$((max_jobs - effective_heavy_jobs))
 
 	while ((local_index < ${#local_pending[@]} || heavy_index < ${#heavy_pending[@]} || RUNNING_JOBS > 0)); do
 		scheduled=0
 		while ((RUNNING_JOBS < max_jobs)); do
 			workspace_slot=""
 			if ((heavy_index < ${#heavy_pending[@]})); then
-				workspace_slot="$(find_free_workspace_slot || true)"
+				if ((effective_heavy_jobs > 0 && ACTIVE_HEAVY_JOBS < effective_heavy_jobs)); then
+					workspace_slot="$(find_free_workspace_slot || true)"
+				fi
 				if [[ -n "${workspace_slot}" ]]; then
 					item="${heavy_pending[heavy_index]}"
 					heavy_index=$((heavy_index + 1))
@@ -650,7 +702,7 @@ run_parallel_cases() {
 		fi
 	done
 
-	return "${TEST_FAILURES}"
+	return 0
 }
 
 [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
@@ -694,33 +746,69 @@ if [[ "${RUN_LINT}" == "1" ]]; then
 fi
 
 color "1;34"
-printf '%s\n' "SETUP"
+printf '%s\n' "TOOLCHAIN"
 reset_color
-emit_event "section" "SETUP"
-if ! run_item "SETUP" "-" "Verify host test tools exist" "-" "-" \
-	bash -lc 'command -v rg >/dev/null 2>&1'; then
+emit_event "section" "TOOLCHAIN"
+if ! run_item "TOOLCHAIN" "-" "Ensure the toolchain container image is ready" "-" "-" \
+	bash -lc "${MAKE_BIN} --no-print-directory container-image arch=${ARCH}"; then
 	emit_event "summary" "fail"
 	exit 1
 fi
 
-if ! run_item "SETUP" "-" "Verify shared release/test/variant artifacts exist" "-" "-" \
-	bash -lc "test -r 'build/os-${ARCH}.img' && test -r 'build/os-${ARCH}-test.img' && test -r 'build/os-${ARCH}-compact40x10.iso' && test -r 'build/rejections/section-${ARCH}-text-missing.stamp' && test -r 'build/rejections/layout-${ARCH}-bss-before-kernel.stamp' && test -r 'build/rejections/freestanding-${ARCH}-interp-pt-interp-present.stamp' && test -r 'build/reproducible/${ARCH}-release-artifacts-match-across-clean-rebuilds.stamp' && test -r 'build/reproducible/${ARCH}-release-artifacts-match-across-workdirs.stamp'"; then
+if ! run_item "TOOLCHAIN" "-" "Validate the container toolchain environment" "-" "-" \
+	bash -lc "${MAKE_BIN} --no-print-directory container-env-check arch=${ARCH}"; then
+	emit_event "summary" "fail"
+	exit 1
+fi
+
+printf '\n'
+color "1;34"
+printf '%s\n' "BUILD"
+reset_color
+emit_event "section" "BUILD"
+if ! run_item "BUILD" "-" "Build canonical release ISO and IMG artifacts" "-" "-" \
+	bash -lc "KFS_FORCE_REBUILD=1 ${MAKE_BIN} --no-print-directory test-release-artifacts arch=${ARCH}"; then
+	emit_event "summary" "fail"
+	exit 1
+fi
+
+if ! run_item "BUILD" "-" "Build test and variant ISO and IMG artifacts" "-" "-" \
+	bash -lc "KFS_FORCE_REBUILD=1 ${MAKE_BIN} --no-print-directory test-variant-artifacts arch=${ARCH}"; then
+	emit_event "summary" "fail"
+	exit 1
+fi
+
+if ! run_item "BUILD" "-" "Build compact UI ISO artifact" "-" "-" \
+	bash -lc "KFS_FORCE_REBUILD=1 ${MAKE_BIN} --no-print-directory test-ui-artifacts arch=${ARCH}"; then
+	emit_event "summary" "fail"
+	exit 1
+fi
+
+if ! run_item "BUILD" "-" "Build rejection proof artifacts" "-" "-" \
+	bash -lc "${MAKE_BIN} --no-print-directory -B negative-test-proofs arch=${ARCH}"; then
+	emit_event "summary" "fail"
+	exit 1
+fi
+
+if ! run_item "BUILD" "-" "Build reproducibility proof artifacts" "-" "-" \
+	bash -lc "${MAKE_BIN} --no-print-directory -B reproducible-builds arch=${ARCH}"; then
 	emit_event "summary" "fail"
 	exit 1
 fi
 
 PARALLEL_JOBS="$(resolved_parallel_jobs)"
-WORKSPACE_COUNT="$(heavy_parallel_jobs "${PARALLEL_JOBS}")"
+WORKSPACE_COUNT="${PARALLEL_JOBS}"
 init_workspace_pool "${WORKSPACE_COUNT}"
 info "parallel jobs: ${PARALLEL_JOBS}"
 if ((WORKSPACE_COUNT > 0)); then
 	printf '\n'
-	info "heavy workers: ${WORKSPACE_COUNT}"
+	info "workspace workers: ${WORKSPACE_COUNT}"
 fi
 printf '\n'
 
-run_parallel_cases "${ENTRIES_FILE}" "${PARALLEL_JOBS}" "${WORKSPACE_COUNT}"
-TEST_FAILURES="$?"
+for section in "${EXECUTION_SECTIONS[@]}"; do
+	run_parallel_section "${section}" "${ENTRIES_FILE}" "${PARALLEL_JOBS}"
+done
 
 printf '\n'
 if [[ "${TEST_FAILURES}" -eq 0 ]]; then

@@ -46,6 +46,8 @@ ACTIVE_CYCLE_SECS = 5.0
 ACTIVE_SEGMENT_RATIO = 0.10
 RUNNER_TICK_SECS = 0.05
 MAX_ACTIVE_CELLS = 128
+GRID_COLUMNS = 3
+GRID_ROWS = 2
 
 CSS = f"""
 Screen {{
@@ -76,7 +78,7 @@ Screen {{
 }}
 
 #grid {{
-    grid-size: 2 2;
+    grid-size: 3 2;
     grid-gutter: 0 1;
     padding: 0 1;
     height: 1fr;
@@ -225,8 +227,10 @@ ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 EVENT_PREFIX = "KFS_EVENT|"
 KNOWN_SECTIONS = {
     "LINT",
-    "SETUP",
-    "TESTS",
+    "TOOLCHAIN",
+    "BUILD",
+    "ARTIFACT CHECKS",
+    "HOST UNIT TESTS",
     "ARCHITECTURE TESTS",
     "STABILITY TESTS",
     "REJECTION TESTS",
@@ -234,24 +238,37 @@ KNOWN_SECTIONS = {
 }
 SECTION_TO_PANEL = {
     "LINT": 0,
-    "SETUP": 0,
-    "TESTS": 1,
-    "ARCHITECTURE TESTS": 2,
-    "STABILITY TESTS": 2,
-    "REJECTION TESTS": 2,
-    "BOOT TESTS": 3,
+    "TOOLCHAIN": 0,
+    "BUILD": 1,
+    "ARTIFACT CHECKS": 2,
+    "HOST UNIT TESTS": 3,
+    "ARCHITECTURE TESTS": 4,
+    "STABILITY TESTS": 4,
+    "REJECTION TESTS": 4,
+    "BOOT TESTS": 5,
 }
-PANEL_TITLES = ["LINT / SETUP", "TESTS", "ARCHITECTURE / STABILITY / REJECTION", "BOOT TESTS"]
+PANEL_TITLES = [
+    "Lint / Toolchain",
+    "Artifact Build",
+    "Artifact Checks",
+    "Host Unit Tests",
+    "Contracts / Proofs",
+    "Boot / Runtime",
+]
 PANEL_SECTIONS = {
-    0: ["LINT", "SETUP"],
-    1: ["TESTS"],
-    2: ["ARCHITECTURE TESTS", "STABILITY TESTS", "REJECTION TESTS"],
-    3: ["BOOT TESTS"],
+    0: ["LINT", "TOOLCHAIN"],
+    1: ["BUILD"],
+    2: ["ARTIFACT CHECKS"],
+    3: ["HOST UNIT TESTS"],
+    4: ["ARCHITECTURE TESTS", "STABILITY TESTS", "REJECTION TESTS"],
+    5: ["BOOT TESTS"],
 }
 SECTION_LABELS = {
     "LINT": "LINT",
-    "SETUP": "SETUP",
-    "TESTS": "TESTS",
+    "TOOLCHAIN": "TOOLCHAIN",
+    "BUILD": "BUILD",
+    "ARTIFACT CHECKS": "ARTIFACT",
+    "HOST UNIT TESTS": "UNIT",
     "ARCHITECTURE TESTS": "ARCH",
     "STABILITY TESTS": "STABILITY",
     "REJECTION TESTS": "REJECTION",
@@ -282,41 +299,39 @@ BOOT_FRAMES = [
 DEMO_LINES = """KFS_EVENT|suite|i386
 KFS_EVENT|suite_total|6
 KFS_EVENT|section_total|LINT|1
-KFS_EVENT|section_total|SETUP|3
-KFS_EVENT|section_total|ARCHITECTURE TESTS|1
-KFS_EVENT|section_total|BOOT TESTS|2
+KFS_EVENT|section_total|TOOLCHAIN|2
+KFS_EVENT|section_total|BUILD|1
+KFS_EVENT|section_total|HOST UNIT TESTS|1
+KFS_EVENT|section_total|BOOT TESTS|1
 KFS_EVENT|declare|LINT|-|Run lint checks|-|-
-KFS_EVENT|declare|SETUP|-|Rebuild the container toolchain image|-|-
-KFS_EVENT|declare|SETUP|-|Verify tools exist|-|-
-KFS_EVENT|declare|SETUP|-|Verify host test tools exist|-|-
+KFS_EVENT|declare|TOOLCHAIN|-|Ensure the toolchain container image is ready|-|-
+KFS_EVENT|declare|TOOLCHAIN|-|Validate the container toolchain environment|-|-
+KFS_EVENT|declare|BUILD|-|Build canonical release ISO and IMG artifacts|-|-
 KFS_EVENT|section|LINT
 KFS_EVENT|start|LINT|-|Run lint checks|-|-
 Run lint checks PASS
 KFS_EVENT|result|LINT|-|Run lint checks|pass|-|-
-KFS_EVENT|declare|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
+KFS_EVENT|declare|HOST UNIT TESTS|-|host string helper unit tests pass through the real crate boundary|scripts/tests/unit/string-helpers.sh|host-strlen-unit-tests-pass
 KFS_EVENT|declare|BOOT TESTS|-|runtime reaches Rust kmain|scripts/boot-tests/release-kmain-symbol.sh|runtime-reaches-kmain
-KFS_EVENT|declare|BOOT TESTS|-|runtime markers appear in the expected order|scripts/boot-tests/runtime-markers.sh|runtime-markers-ordered
-KFS_EVENT|section|SETUP
-KFS_EVENT|start|SETUP|-|Rebuild the container toolchain image|-|-
-Rebuild the container toolchain image PASS
-KFS_EVENT|result|SETUP|-|Rebuild the container toolchain image|pass|-|-
-KFS_EVENT|start|SETUP|-|Verify tools exist|-|-
-Verify tools exist PASS
-KFS_EVENT|result|SETUP|-|Verify tools exist|pass|-|-
-KFS_EVENT|start|SETUP|-|Verify host test tools exist|-|-
-Verify host test tools exist PASS
-KFS_EVENT|result|SETUP|-|Verify host test tools exist|pass|-|-
-KFS_EVENT|section|ARCHITECTURE TESTS
-KFS_EVENT|start|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
-kernel architecture files stay in allowed directories PASS
-KFS_EVENT|result|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|pass|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
+KFS_EVENT|section|TOOLCHAIN
+KFS_EVENT|start|TOOLCHAIN|-|Ensure the toolchain container image is ready|-|-
+Ensure the toolchain container image is ready PASS
+KFS_EVENT|result|TOOLCHAIN|-|Ensure the toolchain container image is ready|pass|-|-
+KFS_EVENT|start|TOOLCHAIN|-|Validate the container toolchain environment|-|-
+Validate the container toolchain environment PASS
+KFS_EVENT|result|TOOLCHAIN|-|Validate the container toolchain environment|pass|-|-
+KFS_EVENT|section|BUILD
+KFS_EVENT|start|BUILD|-|Build canonical release ISO and IMG artifacts|-|-
+Build canonical release ISO and IMG artifacts PASS
+KFS_EVENT|result|BUILD|-|Build canonical release ISO and IMG artifacts|pass|-|-
+KFS_EVENT|section|HOST UNIT TESTS
+KFS_EVENT|start|HOST UNIT TESTS|-|host string helper unit tests pass through the real crate boundary|scripts/tests/unit/string-helpers.sh|host-strlen-unit-tests-pass
+host string helper unit tests pass through the real crate boundary PASS
+KFS_EVENT|result|HOST UNIT TESTS|-|host string helper unit tests pass through the real crate boundary|pass|scripts/tests/unit/string-helpers.sh|host-strlen-unit-tests-pass
 KFS_EVENT|section|BOOT TESTS
 KFS_EVENT|start|BOOT TESTS|-|runtime reaches Rust kmain|scripts/boot-tests/release-kmain-symbol.sh|runtime-reaches-kmain
 runtime reaches Rust kmain PASS
 KFS_EVENT|result|BOOT TESTS|-|runtime reaches Rust kmain|pass|scripts/boot-tests/release-kmain-symbol.sh|runtime-reaches-kmain
-KFS_EVENT|start|BOOT TESTS|-|runtime markers appear in the expected order|scripts/boot-tests/runtime-markers.sh|runtime-markers-ordered
-runtime markers appear in the expected order PASS
-KFS_EVENT|result|BOOT TESTS|-|runtime markers appear in the expected order|pass|scripts/boot-tests/runtime-markers.sh|runtime-markers-ordered
 KFS_EVENT|summary|pass""".splitlines()
 
 
@@ -826,6 +841,7 @@ class KFSApp(App):
         self.mode = mode
         self.arch = arch
         self.runner_target = runner_target
+        self.hold_open = os.environ.get("KFS_TUI_HOLD", "0") == "1"
         self.current_section: Optional[str] = None
         self.suite_total = 0
         self.discovered_total = 0
@@ -858,6 +874,8 @@ class KFSApp(App):
             cards=[],
         )
         self.run_started_at: Optional[float] = None
+        self.final_return_code = 0
+        self.auto_exit_scheduled = False
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
@@ -991,9 +1009,9 @@ class KFSApp(App):
         if stripped.endswith(" PASS") or stripped.endswith(" FAIL"):
             passed = stripped.endswith(" PASS")
             name = stripped[:-5].strip()
-            section = self.current_section or "SETUP"
+            section = self.current_section or "TOOLCHAIN"
             subgroup = "-"
-            panel_index = SECTION_TO_PANEL.get(self.current_section or "SETUP", 0)
+            panel_index = SECTION_TO_PANEL.get(self.current_section or "TOOLCHAIN", 0)
             if passed:
                 self.call_from_thread(
                     self._complete_item, panel_index, section, subgroup, name, True, []
@@ -1413,7 +1431,10 @@ class KFSApp(App):
             )
 
     def _finish(self, passed: bool) -> None:
+        if self.done:
+            return
         self.done = True
+        self.final_return_code = 0 if passed else 1
         self.active_runner_started_at = None
         self.active_panel_counts.clear()
         self._update_panel_summaries()
@@ -1421,6 +1442,9 @@ class KFSApp(App):
         self._sync_active_runner()
         self._update_top_status()
         self._update_rerun_button()
+        if not self.hold_open and not self.auto_exit_scheduled:
+            self.auto_exit_scheduled = True
+            self.set_timer(1.0, lambda: self.exit(return_code=self.final_return_code))
 
     def _tick(self) -> None:
         if self.boot_done and not self.done:
@@ -1431,7 +1455,7 @@ class KFSApp(App):
     def toggle_panel(self, panel_id: int) -> None:
         if self.expanded_panel == panel_id:
             self.expanded_panel = None
-            for index in range(4):
+            for index in range(len(PANEL_TITLES)):
                 panel = self.query_one(f"#panel_{index}", TestPanel)
                 panel.display = True
                 panel.remove_class("expanded")
@@ -1441,19 +1465,22 @@ class KFSApp(App):
             return
 
         self.expanded_panel = panel_id
-        for index in range(4):
+        for index in range(len(PANEL_TITLES)):
             panel = self.query_one(f"#panel_{index}", TestPanel)
             if index == panel_id:
                 panel.display = True
                 panel.add_class("expanded")
-                panel.styles.column_span = 2
-                panel.styles.row_span = 2
+                panel.styles.column_span = GRID_COLUMNS
+                panel.styles.row_span = GRID_ROWS
             else:
                 panel.display = False
         self.call_after_refresh(self._sync_active_runner)
 
     def action_quit(self) -> None:
-        self.exit()
+        if self.done:
+            self.exit(return_code=self.final_return_code)
+            return
+        self.exit(return_code=130)
 
     def action_rerun_failed(self) -> None:
         if self.last_failed_rerun is None or self.rerun_in_progress:

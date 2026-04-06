@@ -112,10 +112,9 @@ TEST_ASM_DEFS = -DKFS_TEST=1 \
 TEST_TIMEOUT_SECS ?= 10
 TEST_PASS_RC ?= 33
 TEST_FAIL_RC ?= 35
-test_ui_venv := .venv-test-ui
-test_ui_python := $(if $(wildcard $(test_ui_venv)/bin/python),$(test_ui_venv)/bin/python,$(PYTHON))
 lint_script := scripts/lint.sh
 lint_required_tools := bash python3 rg rustfmt rustc shellcheck shfmt black ruff
+toolchain_image_stamp := build/.toolchain-image.stamp
 
 define package_iso_rule
 	$(Q)mkdir -p build/isofiles/boot/grub
@@ -137,17 +136,17 @@ kernel_test_$(1)_objects := $(patsubst src/arch/$(arch)/%.asm,build/arch/$(arch)
 
 $$(kernel_test_$(1)_objects) $$(kernel_test_$(1)) $$(iso_test_$(1)): $(3)
 
-$$(kernel_test_$(1)): $$(kernel_test_$(1)_objects) $(rust_object_files) $(linker_script) | container-image
+$$(kernel_test_$(1)): $$(kernel_test_$(1)_objects) $(rust_object_files) $(linker_script) $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | container-image
 	$$(call announce_step,LINK-TEST,link test assembly and Rust objects into the final test kernel binary,rule: test assembly objects + $(rust_object_files) -> $$@ using ld in Docker)
 	$$(Q)$$(call toolchain_exec,ld -m elf_i386 -n -T $(linker_script) -o $$@ $$(kernel_test_$(1)_objects) $(rust_object_files))
 	$$(call announce_step,OBJCOPY,trim the final test kernel to the allowed exported global symbols,rule: keep symbols listed in $(kernel_keepglobals) inside $$@)
 	$$(Q)$$(call toolchain_exec,objcopy --keep-global-symbols=$(kernel_keepglobals) $$@)
 
-$$(iso_test_$(1)): $$(kernel_test_$(1)) $(grub_cfg) | container-image
+$$(iso_test_$(1)): $$(kernel_test_$(1)) $(grub_cfg) $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | container-image
 	$$(call announce_step,ISO-TEST,package the test kernel and GRUB config into a bootable ISO,rule: $$< + $(grub_cfg) -> $$@ using grub-mkrescue in Docker)
 	$$(call package_iso_rule,$$(kernel_test_$(1)),$$(iso_test_$(1)))
 
-build/arch/$(arch)/test-$(2)/%.o: src/arch/$(arch)/%.asm | container-image
+build/arch/$(arch)/test-$(2)/%.o: src/arch/$(arch)/%.asm $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | container-image
 	$$(call announce_step,ASM-TEST,assemble one test assembly source file into one ELF32 object file,rule: $$< -> $$@ using nasm in Docker)
 	$$(Q)mkdir -p $$(dir $$@)
 	$$(Q)$$(call toolchain_exec,nasm -felf32 $$(TEST_ASM_DEFS) $$< -o $$@)
@@ -208,9 +207,10 @@ FORCE:
 	metrics-sync \
 	lint test test-plain test-ui test-ui-demo test-ui-bootstrap \
 	dev iso-in-container run-in-container \
-	run-ui run-ui-compact \
-	iso-test test-artifacts test-prep test-host test-qemu test-vga reproducible-builds \
-	img img-test run-img host-rust-test
+		run-ui run-ui-compact \
+		iso-test toolchain-ready test-release-artifacts test-variant-artifacts test-ui-artifacts \
+		negative-test-proofs test-artifacts test-prep test-host test-qemu test-vga reproducible-builds \
+		img img-test run-img host-rust-test
 
 all: $(kernel)
 
@@ -278,11 +278,21 @@ run-img: $(img)
 
 img: $(img)
 
-test-artifacts: $(img) $(img_test) $(iso_compact) $(test_variant_isos) $(test_proof_stamps)
+toolchain-ready: container-image container-env-check
+
+test-release-artifacts: $(img)
+
+test-variant-artifacts: $(img_test) $(test_variant_isos)
+
+test-ui-artifacts: $(iso_compact)
+
+negative-test-proofs: $(negative_test_stamps)
+
+test-artifacts: test-release-artifacts test-variant-artifacts test-ui-artifacts negative-test-proofs reproducible-builds
 
 reproducible-builds: $(reproducible_build_stamps)
 
-test-prep: container-image container-env-check test-artifacts
+test-prep: toolchain-ready test-artifacts
 
 $(img): $(iso) $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,)
 	$(call announce_step,IMG,copy the ISO bytes into the IMG artifact,rule: $(iso) -> $(img))
@@ -316,13 +326,13 @@ $(rust_object_files_compact): src/main.rs | $(rust_output_dir_compact) container
 $(kernel_compact): KFS_SCREEN_GEOMETRY_PRESET := compact40x10
 $(iso_compact): KFS_SCREEN_GEOMETRY_PRESET := compact40x10
 
-$(kernel_compact): $(assembly_object_files) $(rust_object_files_compact) $(linker_script) | container-image
+$(kernel_compact): $(assembly_object_files) $(rust_object_files_compact) $(linker_script) $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | container-image
 	$(call announce_step,LINK,link all assembly and Rust objects into the final kernel binary,rule: assembly objects + $(rust_object_files_compact) -> $(kernel_compact) using ld in Docker)
 	$(Q)$(call toolchain_exec,ld -m elf_i386 -n -T $(linker_script) -o $(kernel_compact) $(assembly_object_files) $(rust_object_files_compact))
 	$(call announce_step,OBJCOPY,trim the final kernel to the allowed exported global symbols,rule: keep symbols listed in $(kernel_keepglobals) inside $(kernel_compact))
 	$(Q)$(call toolchain_exec,objcopy --keep-global-symbols=$(kernel_keepglobals) $(kernel_compact))
 
-$(iso_compact): $(kernel_compact) $(grub_cfg) | container-image
+$(iso_compact): $(kernel_compact) $(grub_cfg) $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | container-image
 	$(call announce_step,ISO,package the kernel and GRUB config into a bootable ISO,rule: $(kernel_compact) + $(grub_cfg) -> $(iso_compact) using grub-mkrescue in Docker)
 	$(call package_iso_rule,$(kernel_compact),$(iso_compact))
 
@@ -330,22 +340,22 @@ iso-test: $(iso_test)
 
 img-test: $(img_test)
 
-$(img_test): $(iso_test)
+$(img_test): $(iso_test) $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,)
 	$(call announce_step,IMG-TEST,copy the test ISO bytes into the test IMG artifact,rule: $(iso_test) -> $(img_test))
 	$(Q)cp $(iso_test) $(img_test)
 
-$(iso_test): $(kernel_test) $(grub_cfg) | container-image
+$(iso_test): $(kernel_test) $(grub_cfg) $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | container-image
 	$(call announce_step,ISO-TEST,package the test kernel and GRUB config into a bootable ISO,rule: $(kernel_test) + $(grub_cfg) -> $(iso_test) using grub-mkrescue in Docker)
 	$(call package_iso_rule,$(kernel_test),$(iso_test))
 
-$(kernel_test): $(assembly_object_files_test) $(rust_object_files) $(linker_script) | container-image
+$(kernel_test): $(assembly_object_files_test) $(rust_object_files) $(linker_script) $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | container-image
 	$(call announce_step,LINK-TEST,link test assembly and Rust objects into the final test kernel binary,rule: test assembly objects + $(rust_object_files) -> $(kernel_test) using ld in Docker)
 	$(Q)$(call toolchain_exec,ld -m elf_i386 -n -T $(linker_script) -o $(kernel_test) $(assembly_object_files_test) $(rust_object_files))
 	$(call announce_step,OBJCOPY,trim the final test kernel to the allowed exported global symbols,rule: keep symbols listed in $(kernel_keepglobals) inside $(kernel_test))
 	$(Q)$(call toolchain_exec,objcopy --keep-global-symbols=$(kernel_keepglobals) $(kernel_test))
 	@KFS_M3_2_KERNEL="$(kernel_test)" bash scripts/tests/kernel-sections.sh $(arch)
 
-build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm | container-image
+build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | container-image
 	$(call announce_step,ASM-TEST,assemble one test assembly source file into one ELF32 object file,rule: $< -> $@ using nasm in Docker)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(call toolchain_exec,nasm -felf32 $(TEST_ASM_DEFS) $< -o $@)
@@ -385,11 +395,23 @@ container-image:
 	elif [ -z "$(container_engine)" ]; then \
 		echo "error: no container engine found (install podman or docker)" >&2; \
 		exit 1; \
-	elif [ "$(KFS_FORCE_IMAGE_BUILD)" != "1" ] && $(container_engine) image inspect "$(toolchain_image)" >/dev/null 2>&1; then \
-		true; \
 	else \
-		echo "container: building image $(toolchain_image) (engine=$(container_engine))"; \
-		$(container_engine) build -t "$(toolchain_image)" -f "$(toolchain_containerfile)" .; \
+		mkdir -p build; \
+		need_build=0; \
+		if [ "$(KFS_FORCE_IMAGE_BUILD)" = "1" ]; then \
+			need_build=1; \
+		elif ! $(container_engine) image inspect "$(toolchain_image)" >/dev/null 2>&1; then \
+			need_build=1; \
+		elif [ ! -f "$(toolchain_image_stamp)" ]; then \
+			need_build=1; \
+		elif [ "$(toolchain_containerfile)" -nt "$(toolchain_image_stamp)" ] || [ requirements.txt -nt "$(toolchain_image_stamp)" ]; then \
+			need_build=1; \
+		fi; \
+		if [ "$${need_build}" = "1" ]; then \
+			echo "container: building image $(toolchain_image) (engine=$(container_engine))"; \
+			$(container_engine) build -t "$(toolchain_image)" -f "$(toolchain_containerfile)" .; \
+			touch "$(toolchain_image_stamp)"; \
+		fi; \
 	fi
 
 container-image-force:
@@ -445,8 +467,19 @@ test-qemu: $(img_test) container-image
 		"$(toolchain_image)" \
 		bash scripts/boot-tests/qemu-boot.sh $(arch)
 
-test-host: test-prep
-	@KFS_RUN_LINT=0 bash scripts/test-host.sh $(arch)
+test-host:
+	@bash -lc 'set -euo pipefail; \
+		if [ "$(KFS_INSIDE_CONTAINER)" = "1" ]; then \
+			exec env KFS_RUN_LINT=0 bash scripts/test-host.sh $(arch); \
+		fi; \
+		$(MAKE) --no-print-directory container-image arch=$(arch); \
+		exec $(container_engine) run --rm \
+			-e KFS_INSIDE_CONTAINER=1 \
+			-e KFS_RUN_LINT=0 \
+			-v $(container_mount) -w $(toolchain_workdir) \
+			$(container_user_args) $(container_kvm_args) \
+			"$(toolchain_image)" \
+			bash scripts/test-host.sh $(arch)'
 
 test-vga: $(iso) container-image
 	@$(container_engine) run --rm -t \
@@ -457,7 +490,7 @@ test-vga: $(iso) container-image
 		"$(toolchain_image)" \
 		bash scripts/boot-tests/vga-memory.sh $(arch)
 
-test: test-prep
+test:
 	@bash -lc 'set -euo pipefail; \
 		mode="$${KFS_TEST_UI:-auto}"; \
 		run_lint="$${KFS_SKIP_LINT:-0}"; \
@@ -466,31 +499,30 @@ test: test-prep
 		else \
 			run_lint=1; \
 		fi; \
-		if [[ "$${run_lint}" == "1" ]]; then \
-			$(MAKE) --no-print-directory lint arch=$(arch); \
+		if [ "$(KFS_INSIDE_CONTAINER)" = "1" ]; then \
+			if [[ "$${mode}" == "0" ]] || [[ -n "$${CI:-}" ]] || [[ -n "$${GITHUB_ACTIONS:-}" ]] || [[ ! -t 1 ]]; then \
+				exec env KFS_RUN_LINT="$${run_lint}" bash scripts/test-host.sh $(arch); \
+			fi; \
+			exec env KFS_RUN_LINT="$${run_lint}" python3 scripts/kfs_tui.py --arch "$(arch)" --runner-target test-host; \
 		fi; \
+		$(MAKE) --no-print-directory container-image arch=$(arch); \
 		if [[ "$${mode}" == "0" ]] || [[ -n "$${CI:-}" ]] || [[ -n "$${GITHUB_ACTIONS:-}" ]] || [[ ! -t 1 ]]; then \
-			exec env KFS_RUN_LINT=0 bash scripts/test-host.sh $(arch); \
-		fi; \
-		if "$(test_ui_python)" -c "import textual" >/dev/null 2>&1; then \
-			exec env KFS_RUN_LINT=0 "$(test_ui_python)" scripts/kfs_tui.py --arch "$(arch)" --runner-target test-host; \
-		fi; \
-		if $(container_engine) run --rm -e KFS_INSIDE_CONTAINER=1 -v $(container_mount) -w $(toolchain_workdir) $(container_user_args) "$(toolchain_image)" python3 -c "import textual" >/dev/null 2>&1; then \
-			exec $(container_engine) run --rm $(container_interactive_args) \
+			exec $(container_engine) run --rm \
 				-e KFS_INSIDE_CONTAINER=1 \
-				-e KFS_RUN_LINT=0 \
-				$(if $(TERM),-e TERM="$(TERM)",) \
+				-e KFS_RUN_LINT="$${run_lint}" \
 				-v $(container_mount) -w $(toolchain_workdir) \
-				$(container_user_args) \
+				$(container_user_args) $(container_kvm_args) \
 				"$(toolchain_image)" \
-				python3 scripts/kfs_tui.py --arch "$(arch)" --runner-target test-host; \
+				bash scripts/test-host.sh $(arch); \
 		fi; \
-		if [[ "$${mode}" == "1" ]]; then \
-			echo "error: Textual is not installed on the host or in the toolchain image. Run '\''make test-ui-bootstrap'\'' or rebuild the image." >&2; \
-			exit 2; \
-		fi; \
-		echo "warn: Textual UI dependencies missing on the host and in the toolchain image; falling back to plain test output." >&2; \
-		exec env KFS_RUN_LINT=0 bash scripts/test-host.sh $(arch)'
+		exec $(container_engine) run --rm $(container_interactive_args) \
+			-e KFS_INSIDE_CONTAINER=1 \
+			-e KFS_RUN_LINT="$${run_lint}" \
+			$(if $(TERM),-e TERM="$(TERM)",) \
+			-v $(container_mount) -w $(toolchain_workdir) \
+			$(container_user_args) $(container_kvm_args) \
+			"$(toolchain_image)" \
+			python3 scripts/kfs_tui.py --arch "$(arch)" --runner-target test-host'
 
 lint:
 	@bash -lc 'set -euo pipefail; \
@@ -531,6 +563,12 @@ host-rust-test: container-image
 		KFS_HOST_LIB_RUSTC_FLAGS="$${KFS_HOST_LIB_RUSTC_FLAGS:-}" \
 		KFS_HOST_TEST_RUSTC_FLAGS="$${KFS_HOST_TEST_RUSTC_FLAGS:-}" \
 		"$${KFS_HOST_TEST_BIN_PATH}"; \
+	if [ "$(KFS_INSIDE_CONTAINER)" = "1" ]; then \
+		if [[ -n "$${KFS_HOST_TEST_FILTER:-}" ]]; then \
+			exec "$${KFS_HOST_TEST_BIN_PATH}" "$${KFS_HOST_TEST_FILTER}"; \
+		fi; \
+		exec "$${KFS_HOST_TEST_BIN_PATH}"; \
+	fi; \
 	exec $(container_engine) run --rm \
 		-e KFS_INSIDE_CONTAINER=1 \
 		-e KFS_HOST_TEST_BIN_PATH="$${KFS_HOST_TEST_BIN_PATH}" \
@@ -541,18 +579,29 @@ host-rust-test: container-image
 		bash -lc '\''set -euo pipefail; if [[ -n "$${KFS_HOST_TEST_FILTER:-}" ]]; then "$${KFS_HOST_TEST_BIN_PATH}" "$${KFS_HOST_TEST_FILTER}"; else "$${KFS_HOST_TEST_BIN_PATH}"; fi'\'''
 
 test-plain:
-	@$(PYTHON) scripts/kfs_test_runner.py --arch $(arch) --runner-target test-plain
+	@KFS_TEST_UI=0 $(MAKE) --no-print-directory test arch=$(arch)
 
 test-ui:
-	@KFS_TEST_UI=1 $(MAKE) --no-print-directory test arch=$(arch)
+	@KFS_TEST_UI=1 KFS_TUI_HOLD=1 $(MAKE) --no-print-directory test arch=$(arch)
 
 test-ui-demo:
-	@"$(test_ui_python)" scripts/kfs_tui.py --demo
+	@bash -lc 'set -euo pipefail; \
+		if [ "$(KFS_INSIDE_CONTAINER)" = "1" ]; then \
+			exec env KFS_TUI_HOLD=1 python3 scripts/kfs_tui.py --demo; \
+		fi; \
+		$(MAKE) --no-print-directory container-image arch=$(arch); \
+		exec $(container_engine) run --rm $(container_interactive_args) \
+			-e KFS_INSIDE_CONTAINER=1 \
+			-e KFS_TUI_HOLD=1 \
+			$(if $(TERM),-e TERM="$(TERM)",) \
+			-v $(container_mount) -w $(toolchain_workdir) \
+			$(container_user_args) \
+			"$(toolchain_image)" \
+			python3 scripts/kfs_tui.py --demo'
 
 test-ui-bootstrap:
-	@$(PYTHON) -m venv "$(test_ui_venv)"
-	@"$(test_ui_venv)/bin/python" -m pip install --upgrade pip
-	@"$(test_ui_venv)/bin/pip" install -r requirements.txt
+	@echo "error: host-side TUI bootstrap was removed; use 'make test' or 'make test-ui' through the toolchain container" >&2
+	@exit 2
 
 metrics-sync:
 	@$(PYTHON) scripts/kfs_metrics_sync.py

@@ -111,11 +111,13 @@ EOF
 
 check_boot_only_kmain() {
 	local boot="${TMPDIR}/src/arch/i386/boot.asm"
+	local bad_calls
 
 	if ! rg -n '^\s*call\s+kmain\b' "${boot}" >/dev/null; then
 		return 1
 	fi
-	if rg -n '^\s*call\s+(?!kmain\b)[A-Za-z_][A-Za-z0-9_]*' -P "${boot}" >/dev/null; then
+	bad_calls="$(rg -n '^\s*call\s+[A-Za-z_][A-Za-z0-9_]*' "${boot}" | grep -vE '^[0-9]+:\s*call\s+kmain\b' || true)"
+	if [[ -n "${bad_calls}" ]]; then
 		return 1
 	fi
 	return 0

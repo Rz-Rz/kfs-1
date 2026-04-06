@@ -136,20 +136,10 @@ qemu_vnc_run_case() {
 	local script_path_container
 	local vnc_socket_runtime
 	local qmp_socket_runtime
+	local local_run=0
 
-	engine="$(qemu_vnc_container_engine)"
-	mount_arg="$(qemu_vnc_container_mount "${engine}")"
-	container_args=("${engine}" run --rm -e KFS_INSIDE_CONTAINER=1 -v "${mount_arg}" -w /work)
-	if [[ "${engine}" == "podman" ]]; then
-		container_args+=(--userns=keep-id)
-	elif [[ "${engine}" == "docker" ]] && ! docker info --format '{{join .SecurityOptions "\n"}}' 2>/dev/null | grep -q '^name=rootless$'; then
-		container_args+=(--user "$(id -u):$(id -g)")
-	fi
 	artifact_path_abs="$(qemu_vnc_abs_path "${artifact_path}")"
-	artifact_path_container="$(qemu_vnc_container_path "${artifact_path_abs}")"
 	script_path_host="$(mktemp "$(qemu_vnc_tmp_dir)/qemu-vnc-${case_name}.XXXXXX.sh")"
-	script_path_container="$(qemu_vnc_container_path "${script_path_host}")"
-	log_container="$(qemu_vnc_container_path "${log_path}")"
 	[[ -r "${artifact_path_abs}" ]] || qemu_vnc_die "missing artifact: ${artifact_path_abs}"
 	[[ "${artifact_target}" == "iso" || "${artifact_target}" == "img" ]] || qemu_vnc_die "unsupported artifact target: ${artifact_target}"
 	vnc_socket_runtime="/tmp/kfs-vnc-${arch}-$$-$RANDOM.sock"
@@ -157,6 +147,24 @@ qemu_vnc_run_case() {
 
 	rm -f "${vnc_socket_host}" "${qmp_socket_host}" "${log_path}"
 	mkdir -p "$(dirname "${vnc_socket_host}")" "$(dirname "${qmp_socket_host}")" "$(dirname "${log_path}")"
+
+	if [[ "${KFS_INSIDE_CONTAINER:-0}" == "1" || ( -x "$(command -v qemu-system-i386 2>/dev/null)" && "${KFS_FORCE_CONTAINER_QEMU:-0}" != "1" ) ]]; then
+		local_run=1
+		artifact_path_container="${artifact_path_abs}"
+		log_container="${log_path}"
+	else
+		engine="$(qemu_vnc_container_engine)"
+		mount_arg="$(qemu_vnc_container_mount "${engine}")"
+		container_args=("${engine}" run --rm -e KFS_INSIDE_CONTAINER=1 -v "${mount_arg}" -w /work)
+		if [[ "${engine}" == "podman" ]]; then
+			container_args+=(--userns=keep-id)
+		elif [[ "${engine}" == "docker" ]] && ! docker info --format '{{join .SecurityOptions "\n"}}' 2>/dev/null | grep -q '^name=rootless$'; then
+			container_args+=(--user "$(id -u):$(id -g)")
+		fi
+		artifact_path_container="$(qemu_vnc_container_path "${artifact_path_abs}")"
+		script_path_container="$(qemu_vnc_container_path "${script_path_host}")"
+		log_container="$(qemu_vnc_container_path "${log_path}")"
+	fi
 
 	cat >"${script_path_host}" <<EOF
 #!/usr/bin/env bash
@@ -209,7 +217,12 @@ timeout --foreground '${timeout_secs}' python3 scripts/boot-tests/lib/vnc_e2e.py
 EOF
 	chmod +x "${script_path_host}"
 
-	if bash scripts/with-build-lock.sh "${container_args[@]}" "kfs1-dev:latest" bash "${script_path_container}"; then
+	if (( local_run )); then
+		if bash scripts/with-build-lock.sh bash "${script_path_host}"; then
+			rm -f "${script_path_host}"
+			return 0
+		fi
+	elif bash scripts/with-build-lock.sh "${container_args[@]}" "kfs1-dev:latest" bash "${script_path_container}"; then
 		rm -f "${script_path_host}"
 		return 0
 	fi

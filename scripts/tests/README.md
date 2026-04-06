@@ -1,6 +1,7 @@
 # Test Framework Notes
 
 This directory is part of the shell-based test framework used by `scripts/test-host.sh`.
+The canonical entrypoints run that runner through the toolchain container.
 
 The current philosophy is:
 
@@ -13,7 +14,7 @@ This document exists mainly to make rebases easier for branches that still use t
 
 ## Directory Layout
 
-The host runner currently executes these sections:
+The container-backed runner currently executes these sections:
 
 - `scripts/tests/`
 - `scripts/architecture-tests/`
@@ -38,7 +39,7 @@ For a script to be discoverable by `scripts/test-host.sh`, it must:
 bash path/to/script.sh <arch> <case>
 ```
 
-The host runner does this:
+The runner does this:
 
 1. Finds `*.sh` files recursively in the section directory.
 2. Calls each script with `--list`.
@@ -47,8 +48,10 @@ The host runner does this:
 
 Hardcoded runner sections and their order are:
 
-- `SETUP`
-- `TESTS`
+- `TOOLCHAIN`
+- `BUILD`
+- `ARTIFACT CHECKS`
+- `HOST UNIT TESTS`
 - `ARCHITECTURE TESTS`
 - `STABILITY TESTS`
 - `REJECTION TESTS`
@@ -58,14 +61,15 @@ That means the real unit of discovery is the listed case, not the script file.
 
 ## Parallel Execution
 
-The host runner now treats each discovered case as a schedulable job after `LINT` and `SETUP`.
+The runner now treats discovered test cases as schedulable jobs after `LINT`, `TOOLCHAIN`, and `BUILD`.
 
-- `LINT` and `SETUP` stay serial because they rebuild shared toolchain/image artifacts up front.
-- The remaining discovered cases run through a bounded worker pool.
+- `LINT`, `TOOLCHAIN`, and `BUILD` stay serial because they prepare the shared toolchain and artifacts up front.
+- The remaining discovered cases run through a bounded worker pool one section at a time.
 - Use `KFS_TEST_JOBS=<n>` to override the worker count, or leave it unset / `auto` to use the runner default.
 - The suite-wide lock in `scripts/with-test-suite-lock.sh` still keeps two full `make test` runs from trampling each other.
 - Host-unit cases under `scripts/tests/unit/` stay in the main workspace.
-- Heavyweight build/QEMU/rejection/boot cases run inside copied worker workspaces so they can mutate `build/` independently.
+- Artifact checks also stay in the main workspace.
+- Heavyweight architecture/stability/rejection/boot cases run inside copied worker workspaces so they can mutate `build/` independently.
 - Set `KFS_KEEP_TEST_WORKSPACES=1` if you want to keep those copied worker repos around for debugging after a run.
 
 In practice this means:
@@ -79,7 +83,7 @@ In practice this means:
 - Avoid re-introducing shell wrapper entrypoints for compilation; keep compile ownership in `Makefile`.
 
 Release-artifact proofs live in `scripts/tests/00-release-artifacts.sh` so they run in the
-`TESTS` section before later destructive rebuild cases can remove the tracked deliverables.
+`ARTIFACT CHECKS` section after the `BUILD` stage has produced the canonical deliverables.
 
 ## Naming Rules
 
