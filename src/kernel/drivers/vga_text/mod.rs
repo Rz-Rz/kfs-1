@@ -4,6 +4,9 @@ use crate::kernel::types::screen::{
     ColorCode, CursorPos, ScreenDimensions, ScreenPosition, VgaColor, VGA_TEXT_DIMENSIONS,
 };
 
+// This module keeps a larger logical text history than the hardware can show at once.
+// The writer layer later picks a viewport out of that history and paints it into the
+// real VGA framebuffer.
 pub const VGA_TEXT_DEFAULT_COLOR: ColorCode =
     ColorCode::vga(VgaColor::Green.code(), VgaColor::Black.code());
 pub const VGA_TEXT_BLANK_BYTE: u8 = b' ';
@@ -14,6 +17,9 @@ pub const VGA_TEXT_HISTORY_CELL_COUNT: usize = VGA_TEXT_HISTORY_ROWS * VGA_TEXT_
 pub const VGA_TEXT_TERMINAL_COUNT: usize = 12;
 pub const VGA_TEXT_TERMINAL_LABEL_WIDTH: usize = 7;
 
+// Result of "feed one byte into the history cursor".
+// We need both pieces of information: where the byte should land, and whether that
+// write pushed the logical history far enough that we must scroll stored rows up.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VgaPutResult {
     pub cell_index: Option<usize>,
@@ -26,6 +32,7 @@ pub struct VgaHistoryCursor {
     pub col: usize,
 }
 
+// Attach the history-cursor behavior to the cursor state itself.
 impl VgaHistoryCursor {
     pub const fn new() -> Self {
         Self { row: 0, col: 0 }
@@ -37,6 +44,7 @@ impl VgaHistoryCursor {
     }
 
     pub fn put_byte(&mut self, byte: u8) -> VgaPutResult {
+        // Newlines advance the cursor without writing a visible cell.
         if byte == b'\n' {
             return VgaPutResult {
                 cell_index: None,
@@ -60,6 +68,8 @@ impl VgaHistoryCursor {
     }
 
     pub fn backspace_cell(&mut self) -> Option<usize> {
+        // This only handles "back up within the current row". Crossing to the
+        // previous row is handled one layer up, where line-length history exists.
         if self.col == 0 {
             return None;
         }
@@ -83,6 +93,8 @@ impl VgaHistoryCursor {
     }
 }
 
+// One logical terminal keeps its own history, cursor, viewport, and current color.
+// That way switching terminals is just "pick another saved screen", not "rebuild it".
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VgaTerminal {
     pub cursor: VgaHistoryCursor,
@@ -115,6 +127,7 @@ impl VgaTerminal {
         self.cursor.move_to(row, col);
         let cursor_row = self.cursor.row;
         unsafe {
+            // If code moves the cursor to the right, treat that as extending the line.
             let line_length = self.line_lengths.get_unchecked_mut(cursor_row);
             *line_length = (*line_length).max(self.cursor.col);
         }
@@ -151,6 +164,8 @@ impl VgaTerminal {
             }
         }
         if result.scrolled {
+            // The cursor already hit the logical bottom, so keep the history as a
+            // fixed-size ring-like window by shifting rows up and blanking the tail.
             vga_text_scroll_rows_up(
                 &mut self.history,
                 VGA_TEXT_DIMENSIONS.width(),
@@ -190,6 +205,8 @@ impl VgaTerminal {
     }
 
     fn backspace_previous_line_end(&mut self, width: usize) -> Option<usize> {
+        // If we are at column 0, backspace means "jump to the previous line's last
+        // written character", not "do nothing".
         if self.cursor.row == 0 || width == 0 {
             return None;
         }
@@ -231,10 +248,19 @@ impl VgaTerminal {
     }
 }
 
+// The bank holds all terminal states plus the active-order list.
+// `terminals` stores every slot, while `active_slots` says which ones are currently
+// in play and in what order the user sees them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VgaTerminalBank {
     pub active_index: usize,
     pub active_count: usize,
+    // This maps "visible terminal number" to "backing slot in `terminals`".
+    // Only the first `active_count` entries matter.
+    //
+    // Example:
+    // `active_slots[4] = 3` means "the 5th visible terminal is stored in
+    // `terminals[3]`".
     pub active_slots: [usize; VGA_TEXT_TERMINAL_COUNT],
     pub terminals: [VgaTerminal; VGA_TEXT_TERMINAL_COUNT],
 }
@@ -245,6 +271,9 @@ impl VgaTerminalBank {
         Self {
             active_index: 0,
             active_count: 1,
+            // Start with a simple identity mapping. Later create/destroy operations
+            // can reshuffle the visible order without moving the terminal storage.
+            // No need to move a whole term buffer, just shift a few int within active_slots when deleting.
             active_slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
             terminals: [EMPTY_TERMINAL; VGA_TEXT_TERMINAL_COUNT],
         }
@@ -302,6 +331,7 @@ impl VgaTerminalBank {
             self.terminals.get_unchecked_mut(slot).reset();
             *self.active_slots.get_unchecked_mut(self.active_count) = slot;
         }
+        // New terminals become active immediately, like opening a fresh tab.
         self.active_index = self.active_count;
         self.active_count += 1;
         true
@@ -309,6 +339,7 @@ impl VgaTerminalBank {
 
     pub fn destroy_active_terminal(&mut self) -> bool {
         if self.active_count <= 1 {
+            // There is always at least one terminal alive.
             return false;
         }
 
@@ -330,6 +361,7 @@ impl VgaTerminalBank {
         unsafe {
             *self.active_slots.get_unchecked_mut(self.active_count) = freed_slot;
         }
+        // If we deleted the last visible entry, move focus onto the new tail.
         if self.active_index >= self.active_count {
             self.active_index = self.active_count - 1;
         }
@@ -429,6 +461,8 @@ fn terminal_label_overlay(index: usize) -> &'static [u8; VGA_TEXT_TERMINAL_LABEL
     }
 }
 
+// Convert the active terminal's short label into VGA cells so the writer can stamp it
+// into the top-right corner during redraw.
 pub fn build_terminal_label_cells(
     label_index: usize,
     color: ColorCode,
@@ -467,11 +501,15 @@ pub const fn vga_text_tail_viewport_top(cursor_row: usize) -> usize {
     VGA_TEXT_DIMENSIONS.tail_viewport_top(cursor_row)
 }
 
+// Pack one ASCII byte and one VGA color attribute into the 16-bit cell format that
+// the text-mode framebuffer expects.
 pub fn vga_text_cell<C: Into<ColorCode>>(color: C, byte: u8) -> u16 {
     let color = color.into();
     ((color.as_u8() as u16) << 8) | (byte as u16)
 }
 
+// Old helper APIs use a flat cursor index instead of row/col coordinates, so clamp
+// anything out of bounds back to the safe starting cell.
 pub fn vga_text_normalize_cursor(cursor: usize, cell_count: usize) -> usize {
     if cell_count == 0 || cursor >= cell_count {
         return 0;
@@ -480,6 +518,8 @@ pub fn vga_text_normalize_cursor(cursor: usize, cell_count: usize) -> usize {
     cursor
 }
 
+// Write raw bytes into a flat VGA-style cell buffer, wrapping back to the front when
+// the cursor reaches the end.
 pub fn vga_text_write_cells(
     buffer: &mut [u16],
     cursor: usize,
@@ -505,6 +545,7 @@ pub fn vga_text_write_cells(
     cursor
 }
 
+// Clamp a row/col cursor into the visible bounds of a screen.
 pub fn vga_text_normalize_cursor_pos(cursor: CursorPos, dimensions: ScreenDimensions) -> CursorPos {
     if dimensions.width() == 0 || dimensions.height() == 0 {
         return CursorPos::new(0, 0);
@@ -524,6 +565,7 @@ pub fn vga_text_normalize_cursor_pos(cursor: CursorPos, dimensions: ScreenDimens
     CursorPos::new(row, col)
 }
 
+// Generic "write bytes into a 2D text screen" helper used by tests and formatting code.
 pub fn vga_text_write_screen(
     buffer: &mut [u16],
     dimensions: ScreenDimensions,
@@ -565,6 +607,8 @@ pub fn vga_text_write_screen(
     cursor
 }
 
+// Shift a row-oriented buffer up by one row and blank the new last row.
+// This is shared by text history and line-length metadata so both stay in sync.
 pub fn vga_text_scroll_rows_up<T: Copy>(
     buffer: &mut [T],
     row_width: usize,
@@ -592,6 +636,7 @@ pub fn vga_text_scroll_rows_up<T: Copy>(
     }
 }
 
+// Copy one viewport-sized slice out of a taller history buffer into a screen-sized buffer.
 pub fn vga_text_blit_viewport<T: Copy>(
     history: &[T],
     row_width: usize,
@@ -635,6 +680,8 @@ pub fn vga_text_blit_viewport<T: Copy>(
     }
 }
 
+// Take a logical screen and place it inside the fixed physical VGA area.
+// If the logical layout is smaller than 80x25, this centers it and blanks the rest.
 pub fn render_logical_screen_to_physical<T: Copy>(
     logical_dimensions: ScreenDimensions,
     physical_dimensions: ScreenDimensions,
@@ -685,6 +732,7 @@ fn vga_text_cursor_index(dimensions: ScreenDimensions, cursor: CursorPos) -> usi
     (cursor.row * dimensions.width()) + cursor.col
 }
 
+// Move to the next line, scrolling the visible screen buffer if we were already on the last row.
 fn vga_text_advance_line(
     buffer: &mut [u16],
     dimensions: ScreenDimensions,
@@ -723,6 +771,8 @@ fn vga_text_scroll_up(buffer: &mut [u16], dimensions: ScreenDimensions, blank: u
     }
 }
 
+// Public API surface: the rest of the kernel talks to `vga_text`, not directly to the
+// hardware-facing writer module.
 pub(crate) fn write_bytes(bytes: &[u8]) {
     writer::write_bytes(bytes);
 }

@@ -6,6 +6,7 @@ use crate::kernel::services::diagnostics;
 use crate::kernel::services::simd;
 use crate::kernel::types::range::layout_order_is_sane;
 
+// At this stage we only care which basic piece is broken badly enough to stop boot.
 #[derive(Copy, Clone)]
 pub(crate) enum EarlyInitFailure {
     BssCanary,
@@ -14,7 +15,12 @@ pub(crate) enum EarlyInitFailure {
     MemoryHelpers,
 }
 
+// This is the first little sanity-check pass before the rest of the kernel takes over.
+// We make sure `.bss` was cleared, the linker layout looks sane, SIMD policy is installed, and
+// the tiny string/memory helpers behave. If one of those is wrong, we stop right away so later
+// failures do not send us looking in the wrong place.
 pub(crate) fn run_early_init() -> Result<(), EarlyInitFailure> {
+    // If `.bss` was not cleared before we reached Rust, any zero-initialized global is suspect.
     if !entry::bss_canary_is_zero() {
         return Err(EarlyInitFailure::BssCanary);
     }
@@ -31,6 +37,7 @@ pub(crate) fn run_early_init() -> Result<(), EarlyInitFailure> {
         diagnostics::write_line("LAYOUT_OK");
     }
 
+    // Set the SIMD policy before we test helpers that may choose a scalar or SSE2 backend.
     let _ = simd::initialize_runtime_policy(
         entry::simd_force_no_cpuid_requested(),
         entry::simd_force_disable_requested(),
@@ -57,6 +64,7 @@ pub(crate) fn run_early_init() -> Result<(), EarlyInitFailure> {
     Ok(())
 }
 
+// Make sure `.bss` sits where we expect it to inside the overall kernel image.
 fn layout_is_sane() -> bool {
     layout_order_is_sane(
         entry::kernel_range(),
@@ -70,6 +78,8 @@ fn string_helpers_are_sane() -> bool {
         return false;
     }
 
+    // These are the bare minimum C-string checks we rely on early in boot.
+    // `strlen` should stop at the first NUL and ignore anything after it.
     let empty = [0u8];
     let embedded = [b'o', b'k', 0, b'x', 0];
 
@@ -91,6 +101,8 @@ fn string_helpers_are_sane() -> bool {
     let high_lhs = [0x80, 0];
     let high_rhs = [0x7f, 0];
 
+    // `strcmp` should handle the usual trouble spots: same string, prefix ordering, and bytes
+    // with the high bit set.
     if unsafe { string::strcmp(equal.as_ptr(), equal.as_ptr()) } != 0 {
         return false;
     }
@@ -115,6 +127,8 @@ fn memory_helpers_are_sane() -> bool {
         return false;
     }
 
+    // These buffers keep known bytes on both sides so off-by-one writes are easy to catch.
+    // `memcpy` should return the destination pointer and touch only the requested window.
     let src = [1u8, 2u8, 3u8];
     let mut dst = [0xAAu8, 0xBBu8, 0xCCu8, 0xDDu8, 0xEEu8];
     let copy_dst = unsafe { dst.as_mut_ptr().add(1) };
@@ -133,6 +147,8 @@ fn memory_helpers_are_sane() -> bool {
         diagnostics::write_line("MEMCPY_OK");
     }
 
+    // `memset` gets the same treatment: right return value, right bytes changed, guard bytes left
+    // alone.
     let mut fill = [0x11u8, 0x22u8, 0x33u8, 0x44u8, 0x55u8];
     let fill_dst = unsafe { fill.as_mut_ptr().add(1) };
     let fill_return = unsafe { memory::memset(fill_dst, 0x99u8, 3) };
@@ -153,6 +169,7 @@ fn memory_helpers_are_sane() -> bool {
     true
 }
 
+// Show which backend won at runtime so the test log tells the whole story.
 fn emit_memcpy_backend_marker(backend: MemoryBackend) {
     match backend {
         MemoryBackend::Scalar => diagnostics::write_line("MEMCPY_BACKEND_SCALAR"),
