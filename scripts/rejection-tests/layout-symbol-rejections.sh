@@ -5,7 +5,7 @@ ARCH="${1:-i386}"
 CASE="${2:-}"
 
 list_cases() {
-  cat <<'EOF'
+	cat <<'EOF'
 bss-before-kernel
 bss-end-before-bss-start
 kernel-end-before-bss-end
@@ -13,25 +13,25 @@ EOF
 }
 
 describe_case() {
-  case "$1" in
-    bss-before-kernel) printf '%s\n' 'rejects bss_start before kernel_start' ;;
-    bss-end-before-bss-start) printf '%s\n' 'rejects bss_end before bss_start' ;;
-    kernel-end-before-bss-end) printf '%s\n' 'rejects kernel_end before bss_end' ;;
-    *) return 1 ;;
-  esac
+	case "$1" in
+	bss-before-kernel) printf '%s\n' 'rejects bss_start before kernel_start' ;;
+	bss-end-before-bss-start) printf '%s\n' 'rejects bss_end before bss_start' ;;
+	kernel-end-before-bss-end) printf '%s\n' 'rejects kernel_end before bss_end' ;;
+	*) return 1 ;;
+	esac
 }
 
 die() {
-  echo "error: $*" >&2
-  exit 2
+	echo "error: $*" >&2
+	exit 2
 }
 
 write_invalid_linker_script() {
-  local path="$1"
+	local path="$1"
 
-  case "${CASE}" in
-    bss-before-kernel)
-      cat >"${path}" <<'EOF'
+	case "${CASE}" in
+	bss-before-kernel)
+		cat >"${path}" <<'EOF'
 ENTRY(start)
 
 SECTIONS {
@@ -56,9 +56,9 @@ SECTIONS {
   ASSERT(bss_end <= kernel_end, "layout symbol order invalid: bss_end > kernel_end")
 }
 EOF
-      ;;
-    bss-end-before-bss-start)
-      cat >"${path}" <<'EOF'
+		;;
+	bss-end-before-bss-start)
+		cat >"${path}" <<'EOF'
 ENTRY(start)
 
 SECTIONS {
@@ -83,9 +83,9 @@ SECTIONS {
   ASSERT(bss_end <= kernel_end, "layout symbol order invalid: bss_end > kernel_end")
 }
 EOF
-      ;;
-    kernel-end-before-bss-end)
-      cat >"${path}" <<'EOF'
+		;;
+	kernel-end-before-bss-end)
+		cat >"${path}" <<'EOF'
 ENTRY(start)
 
 SECTIONS {
@@ -110,71 +110,71 @@ SECTIONS {
   ASSERT(bss_end <= kernel_end, "layout symbol order invalid: bss_end > kernel_end")
 }
 EOF
-      ;;
-    *)
-      die "usage: $0 <arch> {bss-before-kernel|bss-end-before-bss-start|kernel-end-before-bss-end}"
-      ;;
-  esac
+		;;
+	*)
+		die "usage: $0 <arch> {bss-before-kernel|bss-end-before-bss-start|kernel-end-before-bss-end}"
+		;;
+	esac
 }
 
 expected_message() {
-  case "${CASE}" in
-    bss-before-kernel) printf '%s' 'layout symbol order invalid: kernel_start > bss_start' ;;
-    bss-end-before-bss-start) printf '%s' 'layout symbol order invalid: bss_start > bss_end' ;;
-    kernel-end-before-bss-end) printf '%s' 'layout symbol order invalid: bss_end > kernel_end' ;;
-    *) die "unexpected case: ${CASE}" ;;
-  esac
+	case "${CASE}" in
+	bss-before-kernel) printf '%s' 'layout symbol order invalid: kernel_start > bss_start' ;;
+	bss-end-before-bss-start) printf '%s' 'layout symbol order invalid: bss_start > bss_end' ;;
+	kernel-end-before-bss-end) printf '%s' 'layout symbol order invalid: bss_end > kernel_end' ;;
+	*) die "unexpected case: ${CASE}" ;;
+	esac
 }
 
 run_direct_case() {
-  local linker="build/m3.3-negative-${CASE}.ld"
-  local log="build/m3.3-negative-${CASE}.log"
-  local expected
-  expected="$(expected_message)"
+	local linker="build/m3.3-negative-${CASE}.ld"
+	local log="build/m3.3-negative-${CASE}.log"
+	local expected
+	expected="$(expected_message)"
 
-  bash scripts/with-build-lock.sh make clean >/dev/null 2>&1 || true
-  mkdir -p build
-  write_invalid_linker_script "${linker}"
+	bash scripts/with-build-lock.sh make clean >/dev/null 2>&1 || true
+	mkdir -p build
+	write_invalid_linker_script "${linker}"
 
-  if bash scripts/with-build-lock.sh make -B all arch="${ARCH}" linker_script="${linker}" >"${log}" 2>&1; then
-    echo "FAIL ${CASE}: wrong linker script unexpectedly passed the build gate" >&2
-    cat "${log}" >&2
-    exit 1
-  fi
+	if bash scripts/with-build-lock.sh make -B all arch="${ARCH}" linker_script="${linker}" >"${log}" 2>&1; then
+		echo "FAIL ${CASE}: wrong linker script unexpectedly passed the build gate" >&2
+		cat "${log}" >&2
+		exit 1
+	fi
 
-  if ! grep -qF "${expected}" "${log}"; then
-    echo "FAIL ${CASE}: expected rejection message not found: ${expected}" >&2
-    cat "${log}" >&2
-    exit 1
-  fi
+	if ! grep -qF "${expected}" "${log}"; then
+		echo "FAIL ${CASE}: expected rejection message not found: ${expected}" >&2
+		cat "${log}" >&2
+		exit 1
+	fi
 
-  echo "PASS ${CASE}"
+	echo "PASS ${CASE}"
 }
 
 run_host_case() {
-  bash scripts/container.sh run -- \
-    bash -lc "KFS_HOST_TEST_DIRECT=1 bash scripts/rejection-tests/layout-symbol-rejections.sh '${ARCH}' '${CASE}'"
+	bash scripts/container.sh run -- \
+		bash -lc "KFS_HOST_TEST_DIRECT=1 bash scripts/rejection-tests/layout-symbol-rejections.sh '${ARCH}' '${CASE}'"
 }
 
 main() {
-  if [[ "${ARCH}" == "--list" ]]; then
-    list_cases
-    return 0
-  fi
+	if [[ "${ARCH}" == "--list" ]]; then
+		list_cases
+		return 0
+	fi
 
-  if [[ "${ARCH}" == "--description" ]]; then
-    describe_case "${CASE}"
-    return 0
-  fi
+	if [[ "${ARCH}" == "--description" ]]; then
+		describe_case "${CASE}"
+		return 0
+	fi
 
-  [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
+	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
 
-  if [[ -n "${CASE}" ]] && describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-    run_host_case
-    return 0
-  fi
+	if [[ -n "${CASE}" ]] && describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
+		run_host_case
+		return 0
+	fi
 
-  run_direct_case
+	run_direct_case
 }
 
 main "$@"

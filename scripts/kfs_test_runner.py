@@ -7,7 +7,6 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 
 from kfs_metrics import (
     RunCase,
@@ -19,7 +18,6 @@ from kfs_metrics import (
     save_run,
     sync_branch_lifecycle,
 )
-
 
 EVENT_PREFIX = "KFS_EVENT|"
 
@@ -106,6 +104,8 @@ def main() -> int:
     case_logs_dir = debug_dir / "cases"
     raw_log_path = debug_dir / "runner.raw.log"
     latest_path = debug_root(repo_root) / f"latest-{args.arch}.path"
+    # Keep the public test-plain alias, but execute the real host target.
+    make_target = "test-host" if args.make_target == "test-plain" else args.make_target
 
     debug_dir.mkdir(parents=True, exist_ok=True)
     case_logs_dir.mkdir(parents=True, exist_ok=True)
@@ -113,7 +113,7 @@ def main() -> int:
     latest_path.write_text(f"{debug_dir.relative_to(repo_root)}\n", encoding="utf-8")
 
     process = subprocess.Popen(
-        ["bash", "scripts/test-host.sh", args.arch],
+        ["make", "--no-print-directory", make_target, f"arch={args.arch}"],
         cwd=repo_root,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

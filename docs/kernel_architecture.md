@@ -12,7 +12,7 @@ It is not a historical analysis.
 ## 1. Subject constraints
 
 Subject requirements that matter to architecture:
-- the kernel targets i386
+- the subject requires a 32-bit x86 kernel environment ("i386 (x86)" in the subject wording)
 - GRUB boots the kernel
 - the project provides ASM boot code and kernel code in the chosen language
 - the kernel must link without host runtime dependencies
@@ -25,6 +25,23 @@ Subject requirements that do not exist:
 - no required driver/service split beyond whatever is needed to stay clean and extensible
 
 Source: [`docs/subject.pdf`](/home/motero/Code/kfs-1/docs/subject.pdf)
+
+Current repo interpretation of that subject constraint:
+- the final kernel artifact is ELF32 with machine `Intel 80386`
+- the boot path and linker remain 32-bit x86 (`elf_i386`, multiboot, `qemu-system-i386`)
+- the Rust codegen baseline currently uses `i586-unknown-linux-gnu`
+
+Why the Rust baseline is `i586` instead of `i686`:
+- the stable Rust `i686-unknown-linux-gnu` target now carries an SSE2-based ABI contract
+- this repo currently keeps freestanding kernel artifacts free of SSE/XMM instructions
+- using `i686` while forcing `-sse2` is being phased into a hard compiler error
+
+Current limitation:
+- this means the repo currently implements the subject's 32-bit x86 requirement with an ELF/i386 binary format and boot path, but not with a literal 80386 Rust codegen baseline
+- if the course is later interpreted to require strict 80386 instruction compatibility rather than generic 32-bit x86, this choice must be revisited explicitly
+
+See also:
+- [`docs/simd_policy.md`](/home/motero/Code/kfs-1/docs/simd_policy.md) for the current MMX/SSE/SSE2 policy, the `i586` target compromise, and the future enablement prerequisites
 
 ## 2. Current architecture decision
 
@@ -192,8 +209,29 @@ Also present:
 
 Current hardware ownership:
 - direct VGA MMIO and volatile writes belong in `drivers`
-- inline assembly stays in `arch`
+- raw assembly entry/runtime helpers stay in `arch`
+- typed port I/O and CPU capability probing belong in `machine`
+- typed Rust x86 intrinsics may appear only in approved low-level files: CPU probing in `machine` and private accelerated helper leaves in `klib`
 - linker symbols stay at the `arch`/entry boundary
+
+Current SIMD policy wiring:
+- [`src/kernel/machine/cpu.rs`](/home/motero/Code/kfs-1/src/kernel/machine/cpu.rs) owns typed CPUID/MMX/SSE/SSE2 capability detection
+- [`src/kernel/machine/fpu.rs`](/home/motero/Code/kfs-1/src/kernel/machine/fpu.rs) owns typed CR0/CR4/x87/MXCSR runtime-state initialization
+- [`src/kernel/services/simd.rs`](/home/motero/Code/kfs-1/src/kernel/services/simd.rs) translates detection plus machine-state ownership into the canonical installed runtime policy
+- [`src/kernel/klib/simd.rs`](/home/motero/Code/kfs-1/src/kernel/klib/simd.rs) owns the canonical runtime policy and currently enables only `SSE2` acceleration on runtime-owned supported CPUs
+- [`src/kernel/klib/memory/dispatch.rs`](/home/motero/Code/kfs-1/src/kernel/klib/memory/dispatch.rs) owns helper-backend selection for the memory family based on installed policy plus compiled backend availability
+- [`src/kernel/klib/memory/mod.rs`](/home/motero/Code/kfs-1/src/kernel/klib/memory/mod.rs) remains the only public memory-family facade and ABI export owner
+- [`src/kernel/klib/memory/sse2_memcpy.rs`](/home/motero/Code/kfs-1/src/kernel/klib/memory/sse2_memcpy.rs) owns the private SSE2 `memcpy` backend
+- [`src/kernel/klib/memory/sse2_memset.rs`](/home/motero/Code/kfs-1/src/kernel/klib/memory/sse2_memset.rs) owns the private SSE2 `memset` backend
+- [`src/kernel/core/init.rs`](/home/motero/Code/kfs-1/src/kernel/core/init.rs) sequences SIMD runtime-state ownership through the services layer during early init
+
+Current memory-dispatch contract:
+- callers use `memory::memcpy` / `memory::memset`; they do not select `MMX` / `SSE` / `SSE2` directly
+- backend selection stays inside `klib::memory`
+- `SSE2` is the currently enabled accelerated tier for memory helpers on this branch
+- supported runtime-owned CPUs select the `SSE2` backend for `memcpy` and `memset`
+- unsupported, no-CPUID, or forced-scalar paths stay on the scalar implementation
+- boot/runtime proof observes the selected backend through markers emitted by `core::init`, not by teaching `klib` about diagnostics
 
 Current serial reality:
 - serial driver register access is owned by [`src/kernel/drivers/serial/mod.rs`](/home/motero/Code/kfs-1/src/kernel/drivers/serial/mod.rs)
@@ -212,7 +250,7 @@ Current rule:
 - host tests do not `include!` or `#[path]`-mount private production leaf files directly
 
 Examples:
-- [`tests/host_kmain_logic.rs`](/home/motero/Code/kfs-1/tests/host_kmain_logic.rs)
+- [`tests/host_layout_and_vga_cell.rs`](/home/motero/Code/kfs-1/tests/host_layout_and_vga_cell.rs)
 - [`tests/host_string.rs`](/home/motero/Code/kfs-1/tests/host_string.rs)
 - [`tests/host_memory.rs`](/home/motero/Code/kfs-1/tests/host_memory.rs)
 - [`tests/host_types.rs`](/home/motero/Code/kfs-1/tests/host_types.rs)
@@ -220,7 +258,8 @@ Examples:
 ## 10. Enforced rules
 
 The repo enforces the architecture through:
-- tree/layout checks
+- canonical-root and allowed-domain checks
+- private-leaf locality and anti-bypass checks
 - layer-dependency checks
 - export-ownership checks
 - type-contract checks
@@ -228,14 +267,27 @@ The repo enforces the architecture through:
 - rejection tests
 - boot/runtime tests
 
+The architecture suite intentionally treats only these filesystem facts as hard structural contract:
+- the canonical crate and shared-module roots
+- the allowed first-level ownership domains under `src/kernel/`
+- the single shared `src/kernel/mod.rs` top-level root
+
+It does not treat every current deep leaf filename as permanent architecture law.
+
 Relevant suites:
 - [`scripts/architecture-tests/`](/home/motero/Code/kfs-1/scripts/architecture-tests)
 - [`scripts/rejection-tests/`](/home/motero/Code/kfs-1/scripts/rejection-tests)
 - [`scripts/boot-tests/`](/home/motero/Code/kfs-1/scripts/boot-tests)
 - [`scripts/tests/unit/`](/home/motero/Code/kfs-1/scripts/tests/unit)
 
+Current proof extension for Phase 4:
+- `tests/host_memory.rs` and [`scripts/tests/unit/memory-helpers.sh`](/home/motero/Code/kfs-1/scripts/tests/unit/memory-helpers.sh) prove scalar fallback and SSE2 parity through the public memory facade
+- [`scripts/boot-tests/memory-runtime.sh`](/home/motero/Code/kfs-1/scripts/boot-tests/memory-runtime.sh) proves runtime-selected helper backend markers, fallback markers, and ordering during early init
+- [`scripts/boot-tests/simd-policy.sh`](/home/motero/Code/kfs-1/scripts/boot-tests/simd-policy.sh) proves that supported CPUs now transition into acceleration-enabled policy rather than staying deferred
+- [`scripts/stability-tests/freestanding-simd.sh`](/home/motero/Code/kfs-1/scripts/stability-tests/freestanding-simd.sh) proves SIMD instructions remain confined to approved runtime-state operations and owned memory backend symbols
+
 The hard gate is:
-- `make test arch=i386`
+- `make test`
 
 ## 11. Placement rules
 

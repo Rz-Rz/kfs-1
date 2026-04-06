@@ -3,6 +3,8 @@ global kfs_arch_should_fail_bss
 global kfs_arch_should_fail_layout
 global kfs_arch_should_fail_string
 global kfs_arch_should_fail_memory
+global kfs_arch_force_no_cpuid
+global kfs_arch_force_disable_simd
 global kfs_arch_qemu_exit
 global kfs_arch_halt_forever
 
@@ -43,6 +45,22 @@ kfs_arch_should_fail_string:
 
 kfs_arch_should_fail_memory:
 %ifdef KFS_TEST_BAD_MEMORY
+    mov eax, 1
+%else
+    xor eax, eax
+%endif
+    ret
+
+kfs_arch_force_no_cpuid:
+%ifdef KFS_TEST_NO_CPUID
+    mov eax, 1
+%else
+    xor eax, eax
+%endif
+    ret
+
+kfs_arch_force_disable_simd:
+%ifdef KFS_TEST_DISABLE_SIMD
     mov eax, 1
 %else
     xor eax, eax

@@ -56,6 +56,9 @@ Hardcoded runner sections and their order are:
 
 That means the real unit of discovery is the listed case, not the script file.
 
+Release-artifact proofs live in `scripts/tests/00-release-artifacts.sh` so they run in the
+`TESTS` section before later destructive rebuild cases can remove the tracked deliverables.
+
 ## Naming Rules
 
 ### Script names
@@ -224,7 +227,7 @@ These old broad cases were split into clearer one-behavior cases.
 
 | Old case | New case(s) |
 | --- | --- |
-| `langs` | `rust-marker-symbol-present`, `asm-entry-symbol-present` |
+| `langs` | `rust-entry-symbol-present`, `asm-entry-symbol-present` |
 | `interp` | `no-pt-interp-segment` |
 | `dynamic` | `no-interp-section`, `no-dynamic-section` |
 | `undef` | `no-undefined-symbols` |
@@ -249,10 +252,10 @@ These old broad cases were split into clearer one-behavior cases.
 
 | Old case | New case(s) |
 | --- | --- |
-| `build-test-iso` | `build-iso` |
-| `build-test-img-artifact` | `build-img-artifact` |
-| `grub-boots-test-iso` | `grub-boots-iso` |
-| `grub-boots-test-img` | `grub-boots-img` |
+| `build-iso` | `build-test-iso` |
+| `build-img-artifact` | `build-test-img-artifact` |
+| `grub-boots-iso` | `test-grub-boots-iso` |
+| `grub-boots-img` | `test-grub-boots-img` |
 
 #### `scripts/check-m5.2-string.sh`
 
@@ -278,8 +281,13 @@ discoverable cases such as:
 - `host-vga-cell-unit-tests-pass`
 - `rust-defines-layout-order-check`
 - `rust-defines-vga-text-cell`
-- `rust-kmain-uses-layout-order-check`
-- `rust-kmain-uses-vga-text-cell`
+
+Any remaining source-shape checks in the same script should be labeled as static wiring checks,
+not runtime proof:
+
+- `static-entry-calls-core-init-sequence`
+- `static-entry-references-console-loop`
+- `static-core-init-references-console-write`
 
 ## Rebase Tips For Older Branches
 
@@ -304,6 +312,7 @@ bash scripts/boot-tests/freestanding-kernel.sh --list
 bash scripts/boot-tests/halt-behavior.sh --list
 bash scripts/boot-tests/layout-symbols.sh --list
 bash scripts/boot-tests/runtime-markers.sh --list
+bash scripts/boot-tests/boot-flow.sh --list
 bash scripts/boot-tests/build-boot-artifacts.sh --list
 bash scripts/boot-tests/qemu-boot.sh --list
 ```

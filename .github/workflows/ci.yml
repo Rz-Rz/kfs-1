@@ -36,5 +36,8 @@ jobs:
       - name: Container env check
         run: make container-env-check
 
+      - name: Lint
+        run: make lint
+
       - name: Test container
-        run: make test
+        run: KFS_SKIP_LINT=1 make test
