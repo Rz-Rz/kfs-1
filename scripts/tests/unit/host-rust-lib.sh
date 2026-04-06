@@ -8,7 +8,36 @@ run_host_rust_test() {
 	local filter="$3"
 	local host_lib_flags="${KFS_HOST_LIB_RUSTC_FLAGS:-}"
 	local host_test_flags="${KFS_HOST_TEST_RUSTC_FLAGS:-}"
+	local test_name="${test_bin##*/}"
 
-	bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-		bash -lc "tmpdir=\$(mktemp -d) && trap 'rm -rf \"\${tmpdir}\"' EXIT && rustc ${host_lib_flags} --crate-name kfs --crate-type rlib --edition=2021 -o \"\${tmpdir}/libkfs.rlib\" '${HOST_LIB_SOURCE}' >/dev/null && rustc --test ${host_test_flags} --edition=2021 --extern kfs=\"\${tmpdir}/libkfs.rlib\" -o '${test_bin}' '${test_source}' >/dev/null && '${test_bin}' '${filter}'"
+	[[ -n "${test_name}" ]] || test_name="host-unit-test"
+
+	bash scripts/container.sh run -- \
+		env \
+		KFS_HOST_LIB_SOURCE="${HOST_LIB_SOURCE}" \
+		KFS_HOST_TEST_SOURCE="${test_source}" \
+		KFS_HOST_TEST_BIN_NAME="${test_name}" \
+		KFS_HOST_TEST_FILTER="${filter}" \
+		KFS_HOST_LIB_RUSTC_FLAGS="${host_lib_flags}" \
+		KFS_HOST_TEST_RUSTC_FLAGS="${host_test_flags}" \
+		bash -lc '
+			tmpdir="$(mktemp -d)"
+			trap '\''rm -rf "${tmpdir}"'\'' EXIT
+			rustc ${KFS_HOST_LIB_RUSTC_FLAGS} \
+				--crate-name kfs \
+				--crate-type rlib \
+				--edition=2021 \
+				-o "${tmpdir}/libkfs.rlib" \
+				"${KFS_HOST_LIB_SOURCE}" >/dev/null
+			rustc --test ${KFS_HOST_TEST_RUSTC_FLAGS} \
+				--edition=2021 \
+				--extern kfs="${tmpdir}/libkfs.rlib" \
+				-o "${tmpdir}/${KFS_HOST_TEST_BIN_NAME}" \
+				"${KFS_HOST_TEST_SOURCE}" >/dev/null
+			if [[ -n "${KFS_HOST_TEST_FILTER}" ]]; then
+				"${tmpdir}/${KFS_HOST_TEST_BIN_NAME}" "${KFS_HOST_TEST_FILTER}"
+			else
+				"${tmpdir}/${KFS_HOST_TEST_BIN_NAME}"
+			fi
+		'
 }
