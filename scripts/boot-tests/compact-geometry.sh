@@ -42,7 +42,7 @@ run_case() {
 		;;
 	esac
 
-	qemu_vnc_run_case "${ARCH}" "iso" "build/os-${ARCH}.iso" "${SOCKET_PATH}" "${QMP_SOCKET_PATH}" "${CASE}" "${LOG_PATH}" "${timeout_secs}" "compact40x10"
+	qemu_vnc_run_case "${ARCH}" "iso" "build/os-${ARCH}-compact40x10.iso" "${SOCKET_PATH}" "${QMP_SOCKET_PATH}" "${CASE}" "${LOG_PATH}" "${timeout_secs}" "compact40x10"
 }
 
 main() {

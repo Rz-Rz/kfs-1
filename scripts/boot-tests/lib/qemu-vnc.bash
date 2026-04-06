@@ -74,6 +74,47 @@ qemu_vnc_wait_for_boot() {
 	qemu_vnc_wait_for_sockets "${timeout_secs}" "${vnc_socket}"
 }
 
+qemu_vnc_container_engine() {
+	if [[ -n "${KFS_CONTAINER_ENGINE:-}" ]]; then
+		printf '%s\n' "${KFS_CONTAINER_ENGINE}"
+		return 0
+	fi
+	if command -v podman >/dev/null 2>&1; then
+		printf 'podman\n'
+		return 0
+	fi
+	if command -v docker >/dev/null 2>&1; then
+		printf 'docker\n'
+		return 0
+	fi
+	qemu_vnc_die "no container engine found (install podman or docker)"
+}
+
+qemu_vnc_container_mount() {
+	local engine="$1"
+	local root mount_suffix=""
+
+	root="$(qemu_vnc_repo_root)"
+	if [[ "${engine}" == "podman" ]]; then
+		mount_suffix=":z"
+	elif [[ "${engine}" == "docker" ]] && [[ -r /sys/fs/selinux/enforce ]] && [[ "$(cat /sys/fs/selinux/enforce)" == "1" ]]; then
+		mount_suffix=":z"
+	fi
+	printf '%s:/work%s\n' "${root}" "${mount_suffix}"
+}
+
+qemu_vnc_container_user_args() {
+	local engine="$1"
+
+	if [[ "${engine}" == "podman" ]]; then
+		printf '%s\n' "--userns=keep-id"
+		return 0
+	fi
+	if [[ "${engine}" == "docker" ]] && ! docker info --format '{{join .SecurityOptions "\n"}}' 2>/dev/null | grep -q '^name=rootless$'; then
+		printf '%s\n' "--user $(id -u):$(id -g)"
+	fi
+}
+
 qemu_vnc_run_case() {
 	local arch="$1"
 	local artifact_target="$2"
@@ -85,40 +126,50 @@ qemu_vnc_run_case() {
 	local timeout_secs="$8"
 	local geometry_preset="${9:-}"
 
-	local vnc_socket_container qmp_socket_container log_container
+	local engine
+	local mount_arg
+	local -a container_args
+	local artifact_path_container
+	local log_container
 	local artifact_path_abs
-	local artifact_path_container script_path_host script_path_container
-	local build_cmd
+	local script_path_host
+	local script_path_container
+	local vnc_socket_runtime
+	local qmp_socket_runtime
 
-	vnc_socket_container="$(qemu_vnc_container_path "${vnc_socket_host}")"
-	qmp_socket_container="$(qemu_vnc_container_path "${qmp_socket_host}")"
+	engine="$(qemu_vnc_container_engine)"
+	mount_arg="$(qemu_vnc_container_mount "${engine}")"
+	container_args=("${engine}" run --rm -e KFS_INSIDE_CONTAINER=1 -v "${mount_arg}" -w /work)
+	if [[ "${engine}" == "podman" ]]; then
+		container_args+=(--userns=keep-id)
+	elif [[ "${engine}" == "docker" ]] && ! docker info --format '{{join .SecurityOptions "\n"}}' 2>/dev/null | grep -q '^name=rootless$'; then
+		container_args+=(--user "$(id -u):$(id -g)")
+	fi
 	artifact_path_abs="$(qemu_vnc_abs_path "${artifact_path}")"
 	artifact_path_container="$(qemu_vnc_container_path "${artifact_path_abs}")"
-	log_container="$(qemu_vnc_container_path "${log_path}")"
 	script_path_host="$(mktemp "$(qemu_vnc_tmp_dir)/qemu-vnc-${case_name}.XXXXXX.sh")"
 	script_path_container="$(qemu_vnc_container_path "${script_path_host}")"
+	log_container="$(qemu_vnc_container_path "${log_path}")"
+	[[ -r "${artifact_path_abs}" ]] || qemu_vnc_die "missing artifact: ${artifact_path_abs}"
+	[[ "${artifact_target}" == "iso" || "${artifact_target}" == "img" ]] || qemu_vnc_die "unsupported artifact target: ${artifact_target}"
+	vnc_socket_runtime="/tmp/kfs-vnc-${arch}-$$-$RANDOM.sock"
+	qmp_socket_runtime="/tmp/kfs-qmp-${arch}-$$-$RANDOM.sock"
 
 	rm -f "${vnc_socket_host}" "${qmp_socket_host}" "${log_path}"
 	mkdir -p "$(dirname "${vnc_socket_host}")" "$(dirname "${qmp_socket_host}")" "$(dirname "${log_path}")"
-
-	build_cmd="make -B ${artifact_target} arch='${arch}' >/dev/null"
-	if [[ -n "${geometry_preset}" ]]; then
-		build_cmd="KFS_SCREEN_GEOMETRY_PRESET='${geometry_preset}' ${build_cmd}"
-	fi
 
 	cat >"${script_path_host}" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 cd /work
-${build_cmd}
-rm -f '${vnc_socket_container}' '${qmp_socket_container}' '${log_container}'
+rm -f '${vnc_socket_runtime}' '${qmp_socket_runtime}' '${log_container}'
 
 qemu-system-i386 \\
   -cdrom '${artifact_path_container}' \\
   -boot d \\
   -display none \\
-  -vnc unix:'${vnc_socket_container}',share=force-shared \\
-  -qmp unix:'${qmp_socket_container}',server,nowait \\
+  -vnc unix:'${vnc_socket_runtime}',share=force-shared \\
+  -qmp unix:'${qmp_socket_runtime}',server,nowait \\
   -monitor none \\
   -serial none \\
   -parallel none \\
@@ -137,12 +188,12 @@ trap cleanup EXIT
 
 ready_deadline=\$((SECONDS + 12))
 while (( SECONDS < ready_deadline )); do
-  if [[ -S '${vnc_socket_container}' && -S '${qmp_socket_container}' ]]; then
+  if [[ -S '${vnc_socket_runtime}' && -S '${qmp_socket_runtime}' ]]; then
     break
   fi
   sleep 0.05
 done
-if ! [[ -S '${vnc_socket_container}' && -S '${qmp_socket_container}' ]]; then
+if ! [[ -S '${vnc_socket_runtime}' && -S '${qmp_socket_runtime}' ]]; then
   kill "\${qemu_pid}" >/dev/null 2>&1 || true
   wait "\${qemu_pid}" >/dev/null 2>&1 || true
   echo "FAIL: qemu sockets did not appear after boot in time" >&2
@@ -151,14 +202,14 @@ if ! [[ -S '${vnc_socket_container}' && -S '${qmp_socket_container}' ]]; then
 fi
 
 timeout --foreground '${timeout_secs}' python3 scripts/boot-tests/lib/vnc_e2e.py \\
-  --socket '${vnc_socket_container}' \\
-  --qmp-socket '${qmp_socket_container}' \\
+  --socket '${vnc_socket_runtime}' \\
+  --qmp-socket '${qmp_socket_runtime}' \\
   --case '${case_name}' \\
   --timeout-secs '${timeout_secs}'
 EOF
 	chmod +x "${script_path_host}"
 
-	if bash scripts/with-build-lock.sh bash scripts/container.sh run -- bash "${script_path_container}"; then
+	if bash scripts/with-build-lock.sh "${container_args[@]}" "kfs1-dev:latest" bash "${script_path_container}"; then
 		rm -f "${script_path_host}"
 		return 0
 	fi

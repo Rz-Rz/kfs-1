@@ -43,25 +43,20 @@ die() {
 run_release_boot_case() {
 	local artifact="$1"
 	local qemu_mode="$2"
-	local tmp_dir vnc_socket_host qmp_socket_host log_path
-	local vnc_socket_container qmp_socket_container log_container artifact_container
-	local qemu_boot_args
+	local artifact_target
+	local tmp_dir log_path qemu_vnc_mode
 
 	tmp_dir="$(mktemp -d "$(qemu_vnc_tmp_dir)/release-boot-${ARCH}-${CASE}.XXXXXX")"
-	vnc_socket_host="${tmp_dir}/boot.vnc"
-	qmp_socket_host="${tmp_dir}/boot.qmp"
 	log_path="${tmp_dir}/boot.log"
-	vnc_socket_container="$(qemu_vnc_container_path "${vnc_socket_host}")"
-	qmp_socket_container="$(qemu_vnc_container_path "${qmp_socket_host}")"
-	log_container="$(qemu_vnc_container_path "${log_path}")"
-	artifact_container="$(qemu_vnc_container_path "$(qemu_vnc_abs_path "${artifact}")")"
 
 	case "${qemu_mode}" in
 	cdrom)
-		qemu_boot_args="-cdrom '${artifact_container}'"
+		artifact_target="iso"
+		qemu_vnc_mode="vga-buffer-starts-with-42"
 		;;
 	drive)
-		qemu_boot_args="-drive 'format=raw,file=${artifact_container}' -boot order=c"
+		artifact_target="img"
+		qemu_vnc_mode="vga-buffer-starts-with-42"
 		;;
 	*)
 		rm -rf "${tmp_dir}"
@@ -69,78 +64,29 @@ run_release_boot_case() {
 		;;
 	esac
 
-	bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-		bash -lc "
-set -euo pipefail
-cd /work
-rm -f '${vnc_socket_container}' '${qmp_socket_container}' '${log_container}'
-
-qemu-system-i386 \
-  ${qemu_boot_args} \
-  -display none \
-  -vnc unix:'${vnc_socket_container}',share=force-shared \
-  -qmp unix:'${qmp_socket_container}',server,nowait \
-  -monitor none \
-  -serial none \
-  -parallel none \
-  -no-reboot \
-  -no-shutdown \
-  >'${log_container}' 2>&1 &
-qemu_pid=\$!
-
-cleanup() {
-  if kill -0 \"\${qemu_pid}\" >/dev/null 2>&1; then
-    kill \"\${qemu_pid}\" >/dev/null 2>&1 || true
-  fi
-  wait \"\${qemu_pid}\" >/dev/null 2>&1 || true
-}
-trap cleanup EXIT
-
-deadline=\$((SECONDS + 12))
-while (( SECONDS < deadline )); do
-  if [[ -S '${vnc_socket_container}' && -S '${qmp_socket_container}' ]]; then
-    break
-  fi
-  sleep 0.05
-done
-if ! [[ -S '${vnc_socket_container}' && -S '${qmp_socket_container}' ]]; then
-  cat '${log_container}' >&2 || true
-  exit 1
-fi
-
-timeout --foreground 20 python3 scripts/boot-tests/lib/vnc_e2e.py \
-  --socket '${vnc_socket_container}' \
-  --qmp-socket '${qmp_socket_container}' \
-  --case 'vga-buffer-starts-with-42' \
-  --timeout-secs 20
-"
+	qemu_vnc_run_case "${ARCH}" "${artifact_target}" "${artifact}" "${tmp_dir}/boot.vnc" "${tmp_dir}/boot.qmp" "${qemu_vnc_mode}" "${log_path}" 20
 	rm -rf "${tmp_dir}"
 }
 
 run_host_case() {
 	case "${CASE}" in
 	release-iso-is-iso9660)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "test -f '${ISO}' && file '${ISO}' | grep -q 'ISO 9660'"
+		bash scripts/with-build-lock.sh bash -lc "test -f '${ISO}' && file '${ISO}' | grep -q 'ISO 9660'"
 		;;
 	release-iso-is-within-10mb)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "test -f '${ISO}' && test \$(wc -c < '${ISO}') -le 10485760"
+		bash scripts/with-build-lock.sh bash -lc "test -f '${ISO}' && test \$(wc -c < '${ISO}') -le 10485760"
 		;;
 	release-iso-boots)
 		run_release_boot_case "${ISO}" "cdrom"
 		;;
 	release-img-is-iso9660)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "test -f '${IMG}' && file '${IMG}' | grep -q 'ISO 9660'"
+		bash scripts/with-build-lock.sh bash -lc "test -f '${IMG}' && file '${IMG}' | grep -q 'ISO 9660'"
 		;;
 	release-img-copies-release-iso)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "test -f '${ISO}' && test -f '${IMG}' && cmp -s '${ISO}' '${IMG}'"
+		bash scripts/with-build-lock.sh bash -lc "test -f '${ISO}' && test -f '${IMG}' && cmp -s '${ISO}' '${IMG}'"
 		;;
 	release-img-is-within-10mb)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "test -f '${IMG}' && test \$(wc -c < '${IMG}') -le 10485760"
+		bash scripts/with-build-lock.sh bash -lc "test -f '${IMG}' && test \$(wc -c < '${IMG}') -le 10485760"
 		;;
 	release-img-boots)
 		run_release_boot_case "${IMG}" "drive"
