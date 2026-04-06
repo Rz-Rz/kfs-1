@@ -3,9 +3,10 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-}"
+# shellcheck disable=SC2034
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 TIMEOUT_SECS="${TEST_TIMEOUT_SECS:-10}"
 FAIL_RC="${TEST_FAIL_RC:-35}"
-ISO="build/os-${ARCH}-test.iso"
 LOG="build/m4-runtime-negative-${CASE}.log"
 
 list_cases() {
@@ -32,13 +33,29 @@ die() {
 	exit 2
 }
 
+iso_path() {
+	case "${CASE}" in
+	dirty-bss-canary-fails | dirty-bss-stops-before-layout)
+		printf 'build/os-%s-test-dirty-bss.iso\n' "${ARCH}"
+		;;
+	bad-layout-fails | bad-layout-stops-before-early-init)
+		printf 'build/os-%s-test-bad-layout.iso\n' "${ARCH}"
+		;;
+	*)
+		die "unknown case: ${CASE}"
+		;;
+	esac
+}
+
 run_qemu_capture() {
-	[[ -r "${ISO}" ]] || die "missing ISO: ${ISO} (build it with make iso-test arch=${ARCH})"
+	local iso
+	iso="$(iso_path)"
+	[[ -r "${iso}" ]] || die "missing ISO: ${iso} (build it with make test-artifacts arch=${ARCH})"
 
 	set +e
 	timeout --foreground "${TIMEOUT_SECS}" \
 		qemu-system-i386 \
-		-cdrom "${ISO}" \
+		-cdrom "${iso}" \
 		-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 		-serial stdio \
 		-display none \
@@ -104,26 +121,6 @@ run_direct_case() {
 	esac
 }
 
-run_host_case() {
-	local make_env=""
-
-	case "${CASE}" in
-	dirty-bss-canary-fails | dirty-bss-stops-before-layout)
-		make_env="KFS_TEST_DIRTY_BSS=1"
-		;;
-	bad-layout-fails | bad-layout-stops-before-early-init)
-		make_env="KFS_TEST_BAD_LAYOUT=1"
-		;;
-	*)
-		die "unknown case: ${CASE}"
-		;;
-	esac
-
-	bash scripts/with-build-lock.sh \
-		bash scripts/container.sh run -- \
-		bash -lc "make clean >/dev/null 2>&1 || true; make -B iso-test arch='${ARCH}' ${make_env} >/dev/null && KFS_HOST_TEST_DIRECT=1 TEST_TIMEOUT_SECS='${TIMEOUT_SECS}' TEST_FAIL_RC='${FAIL_RC}' bash scripts/rejection-tests/runtime-init-rejections.sh '${ARCH}' '${CASE}'"
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -132,11 +129,6 @@ main() {
 
 	if [[ "${ARCH}" == "--description" ]]; then
 		describe_case "${CASE}"
-		return 0
-	fi
-
-	if [[ -n "${CASE}" ]] && describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
 		return 0
 	fi
 
