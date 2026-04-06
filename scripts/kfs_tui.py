@@ -825,7 +825,7 @@ class KFSApp(App):
         self.passed = 0
         self.failed = 0
         self.active_runner_started_at: Optional[float] = None
-        self.active_panel: Optional[int] = None
+        self.active_panel_counts: dict[int, int] = {}
         self.expanded_panel: Optional[int] = None
         self.done = False
         self.boot_done = False
@@ -1140,6 +1140,21 @@ class KFSApp(App):
             self._update_bar()
             self._update_panel_summaries()
 
+    def _active_job_count(self) -> int:
+        return sum(self.active_panel_counts.values())
+
+    def _panel_is_active(self, panel_index: int) -> bool:
+        return self.active_panel_counts.get(panel_index, 0) > 0
+
+    def _primary_active_panel(self) -> Optional[int]:
+        if self.expanded_panel is not None and self._panel_is_active(self.expanded_panel):
+            return self.expanded_panel
+
+        for panel_index in range(len(PANEL_TITLES)):
+            if self._panel_is_active(panel_index):
+                return panel_index
+        return None
+
     def _current_runner_progress(self) -> float:
         if self.active_runner_started_at is None:
             return 0.0
@@ -1165,12 +1180,13 @@ class KFSApp(App):
         if not self.active_cells:
             return
 
-        if self.active_panel is None:
+        panel_index = self._primary_active_panel()
+        if panel_index is None:
             self._hide_active_runner()
             return
 
         try:
-            panel = self.query_one(f"#panel_{self.active_panel}", TestPanel)
+            panel = self.query_one(f"#panel_{panel_index}", TestPanel)
         except Exception:
             self._hide_active_runner()
             return
@@ -1221,10 +1237,18 @@ class KFSApp(App):
         script_path: Optional[str] = None,
         test_case: Optional[str] = None,
     ) -> None:
-        if self.active_panel != panel_index or self.active_runner_started_at is None:
+        panel = self.query_one(f"#panel_{panel_index}", TestPanel)
+        item = panel._find_item(section, subgroup, name)
+        previous_status = item.status if item is not None else None
+        previous_primary = self._primary_active_panel()
+        if previous_status != "run":
+            self.active_panel_counts[panel_index] = self.active_panel_counts.get(panel_index, 0) + 1
+        current_primary = self._primary_active_panel()
+        if current_primary is not None and (
+            self.active_runner_started_at is None or current_primary != previous_primary
+        ):
             self.active_runner_started_at = time.monotonic()
-        self.active_panel = panel_index
-        self.query_one(f"#panel_{panel_index}", TestPanel).mark_running(
+        panel.mark_running(
             section,
             subgroup,
             name,
@@ -1248,7 +1272,19 @@ class KFSApp(App):
         panel = self.query_one(f"#panel_{panel_index}", TestPanel)
         item = panel._find_item(section, subgroup, name)
         previous_status = item.status if item is not None else None
+        previous_primary = self._primary_active_panel()
         panel.complete_item(section, subgroup, name, passed, error_log, script_path, test_case)
+        if previous_status == "run":
+            remaining = self.active_panel_counts.get(panel_index, 0) - 1
+            if remaining > 0:
+                self.active_panel_counts[panel_index] = remaining
+            else:
+                self.active_panel_counts.pop(panel_index, None)
+        current_primary = self._primary_active_panel()
+        if current_primary is None:
+            self.active_runner_started_at = None
+        elif current_primary != previous_primary:
+            self.active_runner_started_at = time.monotonic()
         if previous_status not in {"pass", "fail"}:
             if passed:
                 self.passed += 1
@@ -1278,10 +1314,13 @@ class KFSApp(App):
     def _update_top_status(self) -> None:
         total = max(self.suite_total or self.discovered_total, self.passed + self.failed, 1)
         done = self.passed + self.failed
+        active_jobs = self._active_job_count()
         active_label = (
             "FAILED"
             if self.done and self.failed
-            else "DONE" if self.done else (self.current_section or "WAITING")
+            else "DONE"
+            if self.done
+            else f"RUN {active_jobs}" if active_jobs else (self.current_section or "WAITING")
         )
         elapsed = self._elapsed_seconds()
         branch_label = self.current_branch
@@ -1292,6 +1331,7 @@ class KFSApp(App):
             f"[{AMBER}]arch[/]={self.arch}  "
             f"[{AMBER}]elapsed[/]={elapsed:4.1f}s  "
             f"[{RED_BRIGHT if active_label == 'FAILED' else AMBER}]active[/]={active_label}  "
+            f"[{AMBER}]run[/]={active_jobs}  "
             f"[{AMBER}]done[/]={done}/{total}  "
             f"[{GREEN_OK}]pass[/]={self.passed}  "
             f"[{RED_BRIGHT}]fail[/]={self.failed}"
@@ -1344,7 +1384,7 @@ class KFSApp(App):
                 state = "fail"
             elif panel_total > 0 and panel_done == panel_total:
                 state = "pass"
-            elif self.active_panel == panel_index:
+            elif self._panel_is_active(panel_index):
                 state = "active"
             else:
                 state = "idle"
@@ -1365,7 +1405,7 @@ class KFSApp(App):
     def _finish(self, passed: bool) -> None:
         self.done = True
         self.active_runner_started_at = None
-        self.active_panel = None
+        self.active_panel_counts.clear()
         self._update_panel_summaries()
         self._refresh_metrics_display(reload_snapshot=True)
         self._sync_active_runner()
