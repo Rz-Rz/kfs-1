@@ -55,6 +55,11 @@ its own `Proof:`) start in the "Base (Mandatory) Detailed Status" section.
 Canonical workflow:
 - Run builds and tests inside the container toolchain
 - Use `make test` for the daily red or green result
+- Use `make run` to build and boot the ISO
+- Use `make run-iso` to boot an already-built ISO without rebuilding
+- Use `make run-ui` to build and boot the IMG/manual UI path
+- Use `make test-artifacts` to prebuild the shared release/test/variant artifacts that the suite consumes
+- Use `make reproducible-builds` to run the release-artifact reproducibility proofs only
 
 Host requirements:
 - `docker` or `podman`
@@ -62,6 +67,7 @@ Host requirements:
 Proof:
 - `command -v docker || command -v podman`
 - `make container-env-check`
+- `make -n all arch=i386` shows Dockerized `nasm`, `rustc`, `ld`, and `objcopy`
 
 ---
 
