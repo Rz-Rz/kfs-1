@@ -12,7 +12,6 @@ RUN_LINT="${KFS_RUN_LINT:-0}"
 SCRIPT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 DEBUG_INDEX=""
 ENTRIES_FILE=""
-RELEASE_ARTIFACT_SNAPSHOT_DIR=""
 
 if [[ "${ARCH}" == "--manifest" ]]; then
 	MODE="manifest"
@@ -29,68 +28,11 @@ die() {
 	exit 2
 }
 
-tracked_release_artifacts_exist_in_repo() {
-	git -C "${SCRIPT_ROOT}/.." ls-files --error-unmatch \
-		"build/os-${ARCH}.iso" \
-		"build/os-${ARCH}.img" >/dev/null 2>&1
-}
-
-ensure_tracked_release_artifacts_present() {
-	tracked_release_artifacts_exist_in_repo || return 0
-
-	if [[ -r "build/os-${ARCH}.iso" && -r "build/os-${ARCH}.img" ]]; then
-		return 0
-	fi
-
-	git -C "${SCRIPT_ROOT}/.." restore --worktree -- \
-		"build/os-${ARCH}.iso" \
-		"build/os-${ARCH}.img"
-}
-
-snapshot_tracked_release_artifacts() {
-	[[ "${MODE}" != "manifest" ]] || return 0
-	[[ "${SUITE_LOCKED}" == "1" ]] || return 0
-	tracked_release_artifacts_exist_in_repo || return 0
-	ensure_tracked_release_artifacts_present || return 1
-
-	RELEASE_ARTIFACT_SNAPSHOT_DIR="$(mktemp -d -t kfs-release-artifacts.XXXXXX)"
-	cp "build/os-${ARCH}.iso" "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.iso"
-	cp "build/os-${ARCH}.img" "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.img"
-}
-
-restore_tracked_release_artifacts() {
-	[[ "${MODE}" != "manifest" ]] || return 0
-	[[ "${SUITE_LOCKED}" == "1" ]] || return 0
-	[[ -n "${RELEASE_ARTIFACT_SNAPSHOT_DIR}" ]] || return 0
-	[[ -r "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.iso" ]] || return 0
-	[[ -r "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.img" ]] || return 0
-
-	if cmp -s "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.iso" "build/os-${ARCH}.iso" 2>/dev/null &&
-		cmp -s "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.img" "build/os-${ARCH}.img" 2>/dev/null; then
-		return 0
-	fi
-
-	echo "info: restoring tracked release artifacts" >&2
-	mkdir -p build
-	cp "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.iso" "build/os-${ARCH}.iso"
-	cp "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.img" "build/os-${ARCH}.img"
-}
-
 cleanup() {
 	local exit_code="${1:-$?}"
 
 	trap - EXIT
 	rm -f "${ENTRIES_FILE}"
-
-	if ! restore_tracked_release_artifacts; then
-		echo "warn: failed to restore tracked release artifacts" >&2
-		if [[ "${exit_code}" -eq 0 ]]; then
-			exit_code=1
-		fi
-	fi
-
-	rm -rf "${RELEASE_ARTIFACT_SNAPSHOT_DIR}"
-
 	exit "${exit_code}"
 }
 
@@ -266,6 +208,8 @@ build_manifest() {
 	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Rebuild the container toolchain image" >>"${entries}"
 	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify tools exist" >>"${entries}"
 	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify host test tools exist" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Build canonical release ISO/IMG artifacts" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Build test ISO/IMG artifacts" >>"${entries}"
 	collect_section_entries "TESTS" "${SCRIPT_ROOT}/tests" "${entries}"
 	if [[ -d "${SCRIPT_ROOT}/architecture-tests" ]]; then
 		collect_section_entries "ARCHITECTURE TESTS" "${SCRIPT_ROOT}/architecture-tests" "${entries}"
@@ -393,8 +337,6 @@ fi
 export KFS_CONTAINER_TTY=0
 is_tty && export KFS_CONTAINER_TTY=1
 
-snapshot_tracked_release_artifacts
-
 ENTRIES_FILE="$(mktemp -t kfs-manifest.XXXXXX)"
 trap 'cleanup "$?"' EXIT
 build_manifest "${ENTRIES_FILE}"
@@ -443,6 +385,22 @@ fi
 
 if ! run_item "SETUP" "-" "Verify host test tools exist" "-" "-" \
 	bash -lc 'command -v rg >/dev/null 2>&1'; then
+	emit_event "summary" "fail"
+	exit 1
+fi
+
+if ! run_item "SETUP" "-" "Build canonical release ISO/IMG artifacts" "-" "-" \
+	bash scripts/with-build-lock.sh \
+	bash scripts/container.sh run -- \
+	bash -lc "make -B img arch='${ARCH}' >/dev/null"; then
+	emit_event "summary" "fail"
+	exit 1
+fi
+
+if ! run_item "SETUP" "-" "Build test ISO/IMG artifacts" "-" "-" \
+	bash scripts/with-build-lock.sh \
+	bash scripts/container.sh run -- \
+	bash -lc "make -B img-test arch='${ARCH}' >/dev/null"; then
 	emit_event "summary" "fail"
 	exit 1
 fi

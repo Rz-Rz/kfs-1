@@ -86,7 +86,12 @@ lint_script := scripts/lint.sh
 all: $(kernel)
 
 clean:
-	@rm -rf build
+	@if [ -d build ]; then \
+		find build -mindepth 1 -maxdepth 1 \
+			! -name 'os-*.iso' \
+			! -name 'os-*.img' \
+			-exec rm -rf {} +; \
+	fi
 
 run: $(iso)
 	@qemu-system-i386 -cdrom $(iso)

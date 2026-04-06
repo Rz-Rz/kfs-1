@@ -24,13 +24,13 @@ EOF
 
 describe_case() {
 	case "$1" in
-	release-iso-is-iso9660) printf '%s\n' "tracked release ISO is an ISO9660 image" ;;
-	release-iso-is-within-10mb) printf '%s\n' "tracked release ISO stays within the 10 MB upper bound" ;;
-	release-iso-boots) printf '%s\n' "tracked release ISO boots via GRUB in QEMU" ;;
-	release-img-is-iso9660) printf '%s\n' "tracked release IMG is an ISO9660 image" ;;
-	release-img-copies-release-iso) printf '%s\n' "tracked release IMG matches the release ISO bytes" ;;
-	release-img-is-within-10mb) printf '%s\n' "tracked release IMG stays within the 10 MB upper bound" ;;
-	release-img-boots) printf '%s\n' "tracked release IMG boots via GRUB in QEMU" ;;
+	release-iso-is-iso9660) printf '%s\n' "canonical release ISO is an ISO9660 image" ;;
+	release-iso-is-within-10mb) printf '%s\n' "canonical release ISO stays within the 10 MB upper bound" ;;
+	release-iso-boots) printf '%s\n' "canonical release ISO boots via GRUB in QEMU" ;;
+	release-img-is-iso9660) printf '%s\n' "canonical release IMG is an ISO9660 image" ;;
+	release-img-copies-release-iso) printf '%s\n' "canonical release IMG matches the release ISO bytes" ;;
+	release-img-is-within-10mb) printf '%s\n' "canonical release IMG stays within the 10 MB upper bound" ;;
+	release-img-boots) printf '%s\n' "canonical release IMG boots via GRUB in QEMU" ;;
 	*) return 1 ;;
 	esac
 }

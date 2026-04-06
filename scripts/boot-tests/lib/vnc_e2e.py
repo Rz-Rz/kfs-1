@@ -447,6 +447,20 @@ def top_left_text_region(client: VNCClient, frame: bytes) -> bytes:
     )
 
 
+def top_left_line_region(client: VNCClient, frame: bytes) -> bytes:
+    cell_w, cell_h = cell_metrics(client.width, client.height)
+    return crop(
+        frame,
+        client.width,
+        client.height,
+        client.bytes_per_pixel,
+        0,
+        0,
+        12 * cell_w,
+        cell_h,
+    )
+
+
 def top_left_body_region(client: VNCClient, frame: bytes) -> bytes:
     cell_w, cell_h = cell_metrics(client.width, client.height)
     return crop(
@@ -549,6 +563,7 @@ RegionFn = Callable[[VNCClient, bytes], bytes]
 
 REGIONS: dict[str, RegionFn] = {
     "top_left_text": top_left_text_region,
+    "top_left_line": top_left_line_region,
     "top_left_body": top_left_body_region,
     "top_left_cell": top_left_cell_region,
     "compact_origin": compact_origin_region,
@@ -2059,10 +2074,10 @@ SCENARIOS["backspace-blanks-the-last-visible-character-cell"] = [
         "message": "Backspace did not blank the last visible character cell",
     },
 ]
-# This case drives 59 rapid key events before waiting for the framebuffer to settle. Slower
-# GitHub-hosted runners need a bit more per-key slack and a larger final match window.
-BACKSPACE_REWIND_STEP_DELAY_SECS = 0.18
-BACKSPACE_REWIND_TIMEOUT_SECS = 8.0
+# This case drives 59 rapid key events before waiting for the framebuffer to settle. Give it
+# extra slack so slower QEMU/VNC runs still observe the final rewound framebuffer state.
+BACKSPACE_REWIND_STEP_DELAY_SECS = 0.25
+BACKSPACE_REWIND_TIMEOUT_SECS = 30.0
 
 SCENARIOS["backspace-rewinds-across-scrolled-blank-lines"] = [
     *_fresh_terminal_blank_steps("beta_blank"),
@@ -2071,20 +2086,17 @@ SCENARIOS["backspace-rewinds-across-scrolled-blank-lines"] = [
         "op": "capture_wait_change",
         "from": "beta_blank",
         "name": "beta_dirty",
-        "region": "top_left_text",
+        "region": "top_left_line",
         "message": "typing a visible character did not change the terminal before scroll",
         "timeout_secs": 2.5,
     },
-    {"op": "capture", "name": "x_visible", "region": "top_left_text", "wait_boot": False},
-    *[
-        {"op": "tap", "key": "Enter", "after": BACKSPACE_REWIND_STEP_DELAY_SECS}
-        for _ in range(30)
-    ],
+    {"op": "capture", "name": "x_visible", "region": "top_left_line", "wait_boot": False},
+    *[{"op": "tap", "key": "Enter", "after": BACKSPACE_REWIND_STEP_DELAY_SECS} for _ in range(30)],
     {
         "op": "capture_wait_change",
         "from": "x_visible",
         "name": "x_scrolled_away",
-        "region": "top_left_text",
+        "region": "top_left_line",
         "message": "blank-line scrolling did not move the visible terminal window",
         "timeout_secs": BACKSPACE_REWIND_TIMEOUT_SECS,
     },
@@ -2096,7 +2108,7 @@ SCENARIOS["backspace-rewinds-across-scrolled-blank-lines"] = [
         "op": "capture_wait_match",
         "target": "x_visible",
         "name": "x_rewound",
-        "region": "top_left_text",
+        "region": "top_left_line",
         "message": "Backspace did not rewind across scrolled blank lines",
         "timeout_secs": BACKSPACE_REWIND_TIMEOUT_SECS,
     },

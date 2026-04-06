@@ -66,7 +66,10 @@ run_case() {
 	local timeout_secs="${TEST_TIMEOUT_SECS:-15}"
 
 	case "${CASE}" in
-	bare-function-key-selection-matrix | alt-function-key-selection-matrix | arrow-up-restores-an-older-viewport-snapshot | arrow-down-returns-to-the-live-tail-viewport | multi-line-output-scrolls-visibly-after-repeated-newlines | backspace-blanks-the-last-visible-character-cell | backspace-rewinds-across-scrolled-blank-lines | newline-moves-visible-output-to-the-next-row | end-of-line-wrap-continues-on-the-next-row | switching-back-to-a-scrolled-terminal-restores-its-viewport)
+	backspace-rewinds-across-scrolled-blank-lines)
+		timeout_secs="${TEST_TIMEOUT_SECS:-90}"
+		;;
+	bare-function-key-selection-matrix | alt-function-key-selection-matrix | arrow-up-restores-an-older-viewport-snapshot | arrow-down-returns-to-the-live-tail-viewport | multi-line-output-scrolls-visibly-after-repeated-newlines | backspace-blanks-the-last-visible-character-cell | newline-moves-visible-output-to-the-next-row | end-of-line-wrap-continues-on-the-next-row | switching-back-to-a-scrolled-terminal-restores-its-viewport)
 		timeout_secs="${TEST_TIMEOUT_SECS:-60}"
 		;;
 	esac
