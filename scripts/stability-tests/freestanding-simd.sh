@@ -4,6 +4,7 @@ set -euo pipefail
 ARCH="${1:-i386}"
 CASE="${2:-}"
 MAKEFILE_SOURCE="Makefile"
+KERNEL_PATH="build/kernel-${ARCH}.bin"
 SIMD_PATTERN='xmm[0-9]+|ymm[0-9]+|zmm[0-9]+|mm[0-7]+|(^|[^[:alnum:]_])(xorps|movaps|movups|movdqa|movdqu|pxor|xorpd|movapd|movupd|movq|movd|movntdq|movntps|movntpd|paddb|paddw|paddd|pand|pandn|por|ldmxcsr|stmxcsr|fxsave|fxrstor|maskmovq|emms)([^[:alnum:]_]|$)'
 APPROVED_STATE_PATTERN='(^|[^[:alnum:]_])(ldmxcsr)([^[:alnum:]_]|$)'
 APPROVED_MEMORY_SYMBOL_PATTERN='main::kernel::klib::memory::sse2_memcpy::memcpy_sse2|main::kernel::klib::memory::sse2_memset::memset'
@@ -38,6 +39,21 @@ ensure_tools() {
 assert_makefile_wiring() {
 	rg -n 'rust_target[[:space:]]*:=[[:space:]]*i586-unknown-linux-gnu' "${MAKEFILE_SOURCE}" >/dev/null ||
 		die "Makefile does not define the freestanding Rust target"
+}
+
+build_kernel() {
+	local preset="$1"
+	local build_log
+
+	rm -f "${KERNEL_PATH}"
+	build_log="$(mktemp -t kfs-simd-build.XXXXXX)"
+	if ! KFS_SCREEN_GEOMETRY_PRESET="${preset}" make -B "${KERNEL_PATH}" arch="${ARCH}" >"${build_log}" 2>&1; then
+		cat "${build_log}" >&2
+		rm -f "${build_log}"
+		die "failed to build ${KERNEL_PATH} for preset ${preset}"
+	fi
+	rm -f "${build_log}"
+	[[ -r "${KERNEL_PATH}" ]] || die "missing artifact: ${KERNEL_PATH}"
 }
 
 kernel_path_for_preset() {

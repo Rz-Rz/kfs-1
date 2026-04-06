@@ -128,6 +128,31 @@ expected_message() {
 	esac
 }
 
+reference_run_direct_case() {
+	local linker="build/m3.3-negative-${CASE}.ld"
+	local log="build/m3.3-negative-${CASE}.log"
+	local expected
+	expected="$(expected_message)"
+
+	bash scripts/with-build-lock.sh make clean >/dev/null 2>&1 || true
+	mkdir -p build
+	write_invalid_linker_script "${linker}"
+
+	if bash scripts/with-build-lock.sh make -B all arch="${ARCH}" linker_script="${linker}" >"${log}" 2>&1; then
+		echo "FAIL ${CASE}: wrong linker script unexpectedly passed the build gate" >&2
+		cat "${log}" >&2
+		exit 1
+	fi
+
+	if ! grep -qF "${expected}" "${log}"; then
+		echo "FAIL ${CASE}: expected rejection message not found: ${expected}" >&2
+		cat "${log}" >&2
+		exit 1
+	fi
+
+	echo "PASS ${CASE}"
+}
+
 run_direct_case() {
 	local stamp="build/rejections/layout-${ARCH}-${CASE}.stamp"
 	[[ -r "${stamp}" ]] || die "missing rejection proof: ${stamp} (build it with make test-artifacts arch=${ARCH})"
