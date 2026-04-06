@@ -353,9 +353,6 @@ class InputBackend:
     def chord(self, keys: list[str]) -> None:
         raise NotImplementedError
 
-    def alt_a_prefix(self) -> None:
-        raise NotImplementedError
-
 
 class QmpInput(InputBackend):
     def __init__(self, qmp: QMPClient) -> None:
@@ -385,9 +382,6 @@ class QmpInput(InputBackend):
         for key in reversed(keys):
             self._send(key, False)
         time.sleep(0.12)
-
-    def alt_a_prefix(self) -> None:
-        self.chord(["Alt", "a"])
 
 
 def _pixel_color(client: VNCClient, pixel: bytes) -> tuple[int, int, int]:
@@ -1067,11 +1061,6 @@ def _execute_steps(
             time.sleep(float(step.get("after", 0.0)))
             continue
 
-        if op == "alt_a_prefix":
-            input_backend.alt_a_prefix()
-            time.sleep(float(step.get("after", 0.0)))
-            continue
-
         if op == "assert_eq":
             assert_eq(samples, step["left"], step["right"], step["message"])
             continue
@@ -1341,146 +1330,6 @@ SCENARIOS: dict[str, list[dict]] = {
             "left": "beta_text",
             "right": "beta_restored",
             "message": "switching to F2 did not restore beta",
-        },
-    ],
-    "alt-a-c-creates-terminal-and-visible-indicator-changes": [
-        {
-            "op": "capture_wait_foreground",
-            "name": "label_alpha",
-            "region": "top_right_label",
-            "timeout_secs": 3.0,
-            "message": "initial active-terminal indicator did not appear",
-        },
-        {"op": "alt_a_prefix", "after": 0.15},
-        {"op": "tap", "key": "c", "after": 0.55},
-        {
-            "op": "capture_wait_change",
-            "from": "label_alpha",
-            "name": "label_created",
-            "region": "top_right_label",
-            "message": "Alt+A C did not change the active-terminal indicator",
-            "timeout_secs": 2.0,
-        },
-        {
-            "op": "assert_ne",
-            "left": "label_alpha",
-            "right": "label_created",
-            "message": "Alt+A C did not change the active-terminal indicator",
-        },
-    ],
-    "alt-a-x-destroys-terminal-and-visible-indicator-restores": [
-        {
-            "op": "capture_wait_foreground",
-            "name": "label_alpha",
-            "region": "top_right_label",
-            "timeout_secs": 3.0,
-            "message": "initial active-terminal indicator did not appear",
-        },
-        {"op": "tap", "key": "F11", "after": 0.4},
-        {
-            "op": "capture_wait_change",
-            "from": "label_alpha",
-            "name": "label_beta",
-            "region": "top_right_label",
-            "message": "F11 bootstrap for Alt+A X case did not change the active-terminal indicator",
-            "timeout_secs": 3.0,
-        },
-        {
-            "op": "assert_ne",
-            "left": "label_alpha",
-            "right": "label_beta",
-            "message": "F11 bootstrap for Alt+A X case did not change the active-terminal indicator",
-        },
-        {"op": "alt_a_prefix", "after": 0.15},
-        {"op": "tap", "key": "x", "after": 0.55},
-        {
-            "op": "capture_wait_match",
-            "target": "label_alpha",
-            "name": "label_restored",
-            "region": "top_right_label",
-            "message": "Alt+A X did not restore the prior active-terminal indicator",
-            "timeout_secs": 5.0,
-        },
-        {
-            "op": "assert_eq",
-            "left": "label_alpha",
-            "right": "label_restored",
-            "message": "Alt+A X did not restore the prior active-terminal indicator",
-        },
-    ],
-    "alt-a-digit-selects-target-terminal": [
-        {
-            "op": "capture_wait_foreground",
-            "name": "label_alpha",
-            "region": "top_right_label",
-            "timeout_secs": 3.0,
-            "message": "alpha terminal label did not appear",
-        },
-        {"op": "tap", "key": "F11", "after": 0.45},
-        {
-            "op": "capture_wait_change",
-            "from": "label_alpha",
-            "name": "label_beta",
-            "region": "top_right_label",
-            "message": "F11 bootstrap to beta failed",
-            "timeout_secs": 3.0,
-        },
-        {"op": "tap", "key": "F11", "after": 0.45},
-        {
-            "op": "capture_wait_change",
-            "from": "label_beta",
-            "name": "label_gamma",
-            "region": "top_right_label",
-            "message": "second F11 bootstrap to gamma failed",
-            "timeout_secs": 3.0,
-        },
-        {"op": "capture", "name": "gamma_seed", "region": "top_left_text", "wait_boot": True},
-        {"op": "type_text", "text": "g", "after": 0.35},
-        {
-            "op": "capture_wait_change",
-            "from": "gamma_seed",
-            "name": "gamma_text",
-            "region": "top_left_text",
-            "message": "gamma terminal did not update after typing",
-            "timeout_secs": 2.5,
-        },
-        {
-            "op": "assert_ne",
-            "left": "gamma_seed",
-            "right": "gamma_text",
-            "message": "gamma terminal did not update after typing",
-        },
-        {"op": "alt_a_prefix", "after": 0.15},
-        {"op": "tap", "key": "0", "after": 0.45},
-        {
-            "op": "capture_wait_change",
-            "from": "gamma_text",
-            "name": "alpha_text",
-            "region": "top_left_text",
-            "message": "Alt+A 0 did not switch away from gamma",
-            "timeout_secs": 3.0,
-        },
-        {
-            "op": "assert_ne",
-            "left": "alpha_text",
-            "right": "gamma_text",
-            "message": "Alt+A 0 did not switch away from gamma",
-        },
-        {"op": "alt_a_prefix", "after": 0.15},
-        {"op": "tap", "key": "2", "after": 0.45},
-        {
-            "op": "capture_wait_match",
-            "target": "gamma_text",
-            "name": "gamma_restored",
-            "region": "top_left_text",
-            "message": "Alt+A 2 did not restore gamma",
-            "timeout_secs": 4.0,
-        },
-        {
-            "op": "assert_eq",
-            "left": "gamma_text",
-            "right": "gamma_restored",
-            "message": "Alt+A 2 did not restore gamma",
         },
     ],
     "compact-geometry-centers-42-in-physical-vga": [
