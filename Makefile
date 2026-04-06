@@ -7,6 +7,8 @@ repro_env = LC_ALL=C LANG=C TZ=UTC SOURCE_DATE_EPOCH=$(source_date_epoch)
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
 img := build/os-$(arch).img
+ui_runner_image := kfs1-ui-runner:latest
+ui_runner_containerfile := Dockerfile.ui-runner
 kernel_test := build/kernel-$(arch)-test.bin
 iso_test := build/os-$(arch)-test.iso
 img_test := build/os-$(arch)-test.img
@@ -101,8 +103,13 @@ run: $(iso)
 ## - run-ui-compact: compact 40x10 UI
 run-ui: KFS_SCREEN_GEOMETRY_PRESET := vga80x25
 run-ui:
-	@bash scripts/container.sh build-image
-	@KFS_SCREEN_GEOMETRY_PRESET=$(KFS_SCREEN_GEOMETRY_PRESET) bash scripts/container.sh run-gui -- bash scripts/run-ui.sh $(arch)
+	@KFS_CONTAINER_IMAGE=$(ui_runner_image) \
+		KFS_CONTAINERFILE=$(ui_runner_containerfile) \
+		bash scripts/container.sh build-image
+	@KFS_CONTAINER_IMAGE=$(ui_runner_image) \
+		KFS_CONTAINERFILE=$(ui_runner_containerfile) \
+		KFS_SCREEN_GEOMETRY_PRESET=$(KFS_SCREEN_GEOMETRY_PRESET) \
+		bash scripts/container.sh run-gui -- bash scripts/run-ui.sh $(arch)
 
 run-ui-compact: KFS_SCREEN_GEOMETRY_PRESET := compact40x10
 run-ui-compact:

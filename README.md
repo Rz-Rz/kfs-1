@@ -2,7 +2,7 @@
 
 Workflow: build and test using the container toolchain so Fedora and Ubuntu WSL run the same commands.
 Release artifact reproducibility is tracked separately from runtime correctness: the build now derives `SOURCE_DATE_EPOCH` from Git, remaps Rust build paths, and checks that release artifacts match across clean rebuilds.
-The container also pins Ubuntu package resolution to a fixed snapshot timestamp so `apt` stops drifting over time.
+The build container pins the Ubuntu base image digest plus the Rust and host-tool versions used inside the toolchain image.
 
 ## Quickstart
 
@@ -11,6 +11,7 @@ One command:
 
 Optional:
 - `make test-ui-bootstrap` installs the host-side Python TUI dependencies into `.venv-test-ui`
+- `make run-ui` boots the tracked `build/os-i386.img` through a lightweight runner container and does not rebuild the kernel/image from source
 
 What it does:
 - Rebuilds the dev image
