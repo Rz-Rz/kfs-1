@@ -6,6 +6,8 @@ use super::{
 use crate::kernel::machine::port::Port;
 use crate::kernel::types::screen::{ColorCode, VGA_TEXT_DIMENSIONS, VGA_TEXT_PHYSICAL_DIMENSIONS};
 
+// This file is the bridge between the logical terminal model in `mod.rs` and the real
+// VGA hardware state: framebuffer memory plus cursor registers.
 const VGA_TEXT_BUFFER: *mut u16 = 0xb8000 as *mut u16;
 const VGA_TEXT_LOGICAL_CELL_COUNT: usize = VGA_TEXT_DIMENSIONS.cell_count();
 const VGA_TEXT_PHYSICAL_CELL_COUNT: usize = VGA_TEXT_PHYSICAL_DIMENSIONS.cell_count();
@@ -28,6 +30,7 @@ static mut VGA_HARDWARE_CURSOR_ENABLED: bool = false;
 static mut VGA_LOGICAL_STATE_INITIALIZED: bool = false;
 static mut VGA_STATE_INITIALIZED: bool = false;
 
+// VGA cursor registers want one flat cell index inside the physical 80x25 grid.
 fn vga_cursor_position(row: usize, col: usize) -> u16 {
     ((row * VGA_TEXT_PHYSICAL_DIMENSIONS.width()) + col) as u16
 }
@@ -63,6 +66,10 @@ unsafe fn vga_set_hardware_cursor(row: usize, col: usize) {
     }
 }
 
+// Redraw is a three-step pipeline:
+// 1. copy the active terminal's history viewport into a logical screen buffer,
+// 2. center that logical screen inside the physical VGA geometry,
+// 3. stamp the terminal label and flush the result to `0xb8000`.
 unsafe fn redraw_active_terminal() {
     let bank = unsafe { &*core::ptr::addr_of!(VGA_TERMINALS) };
     let terminal = bank.active();
@@ -122,6 +129,8 @@ unsafe fn redraw_active_terminal() {
     }
 }
 
+// The logical state is everything we can rebuild without touching hardware: terminal
+// contents, viewport positions, colors, and labels.
 unsafe fn initialize_logical_state() {
     unsafe {
         (&mut *core::ptr::addr_of_mut!(VGA_TERMINALS)).reset();
@@ -137,6 +146,8 @@ unsafe fn ensure_logical_state_initialized() {
     }
 }
 
+// Full state initialization means "logical state is ready, hardware cursor is on, and
+// the framebuffer already shows the current terminal".
 unsafe fn initialize_state() {
     unsafe {
         ensure_logical_state_initialized();
@@ -158,6 +169,8 @@ unsafe fn ensure_state_initialized() {
     }
 }
 
+// Each public writer operation follows the same pattern:
+// make sure state exists, mutate the active logical terminal, then redraw.
 pub(super) fn write_bytes(bytes: &[u8]) {
     unsafe {
         ensure_state_initialized();

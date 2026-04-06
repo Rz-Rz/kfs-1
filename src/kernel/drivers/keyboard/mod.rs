@@ -8,6 +8,8 @@ pub use self::imp::{
 
 use self::imp::poll_scancode;
 
+// The keyboard driver keeps just enough global state to decode a stream of
+// scancodes across polls: modifier/extended-key state and the `Alt+A` prefix.
 static mut KEYBOARD_STATE: KeyboardState = KeyboardState::new();
 static mut KEYBOARD_SHORTCUT_STATE: KeyboardShortcutState = KeyboardShortcutState::new();
 
@@ -18,6 +20,8 @@ pub fn keyboard_init() {
     }
 }
 
+// Poll one raw scancode byte, decode it into a key event, then run it through
+// the prefix-shortcut logic and final console routing.
 pub fn keyboard_poll_route() -> Option<KeyboardRoute> {
     let scancode = poll_scancode()?;
 

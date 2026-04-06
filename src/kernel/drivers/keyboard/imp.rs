@@ -4,6 +4,8 @@ const PS2_DATA_PORT: Port = Port::new(0x60);
 const PS2_STATUS_PORT: Port = Port::new(0x64);
 const PS2_OUTPUT_FULL_MASK: u8 = 0x01;
 
+// This is the decoded meaning of one key after we translate the raw scancode.
+// It is still low-level on purpose: routing text and shortcuts happens later.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeyCode {
     Printable(u8),
@@ -22,6 +24,8 @@ pub enum KeyCode {
     Unknown,
 }
 
+// A decoded key transition plus a snapshot of the modifier state at that moment.
+// Carrying the modifier bits on every event keeps the routing code simple.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct KeyEvent {
     pub code: KeyCode,
@@ -31,6 +35,9 @@ pub struct KeyEvent {
     pub alt: bool,
 }
 
+// This is the small amount of state we need while decoding a PS/2 byte stream:
+// which modifiers are currently held, and whether the last byte was the `0xE0`
+// prefix used by extended keys like arrows and right-side modifiers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct KeyboardState {
     pub ctrl: bool,
@@ -50,6 +57,7 @@ impl KeyboardState {
     }
 }
 
+// Higher-level keyboard commands understood by the console layer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeyboardShortcut {
     AltFunction(u8),
@@ -58,12 +66,13 @@ pub enum KeyboardShortcut {
     SelectTerminal(usize),
 }
 
-/// This maps one reserved keyboard shortcut to the target virtual terminal slot.
+/// Turn a terminal-related shortcut into the terminal index it refers to.
 ///
-/// The mapping lives outside the raw scancode decoder so terminal policy can
-/// evolve without rewriting the low-level key translation tables.
+/// Keeping this mapping here means terminal-selection policy can change without
+/// touching the lower-level scancode decoder.
 pub fn shortcut_terminal_index(shortcut: KeyboardShortcut) -> Option<usize> {
     match shortcut {
+        // match values from 1 to 12 & store the matched value in index
         KeyboardShortcut::AltFunction(index @ 1..=12) => Some((index - 1) as usize),
         KeyboardShortcut::SelectTerminal(index) => Some(index),
         KeyboardShortcut::CreateTerminal | KeyboardShortcut::DestroyTerminal => None,
@@ -71,10 +80,10 @@ pub fn shortcut_terminal_index(shortcut: KeyboardShortcut) -> Option<usize> {
     }
 }
 
-/// This maps unmodified function keys onto terminal-management commands.
+/// Map bare function keys onto terminal commands.
 ///
-/// Bare `F1..F10` are reliable inside the QEMU GUI window because the host
-/// toolkit is much less likely to steal them than `Alt+letter` combos.
+/// Plain `F1..F12` are handy in QEMU because host shortcuts are less likely to
+/// steal them than `Alt+letter` combos.
 pub fn direct_function_shortcut(index: u8) -> Option<KeyboardShortcut> {
     match index {
         1..=10 => Some(KeyboardShortcut::SelectTerminal((index - 1) as usize)),
@@ -84,13 +93,15 @@ pub fn direct_function_shortcut(index: u8) -> Option<KeyboardShortcut> {
     }
 }
 
+// Tracks whether we have already seen the command prefix and are waiting for
+// the next key to decide what command to run.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct KeyboardShortcutState {
     pub prefix_pending: bool,
 }
 
 impl KeyboardShortcutState {
-    /// This builds a fresh command-prefix tracker with no pending shortcut key.
+    /// Start with no pending prefix.
     pub const fn new() -> Self {
         Self {
             prefix_pending: false,
@@ -98,6 +109,7 @@ impl KeyboardShortcutState {
     }
 }
 
+// Result of feeding one event into the `Alt+A` prefix state machine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeyboardShortcutDecision {
     PassThrough,
@@ -125,6 +137,7 @@ enum ShortcutPrefixAction {
     Shortcut(KeyboardShortcut),
 }
 
+// Once `Alt+A` is armed, this decides what the next printable key means.
 fn shortcut_from_prefixed_event(event: KeyEvent) -> ShortcutPrefixAction {
     match event.code {
         KeyCode::Printable(b'c' | b'C') => {
@@ -170,10 +183,11 @@ fn route_prefix_shortcut(
     ShortcutPrefixAction::PassThrough
 }
 
-/// This interprets the `Alt+A` prefix before normal text routing.
+/// Handle the `Alt+A` command prefix before normal key routing.
 ///
-/// The decoder already produced a plain `KeyEvent`, so this helper only tracks
-/// the higher-level command-prefix state: first `Alt+A`, then one command key.
+/// By the time we get here, scancodes are already decoded into `KeyEvent`s.
+/// This helper only worries about the tiny command state machine:
+/// first `Alt+A`, then one follow-up key.
 pub fn process_shortcut_key(
     state: &mut KeyboardShortcutState,
     event: KeyEvent,
@@ -185,6 +199,8 @@ pub fn process_shortcut_key(
     }
 }
 
+// Same prefix logic as `process_shortcut_key`, but return the final console
+// route directly so the polling loop can use one call.
 pub fn route_key_event_with_prefix(
     state: &mut KeyboardShortcutState,
     event: KeyEvent,
@@ -196,6 +212,7 @@ pub fn route_key_event_with_prefix(
     }
 }
 
+// Final action for the console loop after decoding and shortcut handling.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeyboardRoute {
     PutByte(u8),
@@ -211,6 +228,7 @@ fn has_pending_scancode() -> bool {
     (status & PS2_OUTPUT_FULL_MASK) != 0
 }
 
+// Read one byte from the PS/2 controller if it has something waiting.
 pub(super) fn poll_scancode() -> Option<u8> {
     if !has_pending_scancode() {
         return None;
@@ -219,6 +237,8 @@ pub(super) fn poll_scancode() -> Option<u8> {
     Some(unsafe { PS2_DATA_PORT.read_u8() })
 }
 
+// Translate the printable subset of set-1 scancodes into ASCII.
+// Non-printable keys are handled elsewhere in the decoder.
 fn ascii_for_scancode(scancode: u8, shift: bool) -> Option<u8> {
     let byte = match (scancode, shift) {
         (0x02, false) => b'1',
@@ -323,6 +343,8 @@ fn ascii_for_scancode(scancode: u8, shift: bool) -> Option<u8> {
     Some(byte)
 }
 
+// `F1..F12` are split across two ranges in set-1 scancodes, so we normalize
+// them here before the routing code looks at them.
 fn function_key_number(scancode: u8) -> Option<u8> {
     match scancode {
         0x3B..=0x44 => Some((scancode - 0x3A) as u8),
@@ -332,6 +354,12 @@ fn function_key_number(scancode: u8) -> Option<u8> {
     }
 }
 
+// Turn one raw scancode byte into a `KeyEvent`.
+//
+// The important bits of the format are:
+// - `0xE0` means "the next byte is an extended key",
+// - bit 7 tells us whether this is a press or a release,
+// - some keys also update the tracked modifier state on the way through.
 pub fn decode_scancode(state: &mut KeyboardState, scancode: u8) -> Option<KeyEvent> {
     if scancode == 0xE0 {
         state.extended_prefix = true;
@@ -392,6 +420,9 @@ pub fn decode_scancode(state: &mut KeyboardState, scancode: u8) -> Option<KeyEve
     })
 }
 
+// Route a decoded key into the small set of actions the console cares about.
+// By this point we mostly only pass through plain text, navigation, and a few
+// built-in shortcuts.
 pub fn route_key_event(event: KeyEvent) -> KeyboardRoute {
     if !event.pressed {
         return KeyboardRoute::None;
