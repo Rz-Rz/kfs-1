@@ -138,22 +138,20 @@ assert_workdirs_match() {
 }
 
 run_case() {
+	local stamp=""
 	case "${CASE}" in
 	release-artifacts-match-across-clean-rebuilds)
-		assert_clean_rebuilds_match
+		stamp="build/reproducible/${ARCH}-release-artifacts-match-across-clean-rebuilds.stamp"
 		;;
 	release-artifacts-match-across-workdirs)
-		assert_workdirs_match
+		stamp="build/reproducible/${ARCH}-release-artifacts-match-across-workdirs.stamp"
 		;;
 	*)
 		die "usage: $0 <arch> {release-artifacts-match-across-clean-rebuilds|release-artifacts-match-across-workdirs}"
 		;;
 	esac
-}
 
-run_host_case() {
-	bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-		bash -lc "KFS_HOST_TEST_DIRECT=1 bash scripts/stability-tests/reproducible-builds.sh '${ARCH}' '${CASE}'"
+	[[ -r "${stamp}" ]] || die "missing reproducibility proof: ${stamp} (build it with make reproducible-builds arch=${ARCH})"
 }
 
 main() {
@@ -169,11 +167,6 @@ main() {
 
 	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
 	describe_case "${CASE}" >/dev/null 2>&1 || die "unknown case: ${CASE}"
-
-	if [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
-		return 0
-	fi
 
 	run_case
 }
