@@ -72,8 +72,7 @@ pub enum KeyboardShortcut {
 /// touching the lower-level scancode decoder.
 pub fn shortcut_terminal_index(shortcut: KeyboardShortcut) -> Option<usize> {
     match shortcut {
-        // match values from 1 to 12 & store the matched value in index
-        KeyboardShortcut::AltFunction(index @ 1..=12) => Some((index - 1) as usize),
+        KeyboardShortcut::AltFunction(index @ 11..=12) => Some((index - 1) as usize),
         KeyboardShortcut::SelectTerminal(index) => Some(index),
         KeyboardShortcut::CreateTerminal | KeyboardShortcut::DestroyTerminal => None,
         KeyboardShortcut::AltFunction(_) => None,
@@ -89,6 +88,13 @@ pub fn direct_function_shortcut(index: u8) -> Option<KeyboardShortcut> {
         1..=10 => Some(KeyboardShortcut::SelectTerminal((index - 1) as usize)),
         11 => Some(KeyboardShortcut::CreateTerminal),
         12 => Some(KeyboardShortcut::DestroyTerminal),
+        _ => None,
+    }
+}
+
+fn alt_function_shortcut(index: u8) -> Option<KeyboardShortcut> {
+    match index {
+        11..=12 => Some(KeyboardShortcut::AltFunction(index)),
         _ => None,
     }
 }
@@ -316,13 +322,15 @@ pub fn route_key_event(event: KeyEvent) -> KeyboardRoute {
         KeyCode::ArrowUp if !event.alt && !event.ctrl => KeyboardRoute::ViewportUp,
         KeyCode::ArrowDown if !event.alt && !event.ctrl => KeyboardRoute::ViewportDown,
         KeyCode::Tab if !event.alt && !event.ctrl => KeyboardRoute::PutByte(b'\t'),
-        KeyCode::Function(index) if !event.alt && !event.ctrl && !event.shift => {
-            direct_function_shortcut(index)
+        KeyCode::Function(index) if !event.ctrl && !event.shift => {
+            let shortcut = if event.alt {
+                alt_function_shortcut(index).or_else(|| direct_function_shortcut(index))
+            } else {
+                direct_function_shortcut(index)
+            };
+            shortcut
                 .map(KeyboardRoute::Shortcut)
                 .unwrap_or(KeyboardRoute::None)
-        }
-        KeyCode::Function(index) if event.alt => {
-            KeyboardRoute::Shortcut(KeyboardShortcut::AltFunction(index))
         }
         _ => KeyboardRoute::None,
     }

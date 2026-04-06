@@ -101,7 +101,21 @@ fn key_release_events_do_not_echo() {
 
 #[test]
 fn alt_function_shortcuts_are_intercepted_instead_of_echoed() {
-    for index in 1..=12 {
+    for index in 1..=10 {
+        let route = route_key_event(KeyEvent {
+            code: KeyCode::Function(index),
+            pressed: true,
+            ctrl: false,
+            shift: false,
+            alt: true,
+        });
+        assert_eq!(
+            apply_route(route),
+            vec![format!("shortcut:select-terminal:{}", index - 1)]
+        );
+    }
+
+    for index in 11..=12 {
         let route = route_key_event(KeyEvent {
             code: KeyCode::Function(index),
             pressed: true,
@@ -156,12 +170,10 @@ fn f12_destroys_the_current_terminal_without_a_prefix_key() {
 
 #[test]
 fn shortcut_terminal_indices_cover_alt_functions_and_command_selectors() {
-    for index in 1..=12 {
-        assert_eq!(
-            shortcut_terminal_index(KeyboardShortcut::AltFunction(index)),
-            Some((index - 1) as usize)
-        );
-    }
+    assert_eq!(shortcut_terminal_index(KeyboardShortcut::AltFunction(1)), None);
+    assert_eq!(shortcut_terminal_index(KeyboardShortcut::AltFunction(10)), None);
+    assert_eq!(shortcut_terminal_index(KeyboardShortcut::AltFunction(11)), Some(10));
+    assert_eq!(shortcut_terminal_index(KeyboardShortcut::AltFunction(12)), Some(11));
     assert_eq!(
         shortcut_terminal_index(KeyboardShortcut::SelectTerminal(2)),
         Some(2)
