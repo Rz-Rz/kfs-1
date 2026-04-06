@@ -1,0 +1,692 @@
+[
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/ui-interaction.sh",
+    "cases": 21,
+    "failed": 0,
+    "sum_s": 301.61,
+    "span_s": 118.351,
+    "start_offset_s": 28.886,
+    "end_offset_s": 147.237
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/compact-geometry.sh",
+    "cases": 6,
+    "failed": 0,
+    "sum_s": 42.251,
+    "span_s": 28.354,
+    "start_offset_s": 11.958,
+    "end_offset_s": 40.312
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/keyboard-input.sh",
+    "cases": 31,
+    "failed": 0,
+    "sum_s": 38.648,
+    "span_s": 13.758,
+    "start_offset_s": 0.757,
+    "end_offset_s": 14.515
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/memory-helpers.sh",
+    "cases": 28,
+    "failed": 0,
+    "sum_s": 21.039,
+    "span_s": 8.069,
+    "start_offset_s": 14.643,
+    "end_offset_s": 22.712
+  },
+  {
+    "section": "STABILITY TESTS",
+    "script": "scripts/stability-tests/freestanding-simd.sh",
+    "cases": 3,
+    "failed": 0,
+    "sum_s": 11.064,
+    "span_s": 7.119,
+    "start_offset_s": 3.759,
+    "end_offset_s": 10.878
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/vga-history.sh",
+    "cases": 18,
+    "failed": 0,
+    "sum_s": 16.871,
+    "span_s": 6.589,
+    "start_offset_s": 40.722,
+    "end_offset_s": 47.311
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/string-helpers.sh",
+    "cases": 17,
+    "failed": 0,
+    "sum_s": 13.889,
+    "span_s": 5.513,
+    "start_offset_s": 26.207,
+    "end_offset_s": 31.72
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/simd-policy.sh",
+    "cases": 14,
+    "failed": 0,
+    "sum_s": 11.658,
+    "span_s": 4.801,
+    "start_offset_s": 22.168,
+    "end_offset_s": 26.969
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/vga-memory.sh",
+    "cases": 3,
+    "failed": 0,
+    "sum_s": 3.781,
+    "span_s": 3.807,
+    "start_offset_s": 123.827,
+    "end_offset_s": 127.634
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/memory-runtime.sh",
+    "cases": 14,
+    "failed": 0,
+    "sum_s": 7.152,
+    "span_s": 3.683,
+    "start_offset_s": 20.791,
+    "end_offset_s": 24.474
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/vga-geometry.sh",
+    "cases": 8,
+    "failed": 0,
+    "sum_s": 7.043,
+    "span_s": 3.368,
+    "start_offset_s": 38.282,
+    "end_offset_s": 41.65
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/vga-vt.sh",
+    "cases": 11,
+    "failed": 0,
+    "sum_s": 7.577,
+    "span_s": 3.228,
+    "start_offset_s": 46.473,
+    "end_offset_s": 49.701
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/boot-flow.sh",
+    "cases": 1,
+    "failed": 0,
+    "sum_s": 2.842,
+    "span_s": 2.842,
+    "start_offset_s": 11.827,
+    "end_offset_s": 14.669
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/vga-geometry-preset.sh",
+    "cases": 6,
+    "failed": 0,
+    "sum_s": 6.715,
+    "span_s": 2.726,
+    "start_offset_s": 35.456,
+    "end_offset_s": 38.182
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/vga-color.sh",
+    "cases": 9,
+    "failed": 0,
+    "sum_s": 6.679,
+    "span_s": 2.546,
+    "start_offset_s": 33.089,
+    "end_offset_s": 35.635
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/vga-writer-model.sh",
+    "cases": 7,
+    "failed": 0,
+    "sum_s": 4.755,
+    "span_s": 2.506,
+    "start_offset_s": 48.798,
+    "end_offset_s": 51.304
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/vga-geometry-writer.sh",
+    "cases": 5,
+    "failed": 0,
+    "sum_s": 2.48,
+    "span_s": 2.303,
+    "start_offset_s": 37.147,
+    "end_offset_s": 39.45
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/string-runtime.sh",
+    "cases": 6,
+    "failed": 0,
+    "sum_s": 3.189,
+    "span_s": 2.096,
+    "start_offset_s": 26.726,
+    "end_offset_s": 28.822
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/kmain-logic.sh",
+    "cases": 7,
+    "failed": 0,
+    "sum_s": 3.272,
+    "span_s": 1.93,
+    "start_offset_s": 13.874,
+    "end_offset_s": 15.804
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/00-release-artifacts.sh",
+    "cases": 7,
+    "failed": 0,
+    "sum_s": 3.644,
+    "span_s": 1.834,
+    "start_offset_s": 0.684,
+    "end_offset_s": 2.518
+  },
+  {
+    "section": "STABILITY TESTS",
+    "script": "scripts/stability-tests/architecture-gate.sh",
+    "cases": 6,
+    "failed": 0,
+    "sum_s": 3.563,
+    "span_s": 1.777,
+    "start_offset_s": 3.584,
+    "end_offset_s": 5.361
+  },
+  {
+    "section": "STABILITY TESTS",
+    "script": "scripts/stability-tests/tui-manifest.sh",
+    "cases": 1,
+    "failed": 0,
+    "sum_s": 1.729,
+    "span_s": 1.729,
+    "start_offset_s": 5.688,
+    "end_offset_s": 7.417
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/vga-bonus.sh",
+    "cases": 3,
+    "failed": 0,
+    "sum_s": 3.717,
+    "span_s": 1.697,
+    "start_offset_s": 31.733,
+    "end_offset_s": 33.43
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/runtime-markers.sh",
+    "cases": 5,
+    "failed": 0,
+    "sum_s": 2.645,
+    "span_s": 1.6,
+    "start_offset_s": 24.515,
+    "end_offset_s": 26.115
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/simd-policy.sh",
+    "cases": 4,
+    "failed": 0,
+    "sum_s": 2.049,
+    "span_s": 1.492,
+    "start_offset_s": 25.657,
+    "end_offset_s": 27.149
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/console-format.sh",
+    "cases": 3,
+    "failed": 0,
+    "sum_s": 1.474,
+    "span_s": 1.372,
+    "start_offset_s": 0.706,
+    "end_offset_s": 2.078
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/unit/type-architecture.sh",
+    "cases": 2,
+    "failed": 0,
+    "sum_s": 2.492,
+    "span_s": 1.325,
+    "start_offset_s": 30.916,
+    "end_offset_s": 32.241
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/runtime-init-rejections.sh",
+    "cases": 4,
+    "failed": 0,
+    "sum_s": 2.074,
+    "span_s": 1.069,
+    "start_offset_s": 10.249,
+    "end_offset_s": 11.318
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/type-architecture.sh",
+    "cases": 2,
+    "failed": 0,
+    "sum_s": 1.048,
+    "span_s": 1.018,
+    "start_offset_s": 28.332,
+    "end_offset_s": 29.35
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/string-rejections.sh",
+    "cases": 2,
+    "failed": 0,
+    "sum_s": 1.05,
+    "span_s": 0.632,
+    "start_offset_s": 11.199,
+    "end_offset_s": 11.831
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/type-architecture-rejections.sh",
+    "cases": 13,
+    "failed": 0,
+    "sum_s": 0.466,
+    "span_s": 0.556,
+    "start_offset_s": 11.333,
+    "end_offset_s": 11.889
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/memory-rejections.sh",
+    "cases": 2,
+    "failed": 0,
+    "sum_s": 1.013,
+    "span_s": 0.523,
+    "start_offset_s": 9.73,
+    "end_offset_s": 10.253
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/architecture-rejections.sh",
+    "cases": 9,
+    "failed": 0,
+    "sum_s": 0.321,
+    "span_s": 0.464,
+    "start_offset_s": 8.131,
+    "end_offset_s": 8.595
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/coverage-matrix-rejections.sh",
+    "cases": 1,
+    "failed": 0,
+    "sum_s": 0.459,
+    "span_s": 0.459,
+    "start_offset_s": 8.75,
+    "end_offset_s": 9.209
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/coverage-matrix.sh",
+    "cases": 1,
+    "failed": 0,
+    "sum_s": 0.458,
+    "span_s": 0.458,
+    "start_offset_s": 2.075,
+    "end_offset_s": 2.533
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/layout-symbols.sh",
+    "cases": 17,
+    "failed": 0,
+    "sum_s": 0.474,
+    "span_s": 0.366,
+    "start_offset_s": 20.43,
+    "end_offset_s": 20.796
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/abi-data-contracts.sh",
+    "cases": 8,
+    "failed": 0,
+    "sum_s": 0.214,
+    "span_s": 0.336,
+    "start_offset_s": 1.383,
+    "end_offset_s": 1.719
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/type-contracts.sh",
+    "cases": 17,
+    "failed": 0,
+    "sum_s": 0.705,
+    "span_s": 0.326,
+    "start_offset_s": 3.286,
+    "end_offset_s": 3.612
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/build-graph.sh",
+    "cases": 4,
+    "failed": 0,
+    "sum_s": 0.287,
+    "span_s": 0.317,
+    "start_offset_s": 1.746,
+    "end_offset_s": 2.063
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/kernel-architecture.sh",
+    "cases": 13,
+    "failed": 0,
+    "sum_s": 0.565,
+    "span_s": 0.277,
+    "start_offset_s": 2.666,
+    "end_offset_s": 2.943
+  },
+  {
+    "section": "TESTS",
+    "script": "scripts/tests/kernel-sections.sh",
+    "cases": 11,
+    "failed": 0,
+    "sum_s": 0.094,
+    "span_s": 0.264,
+    "start_offset_s": 0.956,
+    "end_offset_s": 1.22
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/abi-data-contract-rejections.sh",
+    "cases": 8,
+    "failed": 0,
+    "sum_s": 0.158,
+    "span_s": 0.259,
+    "start_offset_s": 7.434,
+    "end_offset_s": 7.693
+  },
+  {
+    "section": "STABILITY TESTS",
+    "script": "scripts/stability-tests/section-stability.sh",
+    "cases": 9,
+    "failed": 0,
+    "sum_s": 0.1,
+    "span_s": 0.225,
+    "start_offset_s": 5.45,
+    "end_offset_s": 5.675
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/architecture-layer-rejections.sh",
+    "cases": 6,
+    "failed": 0,
+    "sum_s": 0.125,
+    "span_s": 0.203,
+    "start_offset_s": 7.913,
+    "end_offset_s": 8.116
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/architecture-abi-rejections.sh",
+    "cases": 6,
+    "failed": 0,
+    "sum_s": 0.118,
+    "span_s": 0.191,
+    "start_offset_s": 7.709,
+    "end_offset_s": 7.9
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/export-ownership.sh",
+    "cases": 2,
+    "failed": 0,
+    "sum_s": 0.18,
+    "span_s": 0.189,
+    "start_offset_s": 2.36,
+    "end_offset_s": 2.549
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/export-ownership-rejections.sh",
+    "cases": 5,
+    "failed": 0,
+    "sum_s": 0.213,
+    "span_s": 0.182,
+    "start_offset_s": 9.227,
+    "end_offset_s": 9.409
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/layer-contracts.sh",
+    "cases": 9,
+    "failed": 0,
+    "sum_s": 0.349,
+    "span_s": 0.181,
+    "start_offset_s": 2.919,
+    "end_offset_s": 3.1
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/runtime-ownership-rejections.sh",
+    "cases": 6,
+    "failed": 1,
+    "sum_s": 0.094,
+    "span_s": 0.161,
+    "start_offset_s": 10.889,
+    "end_offset_s": 11.05
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/file-roles.sh",
+    "cases": 8,
+    "failed": 1,
+    "sum_s": 0.296,
+    "span_s": 0.154,
+    "start_offset_s": 2.531,
+    "end_offset_s": 2.685
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/freestanding-kernel.sh",
+    "cases": 8,
+    "failed": 0,
+    "sum_s": 0.046,
+    "span_s": 0.142,
+    "start_offset_s": 20.195,
+    "end_offset_s": 20.337
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/abi-contracts.sh",
+    "cases": 5,
+    "failed": 0,
+    "sum_s": 0.07,
+    "span_s": 0.131,
+    "start_offset_s": 1.235,
+    "end_offset_s": 1.366
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/file-role-rejections.sh",
+    "cases": 6,
+    "failed": 1,
+    "sum_s": 0.166,
+    "span_s": 0.13,
+    "start_offset_s": 9.403,
+    "end_offset_s": 9.533
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/build-graph-rejections.sh",
+    "cases": 4,
+    "failed": 0,
+    "sum_s": 0.087,
+    "span_s": 0.127,
+    "start_offset_s": 8.607,
+    "end_offset_s": 8.734
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/section-rejections.sh",
+    "cases": 8,
+    "failed": 0,
+    "sum_s": 0.041,
+    "span_s": 0.126,
+    "start_offset_s": 11.062,
+    "end_offset_s": 11.188
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/runtime-ownership.sh",
+    "cases": 8,
+    "failed": 0,
+    "sum_s": 0.24,
+    "span_s": 0.125,
+    "start_offset_s": 3.176,
+    "end_offset_s": 3.301
+  },
+  {
+    "section": "ARCHITECTURE TESTS",
+    "script": "scripts/architecture-tests/layer-dependencies.sh",
+    "cases": 6,
+    "failed": 0,
+    "sum_s": 0.214,
+    "span_s": 0.118,
+    "start_offset_s": 3.077,
+    "end_offset_s": 3.195
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/build-boot-artifacts.sh",
+    "cases": 2,
+    "failed": 0,
+    "sum_s": 0.109,
+    "span_s": 0.102,
+    "start_offset_s": 11.862,
+    "end_offset_s": 11.964
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/layer-dependency-rejections.sh",
+    "cases": 6,
+    "failed": 0,
+    "sum_s": 0.111,
+    "span_s": 0.093,
+    "start_offset_s": 9.594,
+    "end_offset_s": 9.687
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/freestanding-rejections.sh",
+    "cases": 4,
+    "failed": 0,
+    "sum_s": 0.078,
+    "span_s": 0.069,
+    "start_offset_s": 9.529,
+    "end_offset_s": 9.598
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/halt-behavior.sh",
+    "cases": 4,
+    "failed": 1,
+    "sum_s": 0.028,
+    "span_s": 0.066,
+    "start_offset_s": 20.352,
+    "end_offset_s": 20.418
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/vga-writer.sh",
+    "cases": 4,
+    "failed": 0,
+    "sum_s": 0.029,
+    "span_s": 0.058,
+    "start_offset_s": 127.644,
+    "end_offset_s": 127.702
+  },
+  {
+    "section": "REJECTION TESTS",
+    "script": "scripts/rejection-tests/layout-symbol-rejections.sh",
+    "cases": 3,
+    "failed": 0,
+    "sum_s": 0.056,
+    "span_s": 0.049,
+    "start_offset_s": 9.684,
+    "end_offset_s": 9.733
+  },
+  {
+    "section": "SETUP",
+    "script": "-",
+    "cases": 2,
+    "failed": 0,
+    "sum_s": 0.03,
+    "span_s": 0.041,
+    "start_offset_s": 0.0,
+    "end_offset_s": 0.041
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/qemu-boot.sh",
+    "cases": 2,
+    "failed": 2,
+    "sum_s": 0.026,
+    "span_s": 0.038,
+    "start_offset_s": 24.452,
+    "end_offset_s": 24.49
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/release-kmain-symbol.sh",
+    "cases": 1,
+    "failed": 0,
+    "sum_s": 0.031,
+    "span_s": 0.031,
+    "start_offset_s": 24.5,
+    "end_offset_s": 24.531
+  },
+  {
+    "section": "STABILITY TESTS",
+    "script": "scripts/stability-tests/reproducible-builds.sh",
+    "cases": 2,
+    "failed": 0,
+    "sum_s": 0.016,
+    "span_s": 0.031,
+    "start_offset_s": 5.399,
+    "end_offset_s": 5.43
+  },
+  {
+    "section": "BOOT TESTS",
+    "script": "scripts/boot-tests/release-kmain-callsite.sh",
+    "cases": 1,
+    "failed": 0,
+    "sum_s": 0.017,
+    "span_s": 0.017,
+    "start_offset_s": 24.486,
+    "end_offset_s": 24.503
+  },
+  {
+    "section": "STABILITY TESTS",
+    "script": "scripts/stability-tests/container-reproducibility.sh",
+    "cases": 1,
+    "failed": 0,
+    "sum_s": 0.015,
+    "span_s": 0.015,
+    "start_offset_s": 3.728,
+    "end_offset_s": 3.743
+  }
+]

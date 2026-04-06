@@ -1,0 +1,1 @@
+PASS cross-abi-forbid-trait-objects: exported ABI signatures avoid trait objects

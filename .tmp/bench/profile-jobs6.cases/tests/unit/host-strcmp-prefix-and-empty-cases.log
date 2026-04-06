@@ -1,0 +1,12 @@
+
+running 1 test
+test strcmp_prefix ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+
+running 1 test
+test strcmp_empty_vs_non_empty ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+

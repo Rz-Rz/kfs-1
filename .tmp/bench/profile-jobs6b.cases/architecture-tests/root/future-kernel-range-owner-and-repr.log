@@ -1,0 +1,3 @@
+PASS src: KernelRange owned by src/kernel/types/range.rs
+PASS src: KernelRange owned by src/kernel/types/range.rs owned only by src/kernel/types/range.rs
+PASS src: KernelRange repr(C)

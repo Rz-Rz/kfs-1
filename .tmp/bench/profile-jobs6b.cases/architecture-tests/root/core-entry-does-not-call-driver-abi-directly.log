@@ -1,0 +1,1 @@
+PASS core-entry-does-not-call-driver-abi-directly: core entry avoids direct driver ABI and VGA writes

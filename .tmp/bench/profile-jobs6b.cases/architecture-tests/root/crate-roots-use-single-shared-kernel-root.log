@@ -1,0 +1,1 @@
+PASS crate-roots-use-single-shared-kernel-root: src/main.rs, src/lib.rs, and src/kernel/mod.rs define the shared roots

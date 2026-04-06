@@ -1,0 +1,3 @@
+PASS core-depends-only-on-services-types-klib: forbidden layer imports in core (drivers/machine/arch) absent
+PASS core-depends-only-on-services-types-klib: forbidden raw I/O in core absent
+PASS core-depends-only-on-services-types-klib: forbidden volatile/asm in core absent

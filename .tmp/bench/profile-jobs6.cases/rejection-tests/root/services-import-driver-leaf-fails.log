@@ -1,0 +1,3 @@
+/tmp/tmp.nMy5P2g5h8/src/kernel/services/console.rs:3:#[path = "../drivers/vga_text/writer.rs"]
+/tmp/tmp.nMy5P2g5h8/src/kernel/services/console.rs:6:fn _raw_hw() { let _ = 0xb8000; }
+PASS services-import-driver-leaf-fails: services importing driver leaf or using raw hw io rejected

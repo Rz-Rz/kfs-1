@@ -1,0 +1,1 @@
+PASS build/kernel-i386.bin: kfs_memset

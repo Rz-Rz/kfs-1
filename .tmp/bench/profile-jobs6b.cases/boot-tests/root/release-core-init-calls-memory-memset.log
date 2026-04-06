@@ -1,0 +1,2 @@
+PASS src: memory::memset call in core init
+PASS src: kfs_memset call in core init absent

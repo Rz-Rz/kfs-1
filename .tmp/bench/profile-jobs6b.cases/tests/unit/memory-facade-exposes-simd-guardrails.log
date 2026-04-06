@@ -1,0 +1,3 @@
+PASS src: memory SIMD policy query
+PASS src: memory SIMD mode query
+PASS src: memory SIMD guard query

@@ -1,0 +1,1 @@
+PASS cross-abi-forbid-unrepr-user-types: exported ABI user types have explicit stable repr

@@ -1,0 +1,2 @@
+/tmp/tmp.wm1vq6XIsc/src/kernel/klib/string/mod.rs:3:use crate::kernel::drivers::vga_text::writer::write_cell;
+PASS klib-depends-on-device-code-fails: klib depending on device code rejected

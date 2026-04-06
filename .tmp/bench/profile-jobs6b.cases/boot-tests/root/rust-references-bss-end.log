@@ -1,0 +1,1 @@
+PASS src/kernel/core/entry.rs: bss_end

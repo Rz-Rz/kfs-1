@@ -1,0 +1,1 @@
+PASS entry-skips-core-init-fails: entry without init-chain rejected

@@ -1,0 +1,2 @@
+FAIL export-ownership-by-source-owner: export ownership violations
+missing required exported symbol declaration: kmain

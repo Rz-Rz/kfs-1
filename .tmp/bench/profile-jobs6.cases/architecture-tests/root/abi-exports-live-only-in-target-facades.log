@@ -1,0 +1,1 @@
+PASS abi-exports-live-only-in-target-facades: ABI export markers stay in target facade files

@@ -1,0 +1,2 @@
+/tmp/tmp.kS1RJ5tDoc/src/kernel/machine/port.rs:4:use crate::kernel::drivers::vga_text::mod as drivers_vga_text;
+PASS machine-depends-on-drivers-fails: machine depending on drivers/core/services/types/klib rejected

@@ -1,0 +1,1 @@
+PASS build/kernel-i386.bin: kernel_start <= bss_start <= bss_end <= kernel_end

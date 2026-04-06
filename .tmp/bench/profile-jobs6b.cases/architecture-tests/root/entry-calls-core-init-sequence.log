@@ -1,0 +1,1 @@
+PASS entry-calls-core-init-sequence: kmain references core init sequencing

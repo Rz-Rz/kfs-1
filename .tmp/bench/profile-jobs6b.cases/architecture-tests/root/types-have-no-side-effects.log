@@ -1,0 +1,1 @@
+PASS types-have-no-side-effects: types stay free of side effects

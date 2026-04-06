@@ -1,0 +1,2 @@
+PASS src: memcpy backend query
+PASS src: memset backend query

@@ -1,0 +1,8 @@
+
+running 3 tests
+test port_new_preserves_wrapped_value ... ok
+test port_offset_advances_register_address ... ok
+test port_offset_wraps_on_u16_overflow ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+

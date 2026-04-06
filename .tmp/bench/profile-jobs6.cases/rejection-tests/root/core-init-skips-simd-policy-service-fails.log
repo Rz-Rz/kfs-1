@@ -1,0 +1,1 @@
+PASS core-init-skips-simd-policy-service-fails: core init bypassing services-owned SIMD policy surface rejected

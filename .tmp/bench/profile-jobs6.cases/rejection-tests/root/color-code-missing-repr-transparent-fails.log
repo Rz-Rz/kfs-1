@@ -1,0 +1,1 @@
+PASS color-code-missing-repr-transparent-fails: ColorCode repr(transparent) marker rejected

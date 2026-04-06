@@ -1,0 +1,5 @@
+qemu: arch i386
+qemu: mode test-grub-boots-iso
+qemu: accel kvm
+qemu: timeout 10s
+error: unknown mode: test-grub-boots-iso (expected: cdrom|drive)

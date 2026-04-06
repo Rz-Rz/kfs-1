@@ -1,0 +1,8 @@
+PASS src: uninitialized scalar guard reason
+PASS src: runtime-owned deferred scalar guard reason
+PASS src: runtime-owned acceleration-enabled reason
+PASS src: acceleration-enabled execution mode
+PASS src: MMX guard query
+PASS src: SSE guard query
+PASS src: SSE2 guard query
+PASS src: runtime-ready feature query

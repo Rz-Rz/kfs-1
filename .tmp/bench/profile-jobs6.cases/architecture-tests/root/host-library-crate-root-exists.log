@@ -1,0 +1,1 @@
+PASS host-library-crate-root-exists: src/lib.rs exists

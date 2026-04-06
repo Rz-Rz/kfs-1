@@ -1,0 +1,1 @@
+PASS private-leaf-imports-are-local: private leaf imports are local to owning facades

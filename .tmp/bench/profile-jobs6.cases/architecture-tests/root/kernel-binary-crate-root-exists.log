@@ -1,0 +1,1 @@
+PASS kernel-binary-crate-root-exists: src/main.rs exists

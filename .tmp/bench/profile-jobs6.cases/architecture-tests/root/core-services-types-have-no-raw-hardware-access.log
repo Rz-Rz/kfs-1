@@ -1,0 +1,1 @@
+PASS core-services-types-have-no-raw-hardware-access: core/services/types avoid raw hardware access

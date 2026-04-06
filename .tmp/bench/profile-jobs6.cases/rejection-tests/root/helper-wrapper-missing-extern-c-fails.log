@@ -1,0 +1,1 @@
+PASS helper-wrapper-missing-extern-c-fails: extern C helper wrapper rejected

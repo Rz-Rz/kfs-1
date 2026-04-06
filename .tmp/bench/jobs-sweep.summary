@@ -1,0 +1,4 @@
+RUN jobs=4
+jobs=4 rc=1 Command exited with non-zero status 1
+elapsed=375.33
+RUN jobs=6

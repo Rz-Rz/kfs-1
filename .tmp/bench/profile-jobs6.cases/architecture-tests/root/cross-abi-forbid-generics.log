@@ -1,0 +1,1 @@
+PASS cross-abi-forbid-generics: exported ABI functions are nongeneric

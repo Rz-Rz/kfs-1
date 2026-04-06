@@ -1,0 +1,1 @@
+PASS Makefile: freestanding Rust target avoids the i686 SIMD ABI requirement

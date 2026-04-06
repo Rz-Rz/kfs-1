@@ -1,0 +1,1259 @@
+============================================================
+KFS TESTS
+============================================================
+arch: i386
+SETUP
+Rebuild the container toolchain image PASS
+Verify tools exist PASS
+Verify host test tools exist PASS
+Build canonical release ISO/IMG artifacts PASS
+Build test ISO/IMG artifacts PASS
+parallel jobs: 4
+heavy workers: 2
+
+TESTS
+[TESTS] console service defines the no-allocation formatting helpers PASS
+[TESTS] console service defines printf/printk wrapper entrypoints PASS
+[TESTS] canonical release ISO stays within the 10 MB upper bound PASS
+[TESTS] canonical release ISO is an ISO9660 image PASS
+[TESTS] host console format unit tests pass through the real crate boundary PASS
+[TESTS] canonical release IMG is an ISO9660 image PASS
+[TESTS] host keyboard scancode decoding maps a letter press to printable ASCII PASS
+[TESTS] canonical release ISO boots via GRUB in QEMU PASS
+[TESTS] canonical release IMG matches the release ISO bytes PASS
+[TESTS] host keyboard scancode decoding keeps shift state until release PASS
+[TESTS] host keyboard scancode decoding recognizes enter and backspace PASS
+[TESTS] canonical release IMG stays within the 10 MB upper bound PASS
+[TESTS] host keyboard scancode decoding keeps alt-function shortcuts distinct PASS
+[TESTS] canonical release IMG boots via GRUB in QEMU PASS
+[TESTS] host keyboard scancode decoding tracks control press and release state PASS
+[TESTS] linker script defines .rodata PASS
+[TESTS] linker script defines .data PASS
+[TESTS] host keyboard scancode decoding updates right-alt modifier state PASS
+[TESTS] linker script defines .bss PASS
+[TESTS] host keyboard scancode decoding recognizes the extended up arrow PASS
+[TESTS] release kernel contains .text FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] release kernel contains .rodata FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host keyboard scancode decoding recognizes the extended down arrow PASS
+[TESTS] host keyboard scancode decoding turns break codes into release events PASS
+[TESTS] release kernel contains .data FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] release kernel contains .bss FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] release rodata marker lands in .rodata FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host keyboard routing sends printable input to screen bytes PASS
+[TESTS] release data marker lands in .data FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host keyboard routing turns enter into a newline byte PASS
+[TESTS] release bss marker lands in .bss FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+
+ARCHITECTURE TESTS
+[ARCHITECTURE TESTS] ABI markers only live in approved kernel ABI boundaries PASS
+[ARCHITECTURE TESTS] services and non-entry core files have no ABI markers PASS
+[ARCHITECTURE TESTS] drivers have no ABI markers in the target architecture PASS
+[ARCHITECTURE TESTS] leaf files have no ABI markers PASS
+[ARCHITECTURE TESTS] target ABI facades use only stable low-level data forms PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with Rust references PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with slices or str PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with tuple data forms PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with unrepr-ed user structs/enums PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with trait objects PASS
+[ARCHITECTURE TESTS] reject exported ABI generic functions PASS
+[ARCHITECTURE TESTS] reject Option and Result crossing ABI signatures PASS
+[ARCHITECTURE TESTS] reject allocator-backed types crossing ABI signatures PASS
+[ARCHITECTURE TESTS] src/main.rs is the only kernel crate-root source and src/kernel/*.rs files are not compiled directly PASS
+[TESTS] release .bss is emitted as NOBITS FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[ARCHITECTURE TESTS] Makefile does not compile src/kernel/*.rs by glob PASS
+[TESTS] host keyboard routing sends backspace to the erase path PASS
+[ARCHITECTURE TESTS] kernel build emits one Rust kernel unit (kernel.o or kernel.a) PASS
+[ARCHITECTURE TESTS] kernel subsystem files are not emitted as separate Rust objects PASS
+[ARCHITECTURE TESTS] export ownership is enforced on source declarations PASS
+[ARCHITECTURE TESTS] checks that every architecture invariant has both enforcement and rejection coverage PASS
+[ARCHITECTURE TESTS] src/main.rs and src/lib.rs share the same src/kernel/mod.rs root without top-level src/kernel peer files PASS
+[ARCHITECTURE TESTS] kernel top-level directories match the target layer set PASS
+[ARCHITECTURE TESTS] each kernel layer has a mod.rs root PASS
+[ARCHITECTURE TESTS] private leaves stay under an owning subsystem path PASS
+[ARCHITECTURE TESTS] private leaves are imported only by owning facades PASS
+[ARCHITECTURE TESTS] host test wrappers compile src/lib.rs and link tests through --extern kfs PASS
+[ARCHITECTURE TESTS] host tests do not mount production source with #[path] or include! PASS
+[TESTS] host keyboard routing sends up arrow to viewport-up PASS
+[ARCHITECTURE TESTS] kernel source avoids cfg(test) path switching PASS
+[ARCHITECTURE TESTS] kernel binary crate root exists at src/main.rs PASS
+[ARCHITECTURE TESTS] host library crate root exists at src/lib.rs PASS
+[ARCHITECTURE TESTS] shared kernel module root exists at src/kernel/mod.rs PASS
+[ARCHITECTURE TESTS] freestanding support root exists at src/freestanding/mod.rs PASS
+[ARCHITECTURE TESTS] kernel first-level directories match the architecture allowlist PASS
+[ARCHITECTURE TESTS] src/kernel has only the canonical top-level mod.rs file PASS
+[ARCHITECTURE TESTS] types layer does not export ABI symbols PASS
+[ARCHITECTURE TESTS] core, services, and types avoid raw hardware access PASS
+[ARCHITECTURE TESTS] core entry avoids direct driver ABI calls and direct VGA writes PASS
+[ARCHITECTURE TESTS] ABI exports live only in target entry and klib facade files PASS
+[ARCHITECTURE TESTS] artifact-level exports are traceable to expected source owners FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[ARCHITECTURE TESTS] Makefile does not compile src/kernel peer files individually PASS
+[ARCHITECTURE TESTS] Makefile uses src/main.rs as the kernel Rust entrypoint PASS
+[ARCHITECTURE TESTS] each kernel layer has a mod.rs root PASS
+[ARCHITECTURE TESTS] start hands off only to kmain PASS
+[ARCHITECTURE TESTS] core init plus freestanding panic surfaces exist PASS
+[ARCHITECTURE TESTS] console runtime path files exist through services and drivers PASS
+[ARCHITECTURE TESTS] core entry and init avoid raw hardware access and inline asm PASS
+[ARCHITECTURE TESTS] services avoid raw hardware access and inline asm PASS
+[ARCHITECTURE TESTS] inline asm stays in arch or machine only PASS
+[ARCHITECTURE TESTS] typed x86 SIMD intrinsics stay in approved CPU-probe and private klib leaf files PASS
+[ARCHITECTURE TESTS] types layer stays free of side effects and hardware primitives PASS
+[ARCHITECTURE TESTS] core may depend only on services, types, and klib PASS
+[ARCHITECTURE TESTS] services do not depend on driver leaves or raw hardware I/O PASS
+[ARCHITECTURE TESTS] drivers do not own boot policy or import core/services PASS
+[ARCHITECTURE TESTS] klib does not depend on drivers, services, core, machine, or policy code PASS
+[ARCHITECTURE TESTS] types do not depend on I/O/policy or higher-layer orchestration modules PASS
+[ARCHITECTURE TESTS] machine stays primitive-only and avoids higher-layer policy dependencies PASS
+[ARCHITECTURE TESTS] runtime ownership artifacts exist for start -> core -> services -> drivers path PASS
+[ARCHITECTURE TESTS] boot start handoff enters kmain directly PASS
+[ARCHITECTURE TESTS] boot handoff does not jump directly to driver/helper surfaces PASS
+[ARCHITECTURE TESTS] core entry invokes the core init sequence PASS
+[TESTS] host keyboard routing sends down arrow to viewport-down PASS
+[ARCHITECTURE TESTS] core init installs SIMD policy through the services layer instead of importing machine directly PASS
+[ARCHITECTURE TESTS] core init delegates console work to services console PASS
+[ARCHITECTURE TESTS] services console reaches VGA through driver facade PASS
+[ARCHITECTURE TESTS] core entry does not call or declare VGA driver ABI directly PASS
+[ARCHITECTURE TESTS] helper boundary and type facade files exist PASS
+[ARCHITECTURE TESTS] helper ABI uses primitive/core-compatible types only PASS
+[ARCHITECTURE TESTS] helper and type code avoids std PASS
+[ARCHITECTURE TESTS] type layer avoids alias-only primitive wrappers PASS
+[ARCHITECTURE TESTS] Port uses repr(transparent) PASS
+[ARCHITECTURE TESTS] KernelRange uses repr(C) PASS
+[ARCHITECTURE TESTS] future screen type file exists PASS
+[ARCHITECTURE TESTS] ColorCode uses repr(transparent) PASS
+[ARCHITECTURE TESTS] ScreenCell uses repr(C) PASS
+[ARCHITECTURE TESTS] CursorPos uses repr(C) PASS
+[ARCHITECTURE TESTS] helper wrappers keep extern C and no_mangle PASS
+[ARCHITECTURE TESTS] private helper impl files are not imported directly outside boundary files PASS
+[ARCHITECTURE TESTS] serial runtime path uses Port through machine and driver layers PASS
+[ARCHITECTURE TESTS] layout path uses KernelRange instead of naked pairs PASS
+[ARCHITECTURE TESTS] Port is owned by src/kernel/machine/port.rs with repr(transparent) PASS
+[ARCHITECTURE TESTS] KernelRange is owned by src/kernel/types/range.rs with repr(C) PASS
+[ARCHITECTURE TESTS] ColorCode/ScreenCell/CursorPos are owned by src/kernel/types/screen.rs and have required repr PASS
+
+STABILITY TESTS
+[ARCHITECTURE TESTS] kernel exports match the architecture allowlist exactly FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host keyboard routing suppresses release events PASS
+[TESTS] host keyboard routing intercepts alt-function shortcuts PASS
+[TESTS] host keyboard routing maps bare function keys onto terminal-selection commands PASS
+[STABILITY TESTS] manifest publishes the architecture test section PASS
+[STABILITY TESTS] TUI recognizes ARCHITECTURE TESTS as a first-class section PASS
+[STABILITY TESTS] TUI renders ARCH as the architecture section label PASS
+[STABILITY TESTS] TUI panel title includes architecture PASS
+[STABILITY TESTS] architecture export allowlist exists and is non-empty PASS
+[STABILITY TESTS] Dockerfile pins the base image digest and toolchain versions PASS
+[STABILITY TESTS] manifest keeps architecture tests between unit tests and stability tests PASS
+[STABILITY TESTS] default freestanding kernel only permits approved SIMD control-state instructions FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  error: failed to build build/kernel-i386.bin for preset vga80x25
+[STABILITY TESTS] Makefile uses a non-SIMD x86 Rust target for freestanding builds PASS
+[TESTS] host keyboard routing maps F11 onto terminal creation PASS
+[TESTS] host keyboard routing maps F12 onto terminal destruction PASS
+[STABILITY TESTS] compact freestanding kernel only permits approved SIMD control-state instructions FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  error: failed to build build/kernel-i386.bin for preset compact40x10
+[STABILITY TESTS] release kernel/ISO/IMG stay byte-identical across copied workdirs FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  error: missing artifact: /tmp/kfs-repro-path.XIg9LK/work-a/build/kernel-i386.bin
+[STABILITY TESTS] linker script captures .rodata subsections PASS
+[STABILITY TESTS] linker script captures .data subsections PASS
+[STABILITY TESTS] linker script captures .bss subsections PASS
+[STABILITY TESTS] linker script captures COMMON symbols PASS
+[TESTS] host keyboard shortcut helpers map alt-function and selector commands to terminal indices PASS
+[TESTS] host keyboard shortcut helpers map direct function keys to select/create/destroy commands PASS
+[STABILITY TESTS] rodata subsection marker still lands in .rodata FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[STABILITY TESTS] data subsection marker still lands in .data FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host keyboard routing suppresses alt-modified printable input PASS
+[TESTS] host keyboard routing suppresses ctrl-modified printable input PASS
+[STABILITY TESTS] release kernel/ISO/IMG stay byte-identical across clean rebuilds FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cp: cannot stat '/tmp/kfs-repro-clean.8eGupL/workspace/build/kernel-i386.bin': No such file or directory
+  cp: cannot stat '/tmp/kfs-repro-clean.8eGupL/workspace/build/os-i386.iso': No such file or directory
+  cp: cannot stat '/tmp/kfs-repro-clean.8eGupL/workspace/build/os-i386.img': No such file or directory
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cp: cannot stat '/tmp/kfs-repro-clean.8eGupL/workspace/build/kernel-i386.bin': No such file or directory
+  cp: cannot stat '/tmp/kfs-repro-clean.8eGupL/workspace/build/os-i386.iso': No such file or directory
+  cp: cannot stat '/tmp/kfs-repro-clean.8eGupL/workspace/build/os-i386.img': No such file or directory
+  error: missing artifact: /tmp/kfs-repro-clean.8eGupL/first/kernel.bin
+[STABILITY TESTS] bss subsection marker still lands in .bss FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[STABILITY TESTS] COMMON symbol is folded into .bss FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host keyboard shortcut-prefix handling consumes Alt+A without echoing it PASS
+[TESTS] host keyboard shortcut-prefix handling turns Alt+A then C into terminal creation PASS
+[STABILITY TESTS] allocatable sections stay on the allowlist FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+
+REJECTION TESTS
+[REJECTION TESTS] reject exported ABI signatures with references PASS
+[REJECTION TESTS] reject exported ABI signatures with slices or str PASS
+[REJECTION TESTS] reject exported ABI signatures with tuples PASS
+[REJECTION TESTS] reject exported ABI signatures with unrepr user types PASS
+[REJECTION TESTS] reject exported ABI signatures with trait objects PASS
+[REJECTION TESTS] reject generic exported ABI functions PASS
+[REJECTION TESTS] reject Option/Result in exported ABI signatures PASS
+[REJECTION TESTS] reject allocator-backed exported ABI signatures PASS
+[REJECTION TESTS] rejects ABI markers outside approved boundaries PASS
+[REJECTION TESTS] rejects ABI markers in services PASS
+[REJECTION TESTS] rejects ABI markers in drivers PASS
+[REJECTION TESTS] rejects ABI markers in leaf files PASS
+[REJECTION TESTS] keeps ABI markers on toolchain boundaries PASS
+[REJECTION TESTS] rejects forbidden ABI signature forms PASS
+[REJECTION TESTS] rejects missing layer mod.rs roots PASS
+[REJECTION TESTS] rejects boot asm calling driver or helper surfaces directly PASS
+[REJECTION TESTS] rejects inline asm in core PASS
+[REJECTION TESTS] rejects raw hardware access in services PASS
+[REJECTION TESTS] rejects typed SIMD intrinsics outside approved CPU-probe and private klib leaf files PASS
+[REJECTION TESTS] rejects side effects in types PASS
+[REJECTION TESTS] rejects a new top-level kernel peer file PASS
+[REJECTION TESTS] rejects a disallowed first-level kernel layer PASS
+[REJECTION TESTS] rejects a missing host library crate root PASS
+[REJECTION TESTS] rejects ABI exports in the types layer PASS
+[REJECTION TESTS] rejects raw hardware access in services PASS
+[REJECTION TESTS] rejects direct driver ABI calls from core entry PASS
+[REJECTION TESTS] rejects ABI export markers outside target facade files PASS
+[TESTS] host keyboard shortcut-prefix handling turns Alt+A then X into terminal destruction PASS
+[REJECTION TESTS] rejects per-file kernel compilation in the Makefile PASS
+[REJECTION TESTS] rejects unexpected export allowlist drift PASS
+[REJECTION TESTS] rejects Makefile using src/kernel/*.rs in source selection PASS
+[REJECTION TESTS] rejects build where kernel root entrypoint is not src/main.rs PASS
+[REJECTION TESTS] rejects multiple src/kernel sources being compiled PASS
+[REJECTION TESTS] rejects separate Rust outputs for kernel subsystem files PASS
+[TESTS] host keyboard shortcut-prefix handling turns Alt+A then a digit into terminal selection PASS
+[STABILITY TESTS] test-host publishes a complete TUI manifest before execution PASS
+[REJECTION TESTS] rejects export declarations in drivers PASS
+[REJECTION TESTS] rejects export declarations in services PASS
+[REJECTION TESTS] rejects export declarations in private leaf files PASS
+[REJECTION TESTS] rejects export declarations in types PASS
+[REJECTION TESTS] rejects export declarations in non-entry core PASS
+[REJECTION TESTS] rejects top-level Rust peer files under src/kernel PASS
+[REJECTION TESTS] rejects missing src/lib.rs for host-linked tests PASS
+[REJECTION TESTS] rejects private leaves outside owning subsystem paths PASS
+[REJECTION TESTS] rejects facade importing another subsystem's private leaf FAIL
+  FAIL cross-facade-leaf-import-fails: cross-facade leaf import unexpectedly passed
+[REJECTION TESTS] checks that every architecture invariant has both positive and rejection coverage PASS
+[REJECTION TESTS] rejects host tests mounting production source directly PASS
+[REJECTION TESTS] rejects cfg(test) path switching in kernel source PASS
+[TESTS] host keyboard shortcut-prefix handling maps Alt+A then 0 to the first terminal PASS
+[TESTS] keyboard driver defines the decoder and routing helpers PASS
+[TESTS] keyboard driver defines the polling facade PASS
+[TESTS] host keyboard shortcut-prefix handling ignores repeated Alt+A until the command key arrives PASS
+[REJECTION TESTS] rejects forced .interp / PT_INTERP metadata FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects forced .dynamic metadata FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects an unresolved external symbol FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects core depending on machine/arch internals PASS
+[REJECTION TESTS] rejects services importing driver leaves or touching raw hw I/O PASS
+[REJECTION TESTS] rejects drivers owning boot policy or importing core/services PASS
+[REJECTION TESTS] rejects klib depending on non-types layers or policy code PASS
+[REJECTION TESTS] rejects types owning I/O or orchestration policy PASS
+[REJECTION TESTS] rejects machine depending on higher-layer modules PASS
+[REJECTION TESTS] rejects libc/dynamic-loader marker strings FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host layout-order unit tests pass PASS
+[TESTS] Rust defines the pure layout-order helper PASS
+[TESTS] Rust defines the VGA text cell helper PASS
+[TESTS] static source check: entry references the early-init sequence PASS
+[TESTS] static source check: entry references the console loop path PASS
+[TESTS] static source check: core init references the console write call PASS
+[TESTS] host VGA text cell unit tests pass PASS
+[REJECTION TESTS] rejects bss_start before kernel_start FAIL
+  FAIL bss-before-kernel: expected rejection message not found: layout symbol order invalid: kernel_start > bss_start
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects bss_end before bss_start FAIL
+  FAIL bss-end-before-bss-start: expected rejection message not found: layout symbol order invalid: bss_start > bss_end
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects kernel_end before bss_end FAIL
+  FAIL kernel-end-before-bss-end: expected rejection message not found: layout symbol order invalid: bss_end > kernel_end
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects a broken memory-helper self-check at runtime FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host memcpy baseline unit tests pass PASS
+[TESTS] host memcpy zero-length behavior is correct PASS
+[REJECTION TESTS] memory-helper failure stops before normal flow resumes FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects a non-zero BSS canary at runtime FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] dirty BSS failure stops before layout success FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects a bad runtime layout assumption FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects boot handoff jumping into driver ABI directly FAIL
+  PCRE2 is not available in this build of ripgrep
+  FAIL boot-calls-driver-directly-fails: direct boot jump into VGA helper unexpectedly passed
+[REJECTION TESTS] rejects entries that do not reach core init sequencing PASS
+[REJECTION TESTS] rejects kmain calling VGA ABI directly PASS
+[REJECTION TESTS] rejects core init importing machine SIMD policy directly instead of routing through services PASS
+[REJECTION TESTS] rejects core init skipping services console layer PASS
+[REJECTION TESTS] rejects services console bypassing driver facade PASS
+[TESTS] host memcpy returns the original destination pointer PASS
+[TESTS] host memcpy preserves data when source and destination pointers are identical PASS
+[REJECTION TESTS] layout failure stops before early-init success FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects missing .text section FAIL
+  FAIL text-missing: expected rejection message not found: missing section .text
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects .text with wrong section type FAIL
+  FAIL text-wrong-type: expected rejection message not found: .text exists but is not PROGBITS
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host memcpy preserves bytes outside the requested range PASS
+[TESTS] host memcpy handles unaligned ordinary-memory pointers PASS
+[REJECTION TESTS] rejects missing .rodata section FAIL
+  FAIL rodata-missing: expected rejection message not found: missing section .rodata
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects .rodata with wrong section type FAIL
+  FAIL rodata-wrong-type: expected rejection message not found: .rodata exists but is not PROGBITS
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects missing .data section FAIL
+  FAIL data-missing: expected rejection message not found: missing section .data
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host memset baseline unit tests pass PASS
+[TESTS] host memset fills ordinary memory with the zero byte value PASS
+[REJECTION TESTS] rejects .data with wrong section type FAIL
+  FAIL data-wrong-type: expected rejection message not found: .data exists but is not PROGBITS
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects missing .bss section FAIL
+  FAIL bss-missing: expected rejection message not found: missing section .bss
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host memset zero-length behavior is correct PASS
+[REJECTION TESTS] rejects .bss with wrong section type FAIL
+  FAIL bss-wrong-type: expected rejection message not found: .bss exists but is not NOBITS
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  container: building image kfs1-dev:latest (engine=)
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host memset returns the original destination pointer PASS
+[REJECTION TESTS] rejects a broken string-helper self-check at runtime FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects std usage in the helper/type layer PASS
+[REJECTION TESTS] rejects alias-only primitive wrappers in the type layer PASS
+[REJECTION TESTS] rejects Port without repr(transparent) PASS
+[REJECTION TESTS] rejects KernelRange without repr(C) PASS
+[REJECTION TESTS] rejects Port ownership outside src/kernel/machine/port.rs PASS
+[REJECTION TESTS] string-helper failure stops before normal flow resumes FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[REJECTION TESTS] rejects KernelRange ownership outside src/kernel/types/range.rs PASS
+[REJECTION TESTS] rejects screen types outside src/kernel/types/screen.rs PASS
+[REJECTION TESTS] rejects missing future screen types PASS
+[REJECTION TESTS] rejects ColorCode without repr(transparent) PASS
+[REJECTION TESTS] rejects ScreenCell without repr(C) PASS
+[REJECTION TESTS] rejects CursorPos without repr(C) PASS
+[REJECTION TESTS] rejects helper exports without extern C PASS
+
+BOOT TESTS
+[REJECTION TESTS] rejects private helper imports outside boundary files PASS
+[TESTS] host memset preserves bytes outside the requested range PASS
+[TESTS] host memory backend selection defaults to scalar when policy is uninitialized PASS
+[BOOT TESTS] host-driven VNC E2E proves boot renders 42 before the live console loop accepts real input FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/boot-flow-i386-boot-flow-renders-42-then-enters-live-console-loop.log: No such file or directory
+[BOOT TESTS] build the generated test ISO artifact FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host memory backend selection stays scalar while acceleration is still deferred PASS
+[TESTS] host memory backend selection stays scalar when runtime policy blocks acceleration PASS
+[BOOT TESTS] build the generated test IMG artifact FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] host-driven VNC E2E keeps the compact40x10 boot text centered in physical VGA space FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/compact-geometry-i386-compact-geometry-centers-42-in-physical-vga.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E keeps the compact40x10 terminal label in the physical top-right overlay region FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/compact-geometry-i386-compact-geometry-keeps-terminal-label-in-physical-top-right.log: No such file or directory
+[TESTS] host memory backend selection chooses SSE2 when the runtime policy allows it PASS
+[TESTS] host memcpy preserves its contract on the SSE2 backend PASS
+[TESTS] Rust defines memcpy in the kernel helper module PASS
+[TESTS] Rust defines memset in the kernel helper module PASS
+[TESTS] kernel memory family defines a canonical backend dispatch leaf PASS
+[TESTS] kernel memory facade exposes selected backend queries PASS
+[TESTS] kernel memory family exports kfs_memcpy PASS
+[TESTS] kernel memory family exports kfs_memset PASS
+[TESTS] kernel memory family does not fall back to extern memcpy PASS
+[TESTS] kernel memory family does not fall back to extern memset PASS
+[BOOT TESTS] host-driven VNC E2E keeps compact terminal output inside the centered viewport after terminal creation FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/compact-geometry-i386-compact-create-terminal-keeps-output-centered.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E restores centered compact terminal contents when switching terminals FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/compact-geometry-i386-compact-switching-restores-centered-terminal-contents.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E restores the previous compact terminal after destroying the active one FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/compact-geometry-i386-compact-destroy-restores-previous-terminal.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E keeps compact scrolling output inside the centered viewport FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/compact-geometry-i386-compact-scroll-keeps-output-inside-centered-viewport.log: No such file or directory
+[TESTS] host memset preserves its contract on the SSE2 backend PASS
+[TESTS] release kernel exports kfs_memcpy PASS
+[TESTS] memory helpers avoid volatile ordinary-memory access PASS
+[BOOT TESTS] kernel includes the Rust entry symbol FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] kernel exposes the ASM entry symbol FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] kernel has no PT_INTERP segment FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] release kernel exports kfs_memset PASS
+[TESTS] host SIMD support helper treats missing CPUID as no support PASS
+[BOOT TESTS] kernel has no .interp section FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] kernel has no .dynamic section FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] kernel has no undefined symbols FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host SIMD support helper maps MMX/SSE/SSE2 bits correctly PASS
+[TESTS] uninitialized SIMD policy denies all acceleration PASS
+[BOOT TESTS] kernel has no libc marker strings FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] Rust kmain path ends in a halt loop PASS
+[BOOT TESTS] ASM boot path provides a halt loop PASS
+[BOOT TESTS] freestanding panic handler converges to the halt path PASS
+[BOOT TESTS] kernel has no loader marker strings FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] release kmain disassembly contains cli/hlt FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] release kernel exports kernel_start FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] runtime-blocked SIMD policy preserves detection but denies execution PASS
+[TESTS] runtime-owned SIMD policy is observable while acceleration remains deferred PASS
+[BOOT TESTS] release kernel exports kernel_end FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] release kernel exports bss_start FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] release kernel exports bss_end FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] release kernel keeps Rust layout handling in core entry FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] runtime-owned SIMD policy can allow SSE2 acceleration while MMX/SSE remain blocked PASS
+[TESTS] forced-scalar SIMD policy denies all acceleration PASS
+[BOOT TESTS] release layout symbols are monotonic FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] test kernel exports kernel_start FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] test kernel exports kernel_end FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] CPUID-without-MMX/SSE/SSE2 still yields scalar-only policy PASS
+[TESTS] no-CPUID SIMD policy denies all acceleration PASS
+[TESTS] machine layer defines SIMD detection helpers PASS
+[TESTS] klib layer defines the runtime SIMD policy surface PASS
+[TESTS] klib runtime policy defaults to scalar guardrails PASS
+[TESTS] memory facade exposes SIMD guardrail queries without importing machine PASS
+[BOOT TESTS] test kernel exports bss_start FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] test kernel exports bss_end FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] test kernel keeps Rust layout handling in core entry FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] Rust declares extern "C" layout symbols PASS
+[BOOT TESTS] Rust references kernel_start PASS
+[BOOT TESTS] Rust references kernel_end PASS
+[BOOT TESTS] Rust references bss_start PASS
+[BOOT TESTS] Rust references bss_end PASS
+[TESTS] memory facade exposes the SIMD guardrail seam through klib PASS
+[BOOT TESTS] test layout symbols are monotonic FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] release core init calls memory::memcpy in the memory sanity path FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host strlen stops at the first embedded NUL PASS
+[BOOT TESTS] runtime emits MEMCPY_OK FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host strlen baseline unit tests pass PASS
+[BOOT TESTS] runtime emits MEMCPY_BACKEND_SSE2 when the default CPU supports SSE2 FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host strlen handles an unaligned starting pointer PASS
+[BOOT TESTS] runtime falls back to MEMCPY_BACKEND_SCALAR when CPUID is forced unavailable FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host strlen handles strings that cross a natural word boundary PASS
+[BOOT TESTS] runtime falls back to MEMCPY_BACKEND_SCALAR when SIMD is forced off FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] release core init calls memory::memset in the memory sanity path FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime emits MEMSET_OK FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime emits MEMSET_BACKEND_SSE2 when the default CPU supports SSE2 FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime falls back to MEMSET_BACKEND_SCALAR when CPUID is forced unavailable FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host strcmp handles prefix and empty/non-empty cases PASS
+[BOOT TESTS] runtime falls back to MEMSET_BACKEND_SCALAR when SIMD is forced off FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime emits MEMORY_HELPERS_OK FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host strcmp baseline unit tests pass PASS
+[TESTS] host strcmp returns equality for the same pointer PASS
+[TESTS] Rust defines strlen in the kernel helper module PASS
+[TESTS] Rust defines strcmp in the kernel helper module PASS
+[TESTS] kernel string family exports kfs_strlen PASS
+[TESTS] kernel string family exports kfs_strcmp PASS
+[BOOT TESTS] runtime reaches SIMD ownership before selecting SSE2 memory backends FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] kernel string family does not fall back to extern strlen PASS
+[TESTS] kernel string family does not fall back to extern strcmp PASS
+[BOOT TESTS] runtime emits backend markers before helper success markers FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime emits MEMCPY_OK then MEMSET_OK then MEMORY_HELPERS_OK in order FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host strcmp uses unsigned-byte ordering for high-byte cases PASS
+[BOOT TESTS] GRUB boots the generated test ISO artifact FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] release kernel exports kfs_strlen PASS
+[TESTS] string helpers avoid volatile ordinary-memory reads PASS
+[BOOT TESTS] GRUB boots the generated test IMG artifact FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] release boot code calls kmain FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] release kernel exports kmain FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] release kernel exports kfs_strcmp PASS
+[TESTS] host Port unit tests pass PASS
+[BOOT TESTS] runtime reaches Rust kmain FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime confirms BSS starts at zero FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime confirms exported layout bounds FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime completes early init before normal flow FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host KernelRange unit tests pass PASS
+[TESTS] host VGA bonus cursor normalization clamps out-of-bounds positions to the last visible cell PASS
+[BOOT TESTS] runtime markers appear in the expected order FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime emits Phase 4 ownership markers and enables SSE2 acceleration on supported CPUs FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime owns SIMD state and enables acceleration before helper self-check markers run FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host VGA bonus screen writing scrolls the latest rows into view PASS
+[TESTS] host VGA bonus screen writing advances the cursor over newline PASS
+[BOOT TESTS] runtime falls back to scalar-only policy when CPUID is forced unavailable FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime stays scalar-only and does not own state when SIMD policy is forced off FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] release core init calls string::strlen in the string sanity path FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime emits STRLEN_OK FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host VGA color model packs foreground and background nibbles PASS
+[TESTS] host VGA color model masks inputs to the low VGA nibble PASS
+[BOOT TESTS] release core init calls string::strcmp in the string sanity path FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime emits STRCMP_OK FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime emits STRING_HELPERS_OK FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host VGA default attribute stays green on black PASS
+[TESTS] host VGA color enum values match expected VGA palette codes PASS
+[BOOT TESTS] runtime emits STRLEN_OK then STRCMP_OK then STRING_HELPERS_OK in order FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime serial path works through machine Port and serial driver layers FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] runtime layout path still works through KernelRange FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] host-driven VNC E2E maps F11 onto terminal creation and changes the visible active-terminal indicator FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-f11-creates-terminal-and-visible-indicator-changes.log: No such file or directory
+[TESTS] host VGA color enum wraps index-based selection across the palette range PASS
+[TESTS] source defines the VGA attribute packing model PASS
+[TESTS] source defines the VGA color palette enum and index mapping PASS
+[TESTS] source defines a configurable VGA color API in the driver PASS
+[TESTS] host VGA color API updates the active writer attribute PASS
+[BOOT TESTS] host-driven VNC E2E maps F12 onto terminal destruction and restores the prior active-terminal indicator FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/ui-interaction-i386-f12-destroys-current-terminal-and-visible-indicator-restores.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E preserves isolated screen contents when switching terminals FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-terminal-switching-preserves-screen-contents.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E maps Alt+A then C onto terminal creation and changes the visible indicator FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/ui-interaction-i386-alt-a-c-creates-terminal-and-visible-indicator-changes.log: No such file or directory
+[TESTS] host preset selection resolves the compact geometry PASS
+[BOOT TESTS] host-driven VNC E2E maps Alt+A then X onto terminal destruction and restores the prior indicator FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-alt-a-x-destroys-terminal-and-visible-indicator-restores.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E maps Alt+A then a digit onto terminal selection FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/ui-interaction-i386-alt-a-digit-selects-target-terminal.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E maps bare F1 through F10 onto visible terminal selection FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-bare-function-key-selection-matrix.log: No such file or directory
+[TESTS] host history geometry keeps the selected visible width PASS
+[TESTS] host build selection uses the compiled default geometry preset PASS
+[TESTS] screen types define geometry presets and selection helpers PASS
+[TESTS] Makefile passes the geometry preset cfg into rustc builds PASS
+[BOOT TESTS] host-driven VNC E2E maps Alt+F1 through Alt+F12 onto visible terminal selection FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/ui-interaction-i386-alt-function-key-selection-matrix.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E keeps the active-terminal indicator stable when destroying the last remaining terminal FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-destroying-last-terminal-keeps-active-indicator-stable.log: No such file or directory
+[TESTS] host preset selection falls back to the default geometry on unknown names PASS
+[BOOT TESTS] host-driven VNC E2E leaves the active-terminal indicator unchanged when creating beyond terminal capacity FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/ui-interaction-i386-terminal-create-capacity-limit-is-a-no-op.log: No such file or directory
+[TESTS] host renderer centers a compact logical screen without duplicating rows or cells PASS
+[TESTS] screen types define the fixed physical VGA dimensions separately from the logical preset PASS
+[TESTS] VGA text driver defines a logical-to-physical render helper PASS
+[TESTS] writer redraw path renders the logical viewport into the fixed physical VGA buffer PASS
+[BOOT TESTS] host-driven VNC E2E shows a blank screen on an untouched terminal FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-switching-to-an-untouched-terminal-shows-a-blank-screen.log: No such file or directory
+[TESTS] host renderer computes the centered origin for a compact logical geometry PASS
+[BOOT TESTS] host-driven VNC E2E restores the dirty terminal after switching back from an untouched one FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/ui-interaction-i386-switching-back-from-an-untouched-terminal-restores-the-dirty-terminal.log: No such file or directory
+[TESTS] host screen geometry reports width, height, and derived capacities PASS
+[BOOT TESTS] host-driven VNC E2E focuses a surviving terminal after destroying the highest active slot FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-destroying-from-a-high-slot-focuses-a-valid-survivor.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E lets ArrowUp restore an older viewport snapshot FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/ui-interaction-i386-arrow-up-restores-an-older-viewport-snapshot.log: No such file or directory
+[TESTS] host screen geometry clamps out-of-bounds rows and columns PASS
+[TESTS] host screen geometry computes flat cell indices from the configured width PASS
+[BOOT TESTS] host-driven VNC E2E lets ArrowDown return to the live tail viewport FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-arrow-down-returns-to-the-live-tail-viewport.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E visibly scrolls after repeated newline output FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/ui-interaction-i386-multi-line-output-scrolls-visibly-after-repeated-newlines.log: No such file or directory
+[TESTS] host screen geometry computes tail viewport positions from the configured height PASS
+[BOOT TESTS] host-driven VNC E2E blanks the last visible character cell on Backspace FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-backspace-blanks-the-last-visible-character-cell.log: No such file or directory
+[TESTS] host VGA row scrolling respects the supplied geometry width PASS
+[TESTS] screen types define reusable geometry helper methods PASS
+[TESTS] VGA text driver defines geometry-aware scroll and blit helpers PASS
+[BOOT TESTS] host-driven VNC E2E rewinds across scrolled blank lines on Backspace FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/ui-interaction-i386-backspace-rewinds-across-scrolled-blank-lines.log: No such file or directory
+[TESTS] host VGA viewport blits respect the supplied geometry dimensions PASS
+[BOOT TESTS] host-driven VNC E2E moves visible output to the next row on Enter FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-newline-moves-visible-output-to-the-next-row.log: No such file or directory
+[TESTS] host VGA cursor normalization resets out-of-bounds flat cursors to zero PASS
+[BOOT TESTS] host-driven VNC E2E wraps visible output onto the next row at line end FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/ui-interaction-i386-end-of-line-wrap-continues-on-the-next-row.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E restores a scrolled terminal viewport after switching away and back FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/ui-interaction-i386-switching-back-to-a-scrolled-terminal-restores-its-viewport.log: No such file or directory
+[TESTS] host VGA cursor normalization clamps out-of-bounds row and column positions PASS
+[BOOT TESTS] host-driven VNC E2E shows the boot text in the visible top-left screen region FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/vga-memory-i386-vga-buffer-starts-with-42.log: No such file or directory
+[TESTS] host VGA writing advances the cursor on the same row for printable bytes PASS
+[BOOT TESTS] host-driven VNC E2E renders the boot text with the default visible VGA colors FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-0/build/vga-memory-i386-vga-buffer-uses-default-attribute.log: No such file or directory
+[BOOT TESTS] host-driven VNC E2E keeps the visible boot text stable across repeated framebuffer captures FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+  cat: /home/motero/Code/kfs-1/.tmp/test-host-workspaces.s9q61z/worker-1/build/vga-memory-i386-vga-buffer-stable-across-snapshots.log: No such file or directory
+[TESTS] host VGA writing moves to the next row for newline bytes PASS
+[BOOT TESTS] release kernel does not export removed VGA ABI symbols FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host VGA writing wraps the last column to the next row PASS
+[BOOT TESTS] driver VGA writer files exist and define writer helpers FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[BOOT TESTS] services console uses the VGA driver facade FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host VGA screen writing scrolls the bottom row on newline PASS
+[TESTS] host VGA screen writing keeps the latest rows visible after repeated scrolls PASS
+[BOOT TESTS] core init uses services console instead of driver ABI FAIL
+  /bin/sh: 1: [[: not found
+  /bin/sh: 3: [[: not found
+  /bin/sh: 6: [[: not found
+  /bin/sh: 10: build: not found
+  make: *** [Makefile:222: container-image] Error 127
+[TESTS] host VGA history computes the live tail viewport top from the logical cursor row PASS
+[TESTS] host VGA history can blit older retained rows back into the visible viewport PASS
+[TESTS] host VGA terminal keeps the viewport snapped to the live tail after retained-history scrolling PASS
+[TESTS] host VGA terminal backspace blanks the previous retained-history character cell PASS
+[TESTS] host VGA terminal backspace from column-zero moves to previous row for wrapped lines PASS
+[TESTS] VGA text driver defines the cursor normalization helpers PASS
+[TESTS] VGA text driver defines the screen writer helper PASS
+[TESTS] VGA text driver defines the retained-history terminal model PASS
+[TESTS] host VGA terminal backspace crosses blank scrolled lines instead of stopping at the viewport boundary PASS
+[TESTS] host VGA terminal backspace rewinds to the origin across explicit blank lines PASS
+[TESTS] host VGA terminal backspace from column-zero after newline deletes last character on previous line PASS
+[TESTS] host virtual terminals keep retained output and cursor state isolated per terminal PASS
+[TESTS] host virtual terminals keep each buffer intact when the active terminal changes PASS
+[TESTS] host virtual terminals remove the current screen from the active order when destroying it PASS
+[TESTS] host virtual terminals focus the new terminal when creating it PASS
+[TESTS] VGA text driver defines the virtual terminal bank model PASS
+[TESTS] VGA text driver exposes active-terminal selection PASS
+[TESTS] VGA text driver defines terminal create and destroy lifecycle operations PASS
+[TESTS] VGA text driver defines active-indicator overlay helpers PASS
+[TESTS] host virtual terminals switch the visible view when the active screen changes PASS
+[TESTS] host virtual terminals preserve backspace history when switching back to a scrolled terminal PASS
+[TESTS] host VGA writer writes bytes in sequence PASS
+[TESTS] host virtual terminals change the active-indicator overlay when the active label index changes PASS
+[TESTS] host VGA writer preserves unwritten cells PASS
+[TESTS] Rust defines the shared VGA writer model helper PASS
+[TESTS] services console does not reset VGA writer state on each call PASS
+[TESTS] host VGA writer wraps at the end of the buffer PASS
+[TESTS] host VGA writer handles an empty buffer safely PASS
+[TESTS] host VGA writer continues from the provided cursor PASS

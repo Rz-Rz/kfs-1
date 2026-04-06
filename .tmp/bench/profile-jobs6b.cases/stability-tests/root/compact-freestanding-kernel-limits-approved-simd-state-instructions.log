@@ -1,0 +1,1 @@
+PASS build/kernel-i386-compact40x10.bin: freestanding build limited SIMD usage to approved state-management instructions and owned memory backends

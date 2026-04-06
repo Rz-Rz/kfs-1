@@ -1,0 +1,1 @@
+PASS core-init-calls-services-console: core init delegates to services console

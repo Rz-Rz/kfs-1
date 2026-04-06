@@ -1,0 +1,1 @@
+PASS cross-abi-forbid-option-result: exported ABI signatures avoid Option and Result

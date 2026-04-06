@@ -1,0 +1,3 @@
+PASS screen-types-owner-path-fails: ColorCode ownership path rejected
+PASS screen-types-owner-path-fails: ScreenCell ownership path rejected
+PASS screen-types-owner-path-fails: CursorPos ownership path rejected

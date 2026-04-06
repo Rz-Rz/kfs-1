@@ -1,0 +1,2 @@
+/tmp/tmp.NdShi3lWGi/src/kernel/core/entry.rs:4:use crate::kernel::machine::port::Port;
+PASS core-imports-machine-fails: core importing machine layer rejected

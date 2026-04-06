@@ -1,0 +1,21 @@
+
+running 16 tests
+test decimal_max_usize_matches_std_formatting ... ok
+test decimal_regular_value_renders_all_digits ... ok
+test decimal_zero_renders_as_single_zero ... ok
+test hex_max_usize_matches_std_formatting ... ok
+test printf_char_uses_low_byte_of_argument ... ok
+test printf_ignores_extra_arguments ... ok
+test printf_marks_missing_arguments ... ok
+test printf_null_string_pointer_renders_marker ... ok
+test printf_mixed_placeholders_render_in_order ... ok
+test printf_renders_hex_char_and_c_string ... ok
+test printf_renders_percent_escape ... ok
+test printf_renders_signed_decimal ... ok
+test printf_renders_unsigned_decimal ... ok
+test printf_trailing_percent_keeps_literal_percent ... ok
+test printf_unknown_specifier_is_left_visible ... ok
+test signed_min_value_matches_std_formatting ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

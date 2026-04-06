@@ -1,0 +1,1 @@
+PASS build/kernel-i386-test.bin: kernel_start

@@ -1,0 +1,587 @@
+{
+  "wall_s": 147.237,
+  "cases_with_results": 486,
+  "failed_cases": 6,
+  "sections": [
+    {
+      "section": "BOOT TESTS",
+      "cases": 101,
+      "failed": 3,
+      "sum_s": 367.327,
+      "span_s": 135.41,
+      "start_offset_s": 11.827,
+      "end_offset_s": 147.237
+    },
+    {
+      "section": "TESTS",
+      "cases": 187,
+      "failed": 0,
+      "sum_s": 152.047,
+      "span_s": 50.62,
+      "start_offset_s": 0.684,
+      "end_offset_s": 51.304
+    },
+    {
+      "section": "STABILITY TESTS",
+      "cases": 22,
+      "failed": 0,
+      "sum_s": 16.487,
+      "span_s": 7.294,
+      "start_offset_s": 3.584,
+      "end_offset_s": 10.878
+    },
+    {
+      "section": "REJECTION TESTS",
+      "cases": 93,
+      "failed": 2,
+      "sum_s": 6.63,
+      "span_s": 4.455,
+      "start_offset_s": 7.434,
+      "end_offset_s": 11.889
+    },
+    {
+      "section": "ARCHITECTURE TESTS",
+      "cases": 81,
+      "failed": 1,
+      "sum_s": 3.578,
+      "span_s": 2.377,
+      "start_offset_s": 1.235,
+      "end_offset_s": 3.612
+    },
+    {
+      "section": "SETUP",
+      "cases": 2,
+      "failed": 0,
+      "sum_s": 0.03,
+      "span_s": 0.041,
+      "start_offset_s": 0.0,
+      "end_offset_s": 0.041
+    }
+  ],
+  "subgroups_top_by_span": [
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "cases": 101,
+      "failed": 3,
+      "sum_s": 367.327,
+      "span_s": 135.41,
+      "start_offset_s": 11.827,
+      "end_offset_s": 147.237
+    },
+    {
+      "section": "TESTS",
+      "subgroup": "unit",
+      "cases": 169,
+      "failed": 0,
+      "sum_s": 148.309,
+      "span_s": 50.598,
+      "start_offset_s": 0.706,
+      "end_offset_s": 51.304
+    },
+    {
+      "section": "STABILITY TESTS",
+      "subgroup": "-",
+      "cases": 22,
+      "failed": 0,
+      "sum_s": 16.487,
+      "span_s": 7.294,
+      "start_offset_s": 3.584,
+      "end_offset_s": 10.878
+    },
+    {
+      "section": "REJECTION TESTS",
+      "subgroup": "-",
+      "cases": 93,
+      "failed": 2,
+      "sum_s": 6.63,
+      "span_s": 4.455,
+      "start_offset_s": 7.434,
+      "end_offset_s": 11.889
+    },
+    {
+      "section": "ARCHITECTURE TESTS",
+      "subgroup": "-",
+      "cases": 81,
+      "failed": 1,
+      "sum_s": 3.578,
+      "span_s": 2.377,
+      "start_offset_s": 1.235,
+      "end_offset_s": 3.612
+    },
+    {
+      "section": "TESTS",
+      "subgroup": "-",
+      "cases": 18,
+      "failed": 0,
+      "sum_s": 3.738,
+      "span_s": 1.834,
+      "start_offset_s": 0.684,
+      "end_offset_s": 2.518
+    },
+    {
+      "section": "SETUP",
+      "subgroup": "-",
+      "cases": 2,
+      "failed": 0,
+      "sum_s": 0.03,
+      "span_s": 0.041,
+      "start_offset_s": 0.0,
+      "end_offset_s": 0.041
+    }
+  ],
+  "slow_cases": [
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E visibly scrolls after repeated newline output",
+      "status": "pass",
+      "duration_s": 38.798,
+      "end_offset_s": 110.354,
+      "case": "multi-line-output-scrolls-visibly-after-repeated-newlines"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E lets ArrowUp restore an older viewport snapshot",
+      "status": "pass",
+      "duration_s": 38.724,
+      "end_offset_s": 100.042,
+      "case": "arrow-up-restores-an-older-viewport-snapshot"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E lets ArrowDown return to the live tail viewport",
+      "status": "pass",
+      "duration_s": 38.506,
+      "end_offset_s": 100.647,
+      "case": "arrow-down-returns-to-the-live-tail-viewport"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E restores a scrolled terminal viewport after switching away and back",
+      "status": "pass",
+      "duration_s": 36.872,
+      "end_offset_s": 147.237,
+      "case": "switching-back-to-a-scrolled-terminal-restores-its-viewport"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E rewinds across scrolled blank lines on Backspace",
+      "status": "pass",
+      "duration_s": 28.694,
+      "end_offset_s": 129.35,
+      "case": "backspace-rewinds-across-scrolled-blank-lines"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E keeps compact scrolling output inside the centered viewport",
+      "status": "pass",
+      "duration_s": 22.208,
+      "end_offset_s": 40.312,
+      "case": "compact-scroll-keeps-output-inside-centered-viewport"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E maps Alt+F1 through Alt+F12 onto visible terminal selection",
+      "status": "pass",
+      "duration_s": 21.799,
+      "end_offset_s": 62.123,
+      "case": "alt-function-key-selection-matrix"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E maps bare F1 through F10 onto visible terminal selection",
+      "status": "pass",
+      "duration_s": 17.991,
+      "end_offset_s": 57.304,
+      "case": "bare-function-key-selection-matrix"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E wraps visible output onto the next row at line end",
+      "status": "pass",
+      "duration_s": 16.917,
+      "end_offset_s": 123.817,
+      "case": "end-of-line-wrap-continues-on-the-next-row"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E leaves the active-terminal indicator unchanged when creating beyond terminal capacity",
+      "status": "pass",
+      "duration_s": 11.39,
+      "end_offset_s": 57.733,
+      "case": "terminal-create-capacity-limit-is-a-no-op"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E focuses a surviving terminal after destroying the highest active slot",
+      "status": "pass",
+      "duration_s": 11.336,
+      "end_offset_s": 71.546,
+      "case": "destroying-from-a-high-slot-focuses-a-valid-survivor"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E maps Alt+A then a digit onto terminal selection",
+      "status": "pass",
+      "duration_s": 7.424,
+      "end_offset_s": 44.15,
+      "case": "alt-a-digit-selects-target-terminal"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E restores centered compact terminal contents when switching terminals",
+      "status": "pass",
+      "duration_s": 6.002,
+      "end_offset_s": 20.433,
+      "case": "compact-switching-restores-centered-terminal-contents"
+    },
+    {
+      "section": "STABILITY TESTS",
+      "subgroup": "-",
+      "title": "default freestanding kernel only permits approved SIMD control-state instructions",
+      "status": "pass",
+      "duration_s": 5.533,
+      "end_offset_s": 9.292,
+      "case": "default-freestanding-kernel-limits-approved-simd-state-instructions"
+    },
+    {
+      "section": "STABILITY TESTS",
+      "subgroup": "-",
+      "title": "compact freestanding kernel only permits approved SIMD control-state instructions",
+      "status": "pass",
+      "duration_s": 5.522,
+      "end_offset_s": 10.878,
+      "case": "compact-freestanding-kernel-limits-approved-simd-state-instructions"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E restores the previous compact terminal after destroying the active one",
+      "status": "pass",
+      "duration_s": 5.503,
+      "end_offset_s": 20.184,
+      "case": "compact-destroy-restores-previous-terminal"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E preserves isolated screen contents when switching terminals",
+      "status": "pass",
+      "duration_s": 5.324,
+      "end_offset_s": 36.714,
+      "case": "terminal-switching-preserves-screen-contents"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E keeps compact terminal output inside the centered viewport after terminal creation",
+      "status": "pass",
+      "duration_s": 3.907,
+      "end_offset_s": 18.086,
+      "case": "compact-create-terminal-keeps-output-centered"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E maps F12 onto terminal destruction and restores the prior active-terminal indicator",
+      "status": "pass",
+      "duration_s": 3.871,
+      "end_offset_s": 33.233,
+      "case": "f12-destroys-current-terminal-and-visible-indicator-restores"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E moves visible output to the next row on Enter",
+      "status": "pass",
+      "duration_s": 3.852,
+      "end_offset_s": 106.891,
+      "case": "newline-moves-visible-output-to-the-next-row"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E restores the dirty terminal after switching back from an untouched one",
+      "status": "pass",
+      "duration_s": 3.56,
+      "end_offset_s": 61.306,
+      "case": "switching-back-from-an-untouched-terminal-restores-the-dirty-terminal"
+    },
+    {
+      "section": "TESTS",
+      "subgroup": "unit",
+      "title": "host strcmp baseline unit tests pass",
+      "status": "pass",
+      "duration_s": 3.46,
+      "end_offset_s": 31.72,
+      "case": "host-strcmp-unit-tests-pass"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E maps Alt+A then X onto terminal destruction and restores the prior indicator",
+      "status": "pass",
+      "duration_s": 3.318,
+      "end_offset_s": 39.301,
+      "case": "alt-a-x-destroys-terminal-and-visible-indicator-restores"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E blanks the last visible character cell on Backspace",
+      "status": "pass",
+      "duration_s": 2.978,
+      "end_offset_s": 103.029,
+      "case": "backspace-blanks-the-last-visible-character-cell"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E shows a blank screen on an untouched terminal",
+      "status": "pass",
+      "duration_s": 2.882,
+      "end_offset_s": 60.198,
+      "case": "switching-to-an-untouched-terminal-shows-a-blank-screen"
+    }
+  ],
+  "tail_cases": [
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E restores a scrolled terminal viewport after switching away and back",
+      "status": "pass",
+      "duration_s": 36.872,
+      "end_offset_s": 147.237,
+      "case": "switching-back-to-a-scrolled-terminal-restores-its-viewport"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E rewinds across scrolled blank lines on Backspace",
+      "status": "pass",
+      "duration_s": 28.694,
+      "end_offset_s": 129.35,
+      "case": "backspace-rewinds-across-scrolled-blank-lines"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "core init uses services console instead of driver ABI",
+      "status": "pass",
+      "duration_s": 0.007,
+      "end_offset_s": 127.702,
+      "case": "core-init-uses-services-console"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "services console uses the VGA driver facade",
+      "status": "pass",
+      "duration_s": 0.007,
+      "end_offset_s": 127.685,
+      "case": "services-console-uses-driver"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "driver VGA writer files exist and define writer helpers",
+      "status": "pass",
+      "duration_s": 0.009,
+      "end_offset_s": 127.668,
+      "case": "driver-vga-writer-exists"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "release kernel does not export removed VGA ABI symbols",
+      "status": "pass",
+      "duration_s": 0.006,
+      "end_offset_s": 127.65,
+      "case": "release-kernel-omits-vga-abi-exports"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E keeps the visible boot text stable across repeated framebuffer captures",
+      "status": "pass",
+      "duration_s": 1.75,
+      "end_offset_s": 127.634,
+      "case": "vga-buffer-stable-across-snapshots"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E renders the boot text with the default visible VGA colors",
+      "status": "pass",
+      "duration_s": 1.006,
+      "end_offset_s": 125.875,
+      "case": "vga-buffer-uses-default-attribute"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E shows the boot text in the visible top-left screen region",
+      "status": "pass",
+      "duration_s": 1.025,
+      "end_offset_s": 124.852,
+      "case": "vga-buffer-starts-with-42"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E wraps visible output onto the next row at line end",
+      "status": "pass",
+      "duration_s": 16.917,
+      "end_offset_s": 123.817,
+      "case": "end-of-line-wrap-continues-on-the-next-row"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E visibly scrolls after repeated newline output",
+      "status": "pass",
+      "duration_s": 38.798,
+      "end_offset_s": 110.354,
+      "case": "multi-line-output-scrolls-visibly-after-repeated-newlines"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E moves visible output to the next row on Enter",
+      "status": "pass",
+      "duration_s": 3.852,
+      "end_offset_s": 106.891,
+      "case": "newline-moves-visible-output-to-the-next-row"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E blanks the last visible character cell on Backspace",
+      "status": "pass",
+      "duration_s": 2.978,
+      "end_offset_s": 103.029,
+      "case": "backspace-blanks-the-last-visible-character-cell"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E lets ArrowDown return to the live tail viewport",
+      "status": "pass",
+      "duration_s": 38.506,
+      "end_offset_s": 100.647,
+      "case": "arrow-down-returns-to-the-live-tail-viewport"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E lets ArrowUp restore an older viewport snapshot",
+      "status": "pass",
+      "duration_s": 38.724,
+      "end_offset_s": 100.042,
+      "case": "arrow-up-restores-an-older-viewport-snapshot"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E focuses a surviving terminal after destroying the highest active slot",
+      "status": "pass",
+      "duration_s": 11.336,
+      "end_offset_s": 71.546,
+      "case": "destroying-from-a-high-slot-focuses-a-valid-survivor"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E maps Alt+F1 through Alt+F12 onto visible terminal selection",
+      "status": "pass",
+      "duration_s": 21.799,
+      "end_offset_s": 62.123,
+      "case": "alt-function-key-selection-matrix"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E restores the dirty terminal after switching back from an untouched one",
+      "status": "pass",
+      "duration_s": 3.56,
+      "end_offset_s": 61.306,
+      "case": "switching-back-from-an-untouched-terminal-restores-the-dirty-terminal"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E shows a blank screen on an untouched terminal",
+      "status": "pass",
+      "duration_s": 2.882,
+      "end_offset_s": 60.198,
+      "case": "switching-to-an-untouched-terminal-shows-a-blank-screen"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E leaves the active-terminal indicator unchanged when creating beyond terminal capacity",
+      "status": "pass",
+      "duration_s": 11.39,
+      "end_offset_s": 57.733,
+      "case": "terminal-create-capacity-limit-is-a-no-op"
+    },
+    {
+      "section": "BOOT TESTS",
+      "subgroup": "-",
+      "title": "host-driven VNC E2E maps bare F1 through F10 onto visible terminal selection",
+      "status": "pass",
+      "duration_s": 17.991,
+      "end_offset_s": 57.304,
+      "case": "bare-function-key-selection-matrix"
+    },
+    {
+      "section": "TESTS",
+      "subgroup": "unit",
+      "title": "host VGA writer handles an empty buffer safely",
+      "status": "pass",
+      "duration_s": 0.78,
+      "end_offset_s": 51.304,
+      "case": "host-vga-writer-handles-empty-buffer"
+    },
+    {
+      "section": "TESTS",
+      "subgroup": "unit",
+      "title": "host VGA writer continues from the provided cursor",
+      "status": "pass",
+      "duration_s": 0.969,
+      "end_offset_s": 50.777,
+      "case": "host-vga-writer-continues-from-cursor"
+    },
+    {
+      "section": "TESTS",
+      "subgroup": "unit",
+      "title": "services console does not reset VGA writer state on each call",
+      "status": "pass",
+      "duration_s": 0.007,
+      "end_offset_s": 50.718,
+      "case": "services-console-keeps-writer-state"
+    },
+    {
+      "section": "TESTS",
+      "subgroup": "unit",
+      "title": "Rust defines the shared VGA writer model helper",
+      "status": "pass",
+      "duration_s": 0.009,
+      "end_offset_s": 50.699,
+      "case": "rust-defines-vga-writer-model"
+    }
+  ]
+}

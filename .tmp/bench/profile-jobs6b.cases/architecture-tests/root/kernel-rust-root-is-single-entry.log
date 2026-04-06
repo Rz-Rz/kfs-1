@@ -1,0 +1,1 @@
+PASS kernel-rust-root-is-single-entry: only src/main.rs is compiled as the kernel crate root

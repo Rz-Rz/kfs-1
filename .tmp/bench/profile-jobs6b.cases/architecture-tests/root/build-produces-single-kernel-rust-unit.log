@@ -1,0 +1,1 @@
+PASS build-produces-single-kernel-rust-unit: kernel compilation emits one Rust unit: build/arch/i386/rust/kernel.o

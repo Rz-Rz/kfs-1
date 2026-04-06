@@ -1,0 +1,6 @@
+regex parse error:
+    (^|[[:space:]])(use|pub[[:space:]]+use)[[:space:]]+[^;\n]*\bcrate::kernel::drivers::[A-Za-z0-9_]+::(writer|imp|_impl|logic_impl|memory_impl|string_impl|sse2_[A-Za-z0-9_]+)\b|#\[path[[:space:]]*=[[:space:]]*\"[^\"]*(writer|imp|_impl|logic_impl|memory_impl|string_impl|sse2_[A-Za-z0-9_]+)\.rs\"\]
+                                                                                                                                                                                                                  ^^
+error: unrecognized escape sequence
+PASS services-do-not-import-driver-leaves-or-raw-hw: importing private driver leaves in services absent
+PASS services-do-not-import-driver-leaves-or-raw-hw: raw MMIO/port/raw asm in services absent

@@ -1,0 +1,6 @@
+
+running 1 test
+test memory_backends_choose_sse2_when_policy_allows_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+

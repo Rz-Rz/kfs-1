@@ -1,0 +1,7 @@
+PASS types-do-not-depend-on-io-or-policy: imports from higher orchestration layers in types absent
+regex parse error:
+    \b(inb|outb)\(|0x[bB]8000|write_volatile|read_volatile|core::arch::asm!|extern[[:space:]]+\"C\"|#\[no_mangle\]
+                                                                                              ^^
+error: unrecognized escape sequence
+PASS types-do-not-depend-on-io-or-policy: I/O side effects or policy in types absent
+PASS types-do-not-depend-on-io-or-policy: policy function ownership in types absent

@@ -1,0 +1,11 @@
+
+running 6 tests
+test layout_order_rejects_bss_end_after_kernel_end ... ok
+test layout_order_accepts_non_empty_monotonic_bounds ... ok
+test layout_order_rejects_bss_start_after_bss_end ... ok
+test layout_order_rejects_empty_kernel_span ... ok
+test layout_order_rejects_override_flag ... ok
+test layout_order_rejects_kernel_start_after_bss_start ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+

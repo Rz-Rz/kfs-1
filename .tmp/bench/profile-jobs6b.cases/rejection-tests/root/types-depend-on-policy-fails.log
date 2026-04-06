@@ -1,0 +1,3 @@
+/tmp/tmp.ovt79ZiTrs/src/kernel/types/screen.rs:4:use crate::kernel::core::init;
+/tmp/tmp.ovt79ZiTrs/src/kernel/types/screen.rs:6:fn kmain() {}
+PASS types-depend-on-policy-fails: types depending on policy or I/O rejected

@@ -1,0 +1,3 @@
+PASS src: ColorCode type
+PASS src: ScreenCell type
+PASS src: CursorPos type

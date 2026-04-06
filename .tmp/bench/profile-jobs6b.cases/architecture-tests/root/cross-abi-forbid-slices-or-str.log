@@ -1,0 +1,1 @@
+PASS cross-abi-forbid-slices-or-str: exported ABI signatures avoid slices and str

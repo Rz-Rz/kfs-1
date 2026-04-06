@@ -1,0 +1,1 @@
+PASS src: no extern memcpy fallback

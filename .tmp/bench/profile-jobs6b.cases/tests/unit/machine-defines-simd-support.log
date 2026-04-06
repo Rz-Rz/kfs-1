@@ -1,0 +1,3 @@
+PASS src: SimdDetection definition
+PASS src: detect_simd function
+PASS src: FXSR capability bit tracking

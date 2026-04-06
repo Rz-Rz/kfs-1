@@ -1,0 +1,1 @@
+PASS kmain-calls-vga-directly-fails: direct vga driver ABI in core entry rejected
