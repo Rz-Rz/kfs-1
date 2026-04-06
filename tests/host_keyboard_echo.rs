@@ -101,26 +101,33 @@ fn key_release_events_do_not_echo() {
 
 #[test]
 fn alt_function_shortcuts_are_intercepted_instead_of_echoed() {
-    let route = route_key_event(KeyEvent {
-        code: KeyCode::Function(1),
-        pressed: true,
-        ctrl: false,
-        shift: false,
-        alt: true,
-    });
-    assert_eq!(apply_route(route), vec!["shortcut:alt-f1"]);
+    for index in 1..=12 {
+        let route = route_key_event(KeyEvent {
+            code: KeyCode::Function(index),
+            pressed: true,
+            ctrl: false,
+            shift: false,
+            alt: true,
+        });
+        assert_eq!(apply_route(route), vec![format!("shortcut:alt-f{index}")]);
+    }
 }
 
 #[test]
 fn bare_function_keys_select_terminals_without_echoing_text() {
-    let route = route_key_event(KeyEvent {
-        code: KeyCode::Function(3),
-        pressed: true,
-        ctrl: false,
-        shift: false,
-        alt: false,
-    });
-    assert_eq!(apply_route(route), vec!["shortcut:select-terminal:2"]);
+    for index in 1..=10 {
+        let route = route_key_event(KeyEvent {
+            code: KeyCode::Function(index),
+            pressed: true,
+            ctrl: false,
+            shift: false,
+            alt: false,
+        });
+        assert_eq!(
+            apply_route(route),
+            vec![format!("shortcut:select-terminal:{}", index - 1)]
+        );
+    }
 }
 
 #[test]
@@ -149,18 +156,12 @@ fn f12_destroys_the_current_terminal_without_a_prefix_key() {
 
 #[test]
 fn shortcut_terminal_indices_cover_alt_functions_and_command_selectors() {
-    assert_eq!(
-        shortcut_terminal_index(KeyboardShortcut::AltFunction(1)),
-        Some(0)
-    );
-    assert_eq!(
-        shortcut_terminal_index(KeyboardShortcut::AltFunction(2)),
-        Some(1)
-    );
-    assert_eq!(
-        shortcut_terminal_index(KeyboardShortcut::AltFunction(12)),
-        Some(11)
-    );
+    for index in 1..=12 {
+        assert_eq!(
+            shortcut_terminal_index(KeyboardShortcut::AltFunction(index)),
+            Some((index - 1) as usize)
+        );
+    }
     assert_eq!(
         shortcut_terminal_index(KeyboardShortcut::SelectTerminal(2)),
         Some(2)
@@ -173,14 +174,12 @@ fn shortcut_terminal_indices_cover_alt_functions_and_command_selectors() {
 
 #[test]
 fn direct_function_shortcuts_cover_select_create_and_destroy() {
-    assert_eq!(
-        direct_function_shortcut(1),
-        Some(KeyboardShortcut::SelectTerminal(0))
-    );
-    assert_eq!(
-        direct_function_shortcut(10),
-        Some(KeyboardShortcut::SelectTerminal(9))
-    );
+    for index in 1..=10 {
+        assert_eq!(
+            direct_function_shortcut(index),
+            Some(KeyboardShortcut::SelectTerminal((index - 1) as usize))
+        );
+    }
     assert_eq!(
         direct_function_shortcut(11),
         Some(KeyboardShortcut::CreateTerminal)
@@ -189,6 +188,8 @@ fn direct_function_shortcuts_cover_select_create_and_destroy() {
         direct_function_shortcut(12),
         Some(KeyboardShortcut::DestroyTerminal)
     );
+    assert_eq!(direct_function_shortcut(0), None);
+    assert_eq!(direct_function_shortcut(13), None);
 }
 
 #[test]

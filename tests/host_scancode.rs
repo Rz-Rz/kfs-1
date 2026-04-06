@@ -58,9 +58,25 @@ fn alt_function_key_is_distinguishable_for_shortcuts() {
     assert_eq!(alt_press.code, KeyCode::AltLeft);
     assert!(state.alt);
 
-    let function = decode_scancode(&mut state, 0x3b).expect("expected f1 press");
-    assert_eq!(function.code, KeyCode::Function(1));
-    assert!(function.alt);
+    for (scancode, expected) in [
+        (0x3b, 1),
+        (0x3c, 2),
+        (0x3d, 3),
+        (0x3e, 4),
+        (0x3f, 5),
+        (0x40, 6),
+        (0x41, 7),
+        (0x42, 8),
+        (0x43, 9),
+        (0x44, 10),
+        (0x57, 11),
+        (0x58, 12),
+    ] {
+        let function = decode_scancode(&mut state, scancode).expect("expected function press");
+        assert_eq!(function.code, KeyCode::Function(expected));
+        assert!(function.alt);
+        assert!(function.pressed);
+    }
 }
 
 #[test]
