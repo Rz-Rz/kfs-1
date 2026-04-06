@@ -5,6 +5,8 @@ ARG RUST_TOOLCHAIN=1.94.1
 ARG RUFF_VERSION=0.15.9
 ARG BLACK_VERSION=26.3.1
 
+COPY requirements.txt /tmp/requirements.txt
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \
@@ -47,6 +49,7 @@ RUN mkdir -p "${RUSTUP_HOME}" "${CARGO_HOME}" \
 
 RUN python3 -m pip install --no-cache-dir \
     "ruff==${RUFF_VERSION}" \
-    "black==${BLACK_VERSION}"
+    "black==${BLACK_VERSION}" \
+    -r /tmp/requirements.txt
 
 WORKDIR /work
