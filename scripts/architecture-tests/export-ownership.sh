@@ -119,9 +119,9 @@ collect_source_exports() {
 }
 
 collect_binary_exports() {
-	bash "${REPO_ROOT}/scripts/with-build-lock.sh" \
-		bash "${REPO_ROOT}/scripts/container.sh" run -- \
-		bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -g --defined-only 'build/kernel-${ARCH}.bin' | awk '{print \$3}' | sed '/^$/d' | LC_ALL=C sort -u"
+	local kernel="${REPO_ROOT}/build/kernel-${ARCH}.bin"
+	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make test-artifacts arch=${ARCH})"
+	nm -g --defined-only "${kernel}" | awk '{print $3}' | sed '/^$/d' | LC_ALL=C sort -u
 }
 
 assert_export_ownership_by_source() {

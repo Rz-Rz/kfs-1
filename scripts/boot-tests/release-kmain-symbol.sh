@@ -3,6 +3,8 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-release-kernel-exports-kmain}"
+# shellcheck disable=SC2034
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
 list_cases() {
 	cat <<'EOF'
@@ -39,12 +41,6 @@ run_direct() {
 	assert_kmain_symbol "build/kernel-${ARCH}.bin"
 }
 
-run_host_case() {
-	bash scripts/with-build-lock.sh \
-		bash scripts/container.sh run -- \
-		bash -lc "make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/release-kmain-symbol.sh '${ARCH}' '${CASE}'"
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -53,11 +49,6 @@ main() {
 
 	if [[ "${ARCH}" == "--description" ]]; then
 		describe_case "${CASE}"
-		return 0
-	fi
-
-	if describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
 		return 0
 	fi
 

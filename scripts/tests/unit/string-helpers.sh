@@ -117,11 +117,12 @@ run_host_tests() {
 
 assert_release_symbol() {
 	local symbol="$1"
+	local kernel="build/kernel-${ARCH}.bin"
 
-	bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-		bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]T[[:space:]]+${symbol}$'"
+	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make test-artifacts arch=${ARCH})"
+	nm -n "${kernel}" | grep -qE "[[:space:]]T[[:space:]]+${symbol}$"
 
-	echo "PASS build/kernel-${ARCH}.bin: ${symbol}"
+	echo "PASS ${kernel}: ${symbol}"
 }
 
 run_direct_case() {

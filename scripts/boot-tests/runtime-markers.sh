@@ -3,9 +3,10 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-runtime-markers-are-ordered}"
+# shellcheck disable=SC2034
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 TIMEOUT_SECS="${TEST_TIMEOUT_SECS:-10}"
 PASS_RC="${TEST_PASS_RC:-33}"
-ISO="build/os-${ARCH}-test.iso"
 LOG="build/m4-runtime-${CASE}.log"
 
 list_cases() {
@@ -34,13 +35,19 @@ die() {
 	exit 2
 }
 
+iso_path() {
+	printf 'build/os-%s-test.iso\n' "${ARCH}"
+}
+
 run_qemu_capture() {
-	[[ -r "${ISO}" ]] || die "missing ISO: ${ISO} (build it with make iso-test arch=${ARCH})"
+	local iso
+	iso="$(iso_path)"
+	[[ -r "${iso}" ]] || die "missing ISO: ${iso} (build it with make test-artifacts arch=${ARCH})"
 
 	set +e
 	timeout --foreground "${TIMEOUT_SECS}" \
 		qemu-system-i386 \
-		-cdrom "${ISO}" \
+		-cdrom "${iso}" \
 		-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 		-serial stdio \
 		-display none \
@@ -115,12 +122,6 @@ run_direct_case() {
 	esac
 }
 
-run_host_case() {
-	bash scripts/with-build-lock.sh \
-		bash scripts/container.sh run -- \
-		bash -lc "make clean >/dev/null 2>&1 || true; make -B iso-test arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 TEST_TIMEOUT_SECS='${TIMEOUT_SECS}' TEST_PASS_RC='${PASS_RC}' bash scripts/boot-tests/runtime-markers.sh '${ARCH}' '${CASE}'"
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -129,11 +130,6 @@ main() {
 
 	if [[ "${ARCH}" == "--description" ]]; then
 		describe_case "${CASE}"
-		return 0
-	fi
-
-	if describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
 		return 0
 	fi
 

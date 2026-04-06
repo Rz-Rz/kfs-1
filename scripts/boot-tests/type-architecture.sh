@@ -3,6 +3,8 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-}"
+# shellcheck disable=SC2034
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 TIMEOUT_SECS="${TEST_TIMEOUT_SECS:-10}"
 PASS_RC="${TEST_PASS_RC:-33}"
 ENTRY_SOURCE="src/kernel/core/entry.rs"
@@ -60,25 +62,19 @@ run_direct_case() {
 	runtime-serial-path-works-with-port)
 		assert_pattern '\bcrate::kernel::machine::port::Port\b' 'serial driver imports Port' "src/kernel/drivers/serial/mod.rs"
 		assert_pattern '\bdrivers::serial\b' 'diagnostics service reaches serial driver facade' "src/kernel/services/diagnostics.rs"
-		KFS_HOST_TEST_DIRECT=1 TEST_TIMEOUT_SECS="${TIMEOUT_SECS}" TEST_PASS_RC="${PASS_RC}" \
+		TEST_TIMEOUT_SECS="${TIMEOUT_SECS}" TEST_PASS_RC="${PASS_RC}" \
 			bash scripts/boot-tests/runtime-markers.sh "${ARCH}" runtime-reaches-kmain
 		;;
 	runtime-layout-path-works-with-kernel-range)
 		assert_pattern 'KernelRange::new\(' 'KernelRange construction in runtime path' "${ENTRY_SOURCE}"
 		assert_pattern 'layout_order_is_sane\(' 'layout helper use in runtime path' "${INIT_SOURCE}"
-		KFS_HOST_TEST_DIRECT=1 TEST_TIMEOUT_SECS="${TIMEOUT_SECS}" TEST_PASS_RC="${PASS_RC}" \
+		TEST_TIMEOUT_SECS="${TIMEOUT_SECS}" TEST_PASS_RC="${PASS_RC}" \
 			bash scripts/boot-tests/runtime-markers.sh "${ARCH}" runtime-confirms-layout
 		;;
 	*)
 		die "usage: $0 <arch> {runtime-serial-path-works-with-port|runtime-layout-path-works-with-kernel-range}"
 		;;
 	esac
-}
-
-run_host_case() {
-	bash scripts/with-build-lock.sh \
-		bash scripts/container.sh run -- \
-		bash -lc "make clean >/dev/null 2>&1 || true; make -B iso-test arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 TEST_TIMEOUT_SECS='${TIMEOUT_SECS}' TEST_PASS_RC='${PASS_RC}' bash scripts/boot-tests/type-architecture.sh '${ARCH}' '${CASE}'"
 }
 
 main() {
@@ -89,11 +85,6 @@ main() {
 
 	if [[ "${ARCH}" == "--description" ]]; then
 		describe_case "${CASE}"
-		return 0
-	fi
-
-	if describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
 		return 0
 	fi
 

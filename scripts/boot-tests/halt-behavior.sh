@@ -3,6 +3,8 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-}"
+# shellcheck disable=SC2034
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
 list_cases() {
 	cat <<'EOF'
@@ -129,22 +131,6 @@ run_direct_case() {
 	esac
 }
 
-run_host_case() {
-	case "${CASE}" in
-	rust-kmain-path-halts | asm-boot-path-halts | panic-handler-halts)
-		run_direct_case
-		;;
-	release-kmain-disassembly-halts)
-		bash scripts/with-build-lock.sh \
-			bash scripts/container.sh run -- \
-			bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/halt-behavior.sh '${ARCH}' '${CASE}'"
-		;;
-	*)
-		die "unknown case: ${CASE}"
-		;;
-	esac
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -153,11 +139,6 @@ main() {
 
 	if [[ "${ARCH}" == "--description" ]]; then
 		describe_case "${CASE}"
-		return 0
-	fi
-
-	if describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
 		return 0
 	fi
 

@@ -90,50 +90,41 @@ verify_required_kernel_layout() {
 }
 
 run_host_case() {
+	local kernel="build/kernel-${ARCH}.bin"
+
 	case "${CASE}" in
 	linker-script-defines-rodata-section)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "grep -nE '^\\s*\\.rodata\\b' src/arch/${ARCH}/linker.ld >/dev/null"
+		grep -nE '^\s*\.rodata\b' "src/arch/${ARCH}/linker.ld" >/dev/null
 		;;
 	linker-script-defines-data-section)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "grep -nE '^\\s*\\.data\\b' src/arch/${ARCH}/linker.ld >/dev/null"
+		grep -nE '^\s*\.data\b' "src/arch/${ARCH}/linker.ld" >/dev/null
 		;;
 	linker-script-defines-bss-section)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "grep -nE '^\\s*\\.bss\\b' src/arch/${ARCH}/linker.ld >/dev/null"
+		grep -nE '^\s*\.bss\b' "src/arch/${ARCH}/linker.ld" >/dev/null
 		;;
 	release-kernel-contains-text-section)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.text[[:space:]]'"
+		readelf -SW "${kernel}" | grep -qE '[[:space:]]\.text[[:space:]]'
 		;;
 	release-kernel-contains-rodata-section)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.rodata[[:space:]]'"
+		readelf -SW "${kernel}" | grep -qE '[[:space:]]\.rodata[[:space:]]'
 		;;
 	release-kernel-contains-data-section)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.data[[:space:]]'"
+		readelf -SW "${kernel}" | grep -qE '[[:space:]]\.data[[:space:]]'
 		;;
 	release-kernel-contains-bss-section)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]\\.bss[[:space:]]'"
+		readelf -SW "${kernel}" | grep -qE '[[:space:]]\.bss[[:space:]]'
 		;;
 	release-rodata-marker)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]R[[:space:]]+KFS_RODATA_MARKER$'"
+		nm -n "${kernel}" | grep -qE '[[:space:]]R[[:space:]]+KFS_RODATA_MARKER$'
 		;;
 	release-data-marker)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]D[[:space:]]+KFS_DATA_MARKER$'"
+		nm -n "${kernel}" | grep -qE '[[:space:]]D[[:space:]]+KFS_DATA_MARKER$'
 		;;
 	release-bss-marker)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]][Bb][[:space:]]+KFS_BSS_MARKER$'"
+		nm -n "${kernel}" | grep -qE '[[:space:]][Bb][[:space:]]+KFS_BSS_MARKER$'
 		;;
 	release-bss-is-nobits)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && readelf -SW 'build/kernel-${ARCH}.bin' | grep -qE '\\.bss\\b.*NOBITS'"
+		readelf -SW "${kernel}" | grep -qE '\.bss\b.*NOBITS'
 		;;
 	*)
 		return 1
