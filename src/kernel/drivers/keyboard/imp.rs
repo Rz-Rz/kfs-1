@@ -72,8 +72,7 @@ pub enum KeyboardShortcut {
 /// touching the lower-level scancode decoder.
 pub fn shortcut_terminal_index(shortcut: KeyboardShortcut) -> Option<usize> {
     match shortcut {
-        // match values from 1 to 12 & store the matched value in index
-        KeyboardShortcut::AltFunction(index @ 1..=12) => Some((index - 1) as usize),
+        KeyboardShortcut::AltFunction(index @ 11..=12) => Some((index - 1) as usize),
         KeyboardShortcut::SelectTerminal(index) => Some(index),
         KeyboardShortcut::CreateTerminal | KeyboardShortcut::DestroyTerminal => None,
         KeyboardShortcut::AltFunction(_) => None,
@@ -93,122 +92,10 @@ pub fn direct_function_shortcut(index: u8) -> Option<KeyboardShortcut> {
     }
 }
 
-// Tracks whether we have already seen the command prefix and are waiting for
-// the next key to decide what command to run.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct KeyboardShortcutState {
-    pub prefix_pending: bool,
-}
-
-impl KeyboardShortcutState {
-    /// Start with no pending prefix.
-    pub const fn new() -> Self {
-        Self {
-            prefix_pending: false,
-        }
-    }
-}
-
-// Result of feeding one event into the `Alt+A` prefix state machine.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum KeyboardShortcutDecision {
-    PassThrough,
-    Consume,
-    Shortcut(KeyboardShortcut),
-}
-
-#[inline(always)]
-fn is_modifier(code: KeyCode) -> bool {
-    matches!(
-        code,
-        KeyCode::CtrlLeft
-            | KeyCode::CtrlRight
-            | KeyCode::ShiftLeft
-            | KeyCode::ShiftRight
-            | KeyCode::AltLeft
-            | KeyCode::AltRight
-    )
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ShortcutPrefixAction {
-    PassThrough,
-    Consume,
-    Shortcut(KeyboardShortcut),
-}
-
-// Once `Alt+A` is armed, this decides what the next printable key means.
-fn shortcut_from_prefixed_event(event: KeyEvent) -> ShortcutPrefixAction {
-    match event.code {
-        KeyCode::Printable(b'c' | b'C') => {
-            ShortcutPrefixAction::Shortcut(KeyboardShortcut::CreateTerminal)
-        }
-        KeyCode::Printable(b'x' | b'X') => {
-            ShortcutPrefixAction::Shortcut(KeyboardShortcut::DestroyTerminal)
-        }
-        // Screen-style window selectors use the literal digit: `0` targets
-        // the first terminal, `1` the second, and so on.
-        KeyCode::Printable(byte @ b'0'..=b'9') => {
-            ShortcutPrefixAction::Shortcut(KeyboardShortcut::SelectTerminal((byte - b'0') as usize))
-        }
-        _ => ShortcutPrefixAction::Consume,
-    }
-}
-
-fn route_prefix_shortcut(
-    state: &mut KeyboardShortcutState,
-    event: KeyEvent,
-) -> ShortcutPrefixAction {
-    if state.prefix_pending {
-        // Holding `Alt+A` can generate repeated `A` make-codes before the
-        // command key arrives. Keep the prefix armed so those repeats do not
-        // accidentally cancel command mode and leak the next key as text.
-        if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
-            return ShortcutPrefixAction::Consume;
-        }
-
-        if !event.pressed || is_modifier(event.code) {
-            return ShortcutPrefixAction::Consume;
-        }
-
-        state.prefix_pending = false;
-        return shortcut_from_prefixed_event(event);
-    }
-
-    if event.pressed && event.alt && matches!(event.code, KeyCode::Printable(b'a' | b'A')) {
-        state.prefix_pending = true;
-        return ShortcutPrefixAction::Consume;
-    }
-
-    ShortcutPrefixAction::PassThrough
-}
-
-/// Handle the `Alt+A` command prefix before normal key routing.
-///
-/// By the time we get here, scancodes are already decoded into `KeyEvent`s.
-/// This helper only worries about the tiny command state machine:
-/// first `Alt+A`, then one follow-up key.
-pub fn process_shortcut_key(
-    state: &mut KeyboardShortcutState,
-    event: KeyEvent,
-) -> KeyboardShortcutDecision {
-    match route_prefix_shortcut(state, event) {
-        ShortcutPrefixAction::PassThrough => KeyboardShortcutDecision::PassThrough,
-        ShortcutPrefixAction::Consume => KeyboardShortcutDecision::Consume,
-        ShortcutPrefixAction::Shortcut(shortcut) => KeyboardShortcutDecision::Shortcut(shortcut),
-    }
-}
-
-// Same prefix logic as `process_shortcut_key`, but return the final console
-// route directly so the polling loop can use one call.
-pub fn route_key_event_with_prefix(
-    state: &mut KeyboardShortcutState,
-    event: KeyEvent,
-) -> KeyboardRoute {
-    match route_prefix_shortcut(state, event) {
-        ShortcutPrefixAction::PassThrough => route_key_event(event),
-        ShortcutPrefixAction::Consume => KeyboardRoute::None,
-        ShortcutPrefixAction::Shortcut(shortcut) => KeyboardRoute::Shortcut(shortcut),
+fn alt_function_shortcut(index: u8) -> Option<KeyboardShortcut> {
+    match index {
+        11..=12 => Some(KeyboardShortcut::AltFunction(index)),
+        _ => None,
     }
 }
 
@@ -435,13 +322,15 @@ pub fn route_key_event(event: KeyEvent) -> KeyboardRoute {
         KeyCode::ArrowUp if !event.alt && !event.ctrl => KeyboardRoute::ViewportUp,
         KeyCode::ArrowDown if !event.alt && !event.ctrl => KeyboardRoute::ViewportDown,
         KeyCode::Tab if !event.alt && !event.ctrl => KeyboardRoute::PutByte(b'\t'),
-        KeyCode::Function(index) if !event.alt && !event.ctrl && !event.shift => {
-            direct_function_shortcut(index)
+        KeyCode::Function(index) if !event.ctrl && !event.shift => {
+            let shortcut = if event.alt {
+                alt_function_shortcut(index).or_else(|| direct_function_shortcut(index))
+            } else {
+                direct_function_shortcut(index)
+            };
+            shortcut
                 .map(KeyboardRoute::Shortcut)
                 .unwrap_or(KeyboardRoute::None)
-        }
-        KeyCode::Function(index) if event.alt => {
-            KeyboardRoute::Shortcut(KeyboardShortcut::AltFunction(index))
         }
         _ => KeyboardRoute::None,
     }

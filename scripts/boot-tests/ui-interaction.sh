@@ -14,9 +14,6 @@ list_cases() {
 f11-creates-terminal-and-visible-indicator-changes
 f12-destroys-current-terminal-and-visible-indicator-restores
 terminal-switching-preserves-screen-contents
-alt-a-c-creates-terminal-and-visible-indicator-changes
-alt-a-x-destroys-terminal-and-visible-indicator-restores
-alt-a-digit-selects-target-terminal
 bare-function-key-selection-matrix
 alt-function-key-selection-matrix
 destroying-last-terminal-keeps-active-indicator-stable
@@ -40,9 +37,6 @@ describe_case() {
 	f11-creates-terminal-and-visible-indicator-changes) printf '%s\n' "host-driven VNC E2E maps F11 onto terminal creation and changes the visible active-terminal indicator" ;;
 	f12-destroys-current-terminal-and-visible-indicator-restores) printf '%s\n' "host-driven VNC E2E maps F12 onto terminal destruction and restores the prior active-terminal indicator" ;;
 	terminal-switching-preserves-screen-contents) printf '%s\n' "host-driven VNC E2E preserves isolated screen contents when switching terminals" ;;
-	alt-a-c-creates-terminal-and-visible-indicator-changes) printf '%s\n' "host-driven VNC E2E maps Alt+A then C onto terminal creation and changes the visible indicator" ;;
-	alt-a-x-destroys-terminal-and-visible-indicator-restores) printf '%s\n' "host-driven VNC E2E maps Alt+A then X onto terminal destruction and restores the prior indicator" ;;
-	alt-a-digit-selects-target-terminal) printf '%s\n' "host-driven VNC E2E maps Alt+A then a digit onto terminal selection" ;;
 	bare-function-key-selection-matrix) printf '%s\n' "host-driven VNC E2E maps bare F1 through F10 onto visible terminal selection" ;;
 	alt-function-key-selection-matrix) printf '%s\n' "host-driven VNC E2E maps Alt+F1 through Alt+F12 onto visible terminal selection" ;;
 	destroying-last-terminal-keeps-active-indicator-stable) printf '%s\n' "host-driven VNC E2E keeps the active-terminal indicator stable when destroying the last remaining terminal" ;;
