@@ -2059,6 +2059,11 @@ SCENARIOS["backspace-blanks-the-last-visible-character-cell"] = [
         "message": "Backspace did not blank the last visible character cell",
     },
 ]
+# This case drives 59 rapid key events before waiting for the framebuffer to settle. Slower
+# GitHub-hosted runners need a bit more per-key slack and a larger final match window.
+BACKSPACE_REWIND_STEP_DELAY_SECS = 0.18
+BACKSPACE_REWIND_TIMEOUT_SECS = 8.0
+
 SCENARIOS["backspace-rewinds-across-scrolled-blank-lines"] = [
     *_fresh_terminal_blank_steps("beta_blank"),
     {"op": "type_text", "text": "xy", "after": 0.25},
@@ -2071,23 +2076,29 @@ SCENARIOS["backspace-rewinds-across-scrolled-blank-lines"] = [
         "timeout_secs": 2.5,
     },
     {"op": "capture", "name": "x_visible", "region": "top_left_text", "wait_boot": False},
-    *[{"op": "tap", "key": "Enter", "after": 0.12} for _ in range(30)],
+    *[
+        {"op": "tap", "key": "Enter", "after": BACKSPACE_REWIND_STEP_DELAY_SECS}
+        for _ in range(30)
+    ],
     {
         "op": "capture_wait_change",
         "from": "x_visible",
         "name": "x_scrolled_away",
         "region": "top_left_text",
         "message": "blank-line scrolling did not move the visible terminal window",
-        "timeout_secs": 5.0,
+        "timeout_secs": BACKSPACE_REWIND_TIMEOUT_SECS,
     },
-    *[{"op": "tap", "key": "Backspace", "after": 0.12} for _ in range(29)],
+    *[
+        {"op": "tap", "key": "Backspace", "after": BACKSPACE_REWIND_STEP_DELAY_SECS}
+        for _ in range(29)
+    ],
     {
         "op": "capture_wait_match",
         "target": "x_visible",
         "name": "x_rewound",
         "region": "top_left_text",
         "message": "Backspace did not rewind across scrolled blank lines",
-        "timeout_secs": 5.0,
+        "timeout_secs": BACKSPACE_REWIND_TIMEOUT_SECS,
     },
     {
         "op": "assert_eq",
