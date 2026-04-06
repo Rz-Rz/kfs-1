@@ -1,7 +1,7 @@
 use super::{
     build_terminal_label_cells, render_logical_screen_to_physical, screen_render_origin,
-    vga_text_blit_viewport, vga_text_cell, VgaTerminalBank, VGA_TEXT_BLANK_BYTE,
-    VGA_TEXT_TERMINAL_LABEL_WIDTH,
+    terminal_label_color, vga_text_blit_viewport, vga_text_cell, VgaTerminalBank,
+    VGA_TEXT_BLANK_BYTE, VGA_TEXT_TERMINAL_LABEL_WIDTH,
 };
 use crate::kernel::machine::port::Port;
 use crate::kernel::types::screen::{ColorCode, VGA_TEXT_DIMENSIONS, VGA_TEXT_PHYSICAL_DIMENSIONS};
@@ -89,7 +89,8 @@ unsafe fn redraw_active_terminal() {
         blank,
     );
 
-    let label = build_terminal_label_cells(bank.active_label_index(), terminal.color);
+    let label_index = bank.active_label_index();
+    let label = build_terminal_label_cells(label_index, terminal_label_color(label_index));
     let label_start = VGA_TEXT_PHYSICAL_DIMENSIONS
         .width()
         .saturating_sub(VGA_TEXT_TERMINAL_LABEL_WIDTH);
