@@ -1,6 +1,9 @@
 ARCH ?=
 arch ?= $(if $(ARCH),$(ARCH),i386)
 PYTHON ?= python3
+source_date_epoch := $(shell bash scripts/source-date-epoch.sh)
+xorriso_date := $(shell date -u -d "@$(source_date_epoch)" +%Y%m%d%H%M%S00)
+repro_env = LC_ALL=C LANG=C TZ=UTC SOURCE_DATE_EPOCH=$(source_date_epoch)
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
 img := build/os-$(arch).img
@@ -37,6 +40,7 @@ ifeq ($(KFS_SCREEN_GEOMETRY_PRESET),compact40x10)
 RUST_CFG_FLAGS += --cfg kfs_geometry_preset_compact40x10
 endif
 RUST_CODEGEN_FLAGS :=
+RUST_CODEGEN_FLAGS += --remap-path-prefix $(CURDIR)=.
 
 TEST_ASM_DEFS := -DKFS_TEST=1
 ifeq ($(KFS_TEST_FORCE_FAIL),1)
@@ -113,18 +117,25 @@ $(iso): $(kernel) $(grub_cfg)
 	@mkdir -p build/isofiles/boot/grub
 	@cp $(kernel) build/isofiles/boot/kernel.bin
 	@cp $(grub_cfg) build/isofiles/boot/grub
-	@grub-mkrescue -o $(iso) build/isofiles 2> /dev/null
+	@find build/isofiles -exec touch -d "@$(source_date_epoch)" {} +
+	@env $(repro_env) grub-mkrescue \
+		--modification-date=$(xorriso_date) \
+		-o $(iso) build/isofiles -- \
+		-volume_date all_file_dates $(xorriso_date) \
+		-iso_nowtime $(xorriso_date) \
+		-boot_image any gpt_disk_guid=volume_date_uuid \
+		2> /dev/null
 	@rm -rf build/isofiles
 
 $(kernel): $(assembly_object_files) $(rust_object_files) $(linker_script)
-	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(rust_object_files)
-	@objcopy --keep-global-symbols=$(kernel_keepglobals) $(kernel)
+	@env $(repro_env) ld -m elf_i386 -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(rust_object_files)
+	@env $(repro_env) objcopy --keep-global-symbols=$(kernel_keepglobals) $(kernel)
 	@KFS_M3_2_KERNEL="$(kernel)" bash scripts/tests/kernel-sections.sh $(arch)
 
 # compile assembly files
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(dir $@)
-	@nasm -felf32 $< -o $@
+	@env $(repro_env) nasm -felf32 $< -o $@
 
 iso-test: $(iso_test)
 
@@ -137,23 +148,30 @@ $(iso_test): $(kernel_test) $(grub_cfg)
 	@mkdir -p build/isofiles/boot/grub
 	@cp $(kernel_test) build/isofiles/boot/kernel.bin
 	@cp $(grub_cfg) build/isofiles/boot/grub
-	@grub-mkrescue -o $(iso_test) build/isofiles 2> /dev/null
+	@find build/isofiles -exec touch -d "@$(source_date_epoch)" {} +
+	@env $(repro_env) grub-mkrescue \
+		--modification-date=$(xorriso_date) \
+		-o $(iso_test) build/isofiles -- \
+		-volume_date all_file_dates $(xorriso_date) \
+		-iso_nowtime $(xorriso_date) \
+		-boot_image any gpt_disk_guid=volume_date_uuid \
+		2> /dev/null
 	@rm -rf build/isofiles
 
 $(kernel_test): $(assembly_object_files_test) $(rust_object_files) $(linker_script)
-	@ld -m elf_i386 -n -T $(linker_script) -o $(kernel_test) $(assembly_object_files_test) $(rust_object_files)
-	@objcopy --keep-global-symbols=$(kernel_keepglobals) $(kernel_test)
+	@env $(repro_env) ld -m elf_i386 -n -T $(linker_script) -o $(kernel_test) $(assembly_object_files_test) $(rust_object_files)
+	@env $(repro_env) objcopy --keep-global-symbols=$(kernel_keepglobals) $(kernel_test)
 	@KFS_M3_2_KERNEL="$(kernel_test)" bash scripts/tests/kernel-sections.sh $(arch)
 
 build/arch/$(arch)/test/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(dir $@)
-	@nasm -felf32 $(TEST_ASM_DEFS) $< -o $@
+	@env $(repro_env) nasm -felf32 $(TEST_ASM_DEFS) $< -o $@
 
 $(rust_output_dir):
 	@mkdir -p $@
 
 build/arch/$(arch)/rust/kernel.o: src/main.rs | $(rust_output_dir)
-	@rustc \
+	@env $(repro_env) rustc \
 		$(RUST_CFG_FLAGS) \
 		--crate-type lib \
 		--target $(rust_target) \

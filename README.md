@@ -1,6 +1,7 @@
 # kfs-1
 
 Workflow: build and test using the container toolchain so Fedora and Ubuntu WSL run the same commands.
+Release artifact reproducibility is tracked separately from runtime correctness: the build now derives `SOURCE_DATE_EPOCH` from Git, remaps Rust build paths, and checks that release artifacts match across clean rebuilds.
 
 ## Quickstart
 
@@ -17,6 +18,7 @@ What it does:
 - Builds the test ISO/disk-image artifacts
 - Runs headless QEMU boot/runtime checks
 - Asserts the first VGA text-memory bytes for `42` without any GUI and verifies the buffer is stable across repeated QEMU monitor snapshots
+- Verifies release artifacts are byte-identical across clean rebuilds and across copied workdirs
 
 ## What the test proves
 

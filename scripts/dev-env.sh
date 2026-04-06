@@ -40,6 +40,7 @@ need_cmd() {
 cmd_check() {
 	echo "dev-env: checking required tools..."
 	need_cmd bash
+	need_cmd git
 	need_cmd make
 	need_cmd timeout
 	need_cmd ld
@@ -78,6 +79,7 @@ cmd_check() {
 	echo "  grub-mkrescue: $(grub-mkrescue --version | head -n 1)"
 	echo "  qemu-system-i386: $(qemu-system-i386 --version | head -n 1)"
 	echo "  python3: $(python3 --version)"
+	echo "  git: $(git --version)"
 	echo "  socat: $(socat -V 2>&1 | head -n 1)"
 	echo "  vncviewer: $(vncviewer --version 2>&1 | head -n 1)"
 	echo "  xdotool: $(xdotool -v)"
