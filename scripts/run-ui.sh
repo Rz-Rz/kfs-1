@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ARCH="${1:-i386}"
-GEOMETRY_PRESET="${KFS_SCREEN_GEOMETRY_PRESET:-vga80x25}"
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 VNC_SOCKET="${REPO_ROOT}/build/manual-ui-${ARCH}.vnc"
 LOG_PATH="${REPO_ROOT}/build/manual-ui-${ARCH}.log"
@@ -23,13 +22,16 @@ cleanup() {
 trap cleanup EXIT
 
 cd "${REPO_ROOT}"
-make clean >/dev/null 2>&1 || true
-KFS_SCREEN_GEOMETRY_PRESET="${GEOMETRY_PRESET}" make --no-print-directory iso arch="${ARCH}" >/dev/null
+IMAGE_PATH="build/os-${ARCH}.img"
+test -r "${IMAGE_PATH}" || {
+	echo "error: missing release IMG: ${IMAGE_PATH} (build it with 'make img arch=${ARCH}')" >&2
+	exit 1
+}
 rm -f "${VNC_SOCKET}" "${LOG_PATH}"
 
 qemu-system-i386 \
-	-cdrom "build/os-${ARCH}.iso" \
-	-boot d \
+	-drive "format=raw,file=${IMAGE_PATH}" \
+	-boot order=c \
 	-display none \
 	-vnc "unix:${VNC_SOCKET},share=force-shared" \
 	-monitor none \

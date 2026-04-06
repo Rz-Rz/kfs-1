@@ -3,6 +3,7 @@ set -euo pipefail
 
 MODE="run"
 ARCH="${1:-i386}"
+SUITE_LOCKED="${KFS_TEST_SUITE_LOCKED:-0}"
 VERBOSE="${KFS_VERBOSE:-0}"
 TUI_PROTOCOL="${KFS_TUI_PROTOCOL:-0}"
 SKIP_TUI_MANIFEST="${KFS_TUI_SKIP_MANIFEST:-0}"
@@ -10,15 +11,87 @@ DEBUG_DIR="${KFS_TEST_DEBUG_DIR:-}"
 RUN_LINT="${KFS_RUN_LINT:-0}"
 SCRIPT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 DEBUG_INDEX=""
+ENTRIES_FILE=""
+RELEASE_ARTIFACT_SNAPSHOT_DIR=""
 
 if [[ "${ARCH}" == "--manifest" ]]; then
 	MODE="manifest"
 	ARCH="${2:-i386}"
 fi
 
+if [[ "${ARCH}" == "--suite-run" ]]; then
+	ARCH="${2:-i386}"
+	SUITE_LOCKED=1
+fi
+
 die() {
 	echo "error: $*" >&2
 	exit 2
+}
+
+tracked_release_artifacts_exist_in_repo() {
+	git -C "${SCRIPT_ROOT}/.." ls-files --error-unmatch \
+		"build/os-${ARCH}.iso" \
+		"build/os-${ARCH}.img" >/dev/null 2>&1
+}
+
+ensure_tracked_release_artifacts_present() {
+	tracked_release_artifacts_exist_in_repo || return 0
+
+	if [[ -r "build/os-${ARCH}.iso" && -r "build/os-${ARCH}.img" ]]; then
+		return 0
+	fi
+
+	git -C "${SCRIPT_ROOT}/.." restore --worktree -- \
+		"build/os-${ARCH}.iso" \
+		"build/os-${ARCH}.img"
+}
+
+snapshot_tracked_release_artifacts() {
+	[[ "${MODE}" != "manifest" ]] || return 0
+	[[ "${SUITE_LOCKED}" == "1" ]] || return 0
+	tracked_release_artifacts_exist_in_repo || return 0
+	ensure_tracked_release_artifacts_present || return 1
+
+	RELEASE_ARTIFACT_SNAPSHOT_DIR="$(mktemp -d -t kfs-release-artifacts.XXXXXX)"
+	cp "build/os-${ARCH}.iso" "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.iso"
+	cp "build/os-${ARCH}.img" "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.img"
+}
+
+restore_tracked_release_artifacts() {
+	[[ "${MODE}" != "manifest" ]] || return 0
+	[[ "${SUITE_LOCKED}" == "1" ]] || return 0
+	[[ -n "${RELEASE_ARTIFACT_SNAPSHOT_DIR}" ]] || return 0
+	[[ -r "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.iso" ]] || return 0
+	[[ -r "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.img" ]] || return 0
+
+	if cmp -s "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.iso" "build/os-${ARCH}.iso" 2>/dev/null &&
+		cmp -s "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.img" "build/os-${ARCH}.img" 2>/dev/null; then
+		return 0
+	fi
+
+	echo "info: restoring tracked release artifacts" >&2
+	mkdir -p build
+	cp "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.iso" "build/os-${ARCH}.iso"
+	cp "${RELEASE_ARTIFACT_SNAPSHOT_DIR}/os-${ARCH}.img" "build/os-${ARCH}.img"
+}
+
+cleanup() {
+	local exit_code="${1:-$?}"
+
+	trap - EXIT
+	rm -f "${ENTRIES_FILE}"
+
+	if ! restore_tracked_release_artifacts; then
+		echo "warn: failed to restore tracked release artifacts" >&2
+		if [[ "${exit_code}" -eq 0 ]]; then
+			exit_code=1
+		fi
+	fi
+
+	rm -rf "${RELEASE_ARTIFACT_SNAPSHOT_DIR}"
+
+	exit "${exit_code}"
 }
 
 is_tty() {
@@ -311,16 +384,24 @@ run_section() {
 
 [[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
 
+if [[ "${MODE}" != "manifest" && "${SUITE_LOCKED}" != "1" ]]; then
+	exec env KFS_TEST_SUITE_LOCKED=1 \
+		bash "${SCRIPT_ROOT}/with-test-suite-lock.sh" \
+		bash "${SCRIPT_ROOT}/test-host.sh" --suite-run "${ARCH}"
+fi
+
 export KFS_CONTAINER_TTY=0
 is_tty && export KFS_CONTAINER_TTY=1
 
-entries="$(mktemp -t kfs-manifest.XXXXXX)"
-trap 'rm -f "${entries}"' EXIT
-build_manifest "${entries}"
+snapshot_tracked_release_artifacts
+
+ENTRIES_FILE="$(mktemp -t kfs-manifest.XXXXXX)"
+trap 'cleanup "$?"' EXIT
+build_manifest "${ENTRIES_FILE}"
 init_debug_index
 
 if [[ "${MODE}" == "manifest" ]]; then
-	emit_manifest "${entries}"
+	emit_manifest "${ENTRIES_FILE}"
 	exit 0
 fi
 
@@ -328,7 +409,7 @@ banner "KFS TESTS"
 info "arch: ${ARCH}"
 printf '\n'
 if [[ "${SKIP_TUI_MANIFEST}" != "1" ]]; then
-	emit_manifest "${entries}"
+	emit_manifest "${ENTRIES_FILE}"
 fi
 
 if [[ "${RUN_LINT}" == "1" ]]; then
@@ -366,11 +447,11 @@ if ! run_item "SETUP" "-" "Verify host test tools exist" "-" "-" \
 	exit 1
 fi
 
-run_section "TESTS" "${entries}"
-run_section "ARCHITECTURE TESTS" "${entries}"
-run_section "STABILITY TESTS" "${entries}"
-run_section "REJECTION TESTS" "${entries}"
-run_section "BOOT TESTS" "${entries}"
+run_section "TESTS" "${ENTRIES_FILE}"
+run_section "ARCHITECTURE TESTS" "${ENTRIES_FILE}"
+run_section "STABILITY TESTS" "${ENTRIES_FILE}"
+run_section "REJECTION TESTS" "${ENTRIES_FILE}"
+run_section "BOOT TESTS" "${ENTRIES_FILE}"
 
 printf '\n'
 pass

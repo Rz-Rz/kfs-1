@@ -76,7 +76,7 @@ lint_script := scripts/lint.sh
 	lint test test-plain test-ui test-ui-demo test-ui-bootstrap \
 	dev iso-in-container run-in-container \
 	run-ui run-ui-compact \
-	iso-test test-qemu test-vga \
+	iso-test test-host test-qemu test-vga \
 	img img-test run-img
 
 all: $(kernel)
@@ -206,6 +206,9 @@ test-qemu: container-image-force
 		KFS_TEST_BAD_STRING=$(KFS_TEST_BAD_STRING) \
 		KFS_TEST_BAD_MEMORY=$(KFS_TEST_BAD_MEMORY) \
 		bash scripts/boot-tests/qemu-boot.sh $(arch)
+
+test-host:
+	@bash scripts/test-host.sh $(arch)
 
 test-vga: container-image-force
 	@KFS_CONTAINER_TTY=1 bash scripts/container.sh run -- env \

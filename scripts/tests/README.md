@@ -56,6 +56,9 @@ Hardcoded runner sections and their order are:
 
 That means the real unit of discovery is the listed case, not the script file.
 
+Release-artifact proofs live in `scripts/tests/00-release-artifacts.sh` so they run in the
+`TESTS` section before later destructive rebuild cases can remove the tracked deliverables.
+
 ## Naming Rules
 
 ### Script names
@@ -249,10 +252,10 @@ These old broad cases were split into clearer one-behavior cases.
 
 | Old case | New case(s) |
 | --- | --- |
-| `build-test-iso` | `build-iso` |
-| `build-test-img-artifact` | `build-img-artifact` |
-| `grub-boots-test-iso` | `grub-boots-iso` |
-| `grub-boots-test-img` | `grub-boots-img` |
+| `build-iso` | `build-test-iso` |
+| `build-img-artifact` | `build-test-img-artifact` |
+| `grub-boots-iso` | `test-grub-boots-iso` |
+| `grub-boots-img` | `test-grub-boots-img` |
 
 #### `scripts/check-m5.2-string.sh`
 

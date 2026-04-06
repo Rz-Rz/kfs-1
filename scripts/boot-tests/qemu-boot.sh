@@ -8,18 +8,19 @@ PASS_RC="${TEST_PASS_RC:-33}"
 FAIL_RC="${TEST_FAIL_RC:-35}"
 ISO="build/os-${ARCH}-test.iso"
 IMG="build/os-${ARCH}-test.img"
+ARTIFACT_OVERRIDE="${KFS_QEMU_BOOT_ARTIFACT:-}"
 
 list_cases() {
 	cat <<'EOF'
-grub-boots-iso
-grub-boots-img
+test-grub-boots-iso
+test-grub-boots-img
 EOF
 }
 
 describe_case() {
 	case "$1" in
-	grub-boots-iso) printf '%s\n' "GRUB boots the ISO artifact" ;;
-	grub-boots-img) printf '%s\n' "GRUB boots the IMG artifact" ;;
+	test-grub-boots-iso) printf '%s\n' "GRUB boots the generated test ISO artifact" ;;
+	test-grub-boots-img) printf '%s\n' "GRUB boots the generated test IMG artifact" ;;
 	*) return 1 ;;
 	esac
 }
@@ -66,6 +67,20 @@ note() {
 	printf '%s\n' "$*"
 }
 
+artifact_path() {
+	case "${MODE}" in
+	cdrom)
+		printf '%s\n' "${ARTIFACT_OVERRIDE:-${ISO}}"
+		;;
+	drive)
+		printf '%s\n' "${ARTIFACT_OVERRIDE:-${IMG}}"
+		;;
+	*)
+		die "unknown mode: ${MODE} (expected: cdrom|drive)"
+		;;
+	esac
+}
+
 run_direct_qemu() {
 	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
 
@@ -82,19 +97,17 @@ run_direct_qemu() {
 	note "qemu: timeout ${TIMEOUT_SECS}s"
 
 	qemu_boot_args=()
+	artifact="$(artifact_path)"
 	case "${MODE}" in
 	cdrom)
-		note "qemu: iso ${ISO}"
-		[[ -r "${ISO}" ]] || die "missing ISO: ${ISO}"
-		qemu_boot_args=(-cdrom "${ISO}")
+		note "qemu: iso ${artifact}"
+		[[ -r "${artifact}" ]] || die "missing ISO: ${artifact}"
+		qemu_boot_args=(-cdrom "${artifact}")
 		;;
 	drive)
-		note "qemu: img ${IMG}"
-		[[ -r "${IMG}" ]] || die "missing IMG: ${IMG}"
-		qemu_boot_args=(-drive "format=raw,file=${IMG}" -boot order=c)
-		;;
-	*)
-		die "unknown mode: ${MODE} (expected: cdrom|drive)"
+		note "qemu: img ${artifact}"
+		[[ -r "${artifact}" ]] || die "missing IMG: ${artifact}"
+		qemu_boot_args=(-drive "format=raw,file=${artifact}" -boot order=c)
 		;;
 	esac
 
@@ -130,11 +143,11 @@ run_direct_qemu() {
 
 run_host_case() {
 	case "${MODE}" in
-	grub-boots-iso)
+	test-grub-boots-iso)
 		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
 			bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null && TEST_TIMEOUT_SECS='${TIMEOUT_SECS}' TEST_PASS_RC='${PASS_RC}' TEST_FAIL_RC='${FAIL_RC}' KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/qemu-boot.sh '${ARCH}' cdrom"
 		;;
-	grub-boots-img)
+	test-grub-boots-img)
 		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
 			bash -lc "make -B img-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null && TEST_TIMEOUT_SECS='${TIMEOUT_SECS}' TEST_PASS_RC='${PASS_RC}' TEST_FAIL_RC='${FAIL_RC}' KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/qemu-boot.sh '${ARCH}' drive"
 		;;
