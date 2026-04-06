@@ -124,9 +124,11 @@ assert_symbol_ordering() {
 assert_kernel_exports_symbol() {
 	local kernel="$1"
 	local symbol="$2"
+	local symbol_table
 	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel}"
+	symbol_table="$(nm -n "${kernel}")"
 
-	if ! nm -n "${kernel}" | grep -qw "${symbol}"; then
+	if ! awk -v symbol="${symbol}" '$3 == symbol { found = 1 } END { exit(found ? 0 : 1) }' <<<"${symbol_table}"; then
 		echo "FAIL ${kernel}: missing layout symbol ${symbol}"
 		return 1
 	fi

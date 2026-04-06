@@ -60,7 +60,7 @@ assert_pattern() {
 
 run_host_tests() {
 	local filter="$1"
-	local test_bin="build/ut_console_format"
+	local test_bin="build/ut_console_format_${filter:-all}"
 
 	mkdir -p "$(dirname "${test_bin}")"
 	run_host_rust_test "${TEST_SOURCE}" "${test_bin}" "${filter}"

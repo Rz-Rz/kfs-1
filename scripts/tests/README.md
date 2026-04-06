@@ -75,6 +75,7 @@ In practice this means:
 - If a new test writes a fixed path under `build/`, either give it a per-case path or wrap the critical section with `scripts/with-build-lock.sh`.
 - When a test needs shared production artifacts, prefer the Makefile-owned targets such as `make test-artifacts` and let the `Makefile` own the Dockerized compile steps.
 - Reproducibility proofs are also Makefile-owned now; use `make reproducible-builds` instead of rebuilding ad hoc inside a script.
+- Rejection and reproducibility scripts should stay as stamp consumers; keep proof generation in Makefile targets instead of reintroducing script-local reference builders.
 - Avoid re-introducing shell wrapper entrypoints for compilation; keep compile ownership in `Makefile`.
 
 Release-artifact proofs live in `scripts/tests/00-release-artifacts.sh` so they run in the

@@ -8,6 +8,7 @@ REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 TIMEOUT_SECS="${TEST_TIMEOUT_SECS:-10}"
 PASS_RC="${TEST_PASS_RC:-33}"
 LOG="build/m5-simd-policy-${CASE}.log"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/qemu-direct.bash"
 
 list_cases() {
 	cat <<'EOF'
@@ -49,22 +50,19 @@ iso_path() {
 
 run_qemu_capture() {
 	local iso
+	local rc
 	iso="$(iso_path)"
 	[[ -r "${iso}" ]] || die "missing ISO: ${iso} (build it with make test-artifacts arch=${ARCH})"
 
-	set +e
-	timeout --foreground "${TIMEOUT_SECS}" \
-		qemu-system-i386 \
-		-cdrom "${iso}" \
-		-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
-		-serial stdio \
-		-display none \
-		-monitor none \
-		-no-reboot \
-		-no-shutdown \
-		</dev/null >"${LOG}" 2>&1
-	local rc="$?"
-	set -e
+	rc="$(
+		qemu_direct_capture "${LOG}" "${TIMEOUT_SECS}" cdrom "${iso}" \
+			-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+			-serial stdio \
+			-display none \
+			-monitor none \
+			-no-reboot \
+			-no-shutdown
+	)"
 
 	if [[ "${rc}" -ne "${PASS_RC}" ]]; then
 		echo "FAIL ${CASE}: expected PASS rc=${PASS_RC}, got rc=${rc}" >&2

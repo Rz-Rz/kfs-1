@@ -86,6 +86,19 @@ compile_curdir := $(if $(filter 1,$(KFS_INSIDE_CONTAINER)),$(CURDIR),$(toolchain
 RUST_CFG_FLAGS = $(if $(filter compact40x10,$(KFS_SCREEN_GEOMETRY_PRESET)),--cfg kfs_geometry_preset_compact40x10)
 RUST_CODEGEN_FLAGS :=
 RUST_CODEGEN_FLAGS += --remap-path-prefix $(compile_curdir)=.
+FREESTANDING_RUSTC_FLAGS = \
+	$(RUST_CFG_FLAGS) \
+	--crate-type lib \
+	--target $(rust_target) \
+	--emit=obj \
+	$(RUST_CODEGEN_FLAGS) \
+	-C panic=abort \
+	-C force-unwind-tables=no \
+	-C opt-level=z \
+	-C code-model=kernel \
+	-C relocation-model=static
+HOST_RUST_LIB_FLAGS = --crate-name kfs --crate-type rlib --edition=2021
+HOST_RUST_TEST_FLAGS = --test --edition=2021
 
 TEST_ASM_DEFS = -DKFS_TEST=1 \
 	$(if $(filter 1,$(KFS_TEST_FORCE_FAIL)),-DKFS_TEST_FORCE_FAIL=1) \
@@ -142,6 +155,10 @@ endef
 
 define toolchain_exec
 $(if $(filter 1,$(KFS_INSIDE_CONTAINER)),env $(repro_env) $1,$(container_engine) run --rm -e LC_ALL=C -e LANG=C -e TZ=UTC -e SOURCE_DATE_EPOCH=$(source_date_epoch) -v $(container_mount) -w $(toolchain_workdir) $(container_user_args) $(toolchain_image) $1)
+endef
+
+define run_rustc_compile
+$(Q)$(call toolchain_exec,rustc $(strip $(1)) -o $(2) $(3))
 endef
 
 container_tty_args := $(if $(filter 1 true yes,$(KFS_CONTAINER_TTY)),-t,$(if $(filter 0 false no,$(KFS_CONTAINER_TTY)),,$(if $(shell [ -t 1 ] && printf 1),-t,)))
@@ -294,19 +311,7 @@ $(rust_output_dir_compact):
 $(rust_object_files_compact): KFS_SCREEN_GEOMETRY_PRESET := compact40x10
 $(rust_object_files_compact): src/main.rs | $(rust_output_dir_compact) container-image
 	$(call announce_step,RUST,compile the freestanding Rust kernel crate into one object file,rule: $< -> $@ using rustc in Docker)
-	$(Q)$(call toolchain_exec,rustc \
-		$(RUST_CFG_FLAGS) \
-		--crate-type lib \
-		--target $(rust_target) \
-		--emit=obj \
-		$(RUST_CODEGEN_FLAGS) \
-		-C panic=abort \
-		-C force-unwind-tables=no \
-		-C opt-level=z \
-		-C code-model=kernel \
-		-C relocation-model=static \
-		-o $@ \
-		$<)
+	$(call run_rustc_compile,$(FREESTANDING_RUSTC_FLAGS),$@,$<)
 
 $(kernel_compact): KFS_SCREEN_GEOMETRY_PRESET := compact40x10
 $(iso_compact): KFS_SCREEN_GEOMETRY_PRESET := compact40x10
@@ -357,19 +362,22 @@ $(rust_output_dir):
 
 build/arch/$(arch)/rust/kernel.o: src/main.rs $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | $(rust_output_dir) container-image
 	$(call announce_step,RUST,compile the freestanding Rust kernel crate into one object file,rule: $< -> $@ using rustc in Docker)
-	$(Q)$(call toolchain_exec,rustc \
-		$(RUST_CFG_FLAGS) \
-		--crate-type lib \
-		--target $(rust_target) \
-		--emit=obj \
-		$(RUST_CODEGEN_FLAGS) \
-		-C panic=abort \
-		-C force-unwind-tables=no \
-		-C opt-level=z \
-		-C code-model=kernel \
-		-C relocation-model=static \
-		-o $@ \
-		$<)
+	$(call run_rustc_compile,$(FREESTANDING_RUSTC_FLAGS),$@,$<)
+
+ifneq ($(strip $(KFS_HOST_TEST_BIN_PATH)),)
+host_rust_test_bin := $(KFS_HOST_TEST_BIN_PATH)
+host_rust_test_lib := $(dir $(host_rust_test_bin))lib$(notdir $(host_rust_test_bin)).rlib
+
+$(host_rust_test_lib): $(KFS_HOST_LIB_SOURCE) | container-image
+	$(call announce_step,RUST,compile the host-side Rust library through the shared Makefile pipeline,rule: $< -> $@ using rustc in Docker)
+	$(Q)mkdir -p $(dir $@)
+	$(call run_rustc_compile,$(HOST_RUST_LIB_FLAGS) $(KFS_HOST_LIB_RUSTC_FLAGS),$@,$<)
+
+$(host_rust_test_bin): $(KFS_HOST_TEST_SOURCE) $(host_rust_test_lib) | container-image
+	$(call announce_step,RUST,compile the host-side Rust test binary through the shared Makefile pipeline,rule: $< + $(host_rust_test_lib) -> $@ using rustc in Docker)
+	$(Q)mkdir -p $(dir $@)
+	$(call run_rustc_compile,$(HOST_RUST_TEST_FLAGS) $(KFS_HOST_TEST_RUSTC_FLAGS) --extern kfs=$(host_rust_test_lib),$@,$<)
+endif
 
 container-image:
 	@if [ "$(KFS_INSIDE_CONTAINER)" = "1" ]; then \
@@ -514,19 +522,23 @@ host-rust-test: container-image
 	@bash -lc 'set -euo pipefail; \
 	test -n "$${KFS_HOST_LIB_SOURCE:-}" || { echo "error: KFS_HOST_LIB_SOURCE is required" >&2; exit 2; }; \
 	test -n "$${KFS_HOST_TEST_SOURCE:-}" || { echo "error: KFS_HOST_TEST_SOURCE is required" >&2; exit 2; }; \
-	test -n "$${KFS_HOST_TEST_BIN_NAME:-}" || { echo "error: KFS_HOST_TEST_BIN_NAME is required" >&2; exit 2; }; \
+	test -n "$${KFS_HOST_TEST_BIN_PATH:-}" || { echo "error: KFS_HOST_TEST_BIN_PATH is required" >&2; exit 2; }; \
+	$(MAKE) --no-print-directory \
+		arch=$(arch) \
+		KFS_HOST_LIB_SOURCE="$${KFS_HOST_LIB_SOURCE}" \
+		KFS_HOST_TEST_SOURCE="$${KFS_HOST_TEST_SOURCE}" \
+		KFS_HOST_TEST_BIN_PATH="$${KFS_HOST_TEST_BIN_PATH}" \
+		KFS_HOST_LIB_RUSTC_FLAGS="$${KFS_HOST_LIB_RUSTC_FLAGS:-}" \
+		KFS_HOST_TEST_RUSTC_FLAGS="$${KFS_HOST_TEST_RUSTC_FLAGS:-}" \
+		"$${KFS_HOST_TEST_BIN_PATH}"; \
 	exec $(container_engine) run --rm \
 		-e KFS_INSIDE_CONTAINER=1 \
-		-e KFS_HOST_LIB_SOURCE="$${KFS_HOST_LIB_SOURCE}" \
-		-e KFS_HOST_TEST_SOURCE="$${KFS_HOST_TEST_SOURCE}" \
-		-e KFS_HOST_TEST_BIN_NAME="$${KFS_HOST_TEST_BIN_NAME}" \
+		-e KFS_HOST_TEST_BIN_PATH="$${KFS_HOST_TEST_BIN_PATH}" \
 		-e KFS_HOST_TEST_FILTER="$${KFS_HOST_TEST_FILTER:-}" \
-		-e KFS_HOST_LIB_RUSTC_FLAGS="$${KFS_HOST_LIB_RUSTC_FLAGS:-}" \
-		-e KFS_HOST_TEST_RUSTC_FLAGS="$${KFS_HOST_TEST_RUSTC_FLAGS:-}" \
 		-v $(container_mount) -w $(toolchain_workdir) \
 		$(container_user_args) \
 		"$(toolchain_image)" \
-		bash -lc '\''set -euo pipefail; tmpdir="$$(mktemp -d)"; trap "rm -rf \"$$tmpdir\"" EXIT; rustc $${KFS_HOST_LIB_RUSTC_FLAGS:-} --crate-name kfs --crate-type rlib --edition=2021 -o "$$tmpdir/libkfs.rlib" "$${KFS_HOST_LIB_SOURCE}" >/dev/null; rustc --test $${KFS_HOST_TEST_RUSTC_FLAGS:-} --edition=2021 --extern kfs="$$tmpdir/libkfs.rlib" -o "$$tmpdir/$${KFS_HOST_TEST_BIN_NAME}" "$${KFS_HOST_TEST_SOURCE}" >/dev/null; if [[ -n "$${KFS_HOST_TEST_FILTER:-}" ]]; then "$$tmpdir/$${KFS_HOST_TEST_BIN_NAME}" "$${KFS_HOST_TEST_FILTER}"; else "$$tmpdir/$${KFS_HOST_TEST_BIN_NAME}"; fi'\'''
+		bash -lc '\''set -euo pipefail; if [[ -n "$${KFS_HOST_TEST_FILTER:-}" ]]; then "$${KFS_HOST_TEST_BIN_PATH}" "$${KFS_HOST_TEST_FILTER}"; else "$${KFS_HOST_TEST_BIN_PATH}"; fi'\'''
 
 test-plain:
 	@$(PYTHON) scripts/kfs_test_runner.py --arch $(arch) --runner-target test-plain

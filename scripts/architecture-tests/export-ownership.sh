@@ -92,6 +92,9 @@ extract_no_mangle_exports() {
       }
 
       if (pending == 1) {
+        if (line ~ /^[[:space:]]*$/ || line ~ /^[[:space:]]*\/\// || line ~ /^[[:space:]]*#\[/) {
+          next
+        }
         if (match(line, /^[[:space:]]*pub[[:space:]]+(unsafe[[:space:]]+)?(extern[[:space:]]+"C"[[:space:]]+)?(fn|const|static)[[:space:]]+(mut[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)/, name)) {
           print name[5]
         }

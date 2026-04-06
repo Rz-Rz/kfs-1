@@ -74,7 +74,9 @@ assert_kernel_symbol_type() {
 	local kernel
 	kernel="$(kernel_path)"
 
-	nm -n "${kernel}" | grep -qE "${pattern}" ||
+	local symbol_table
+	symbol_table="$(nm -n "${kernel}")"
+	grep -qE "${pattern}" <<<"${symbol_table}" ||
 		die "expected ${expected} proof missing in ${kernel}"
 }
 

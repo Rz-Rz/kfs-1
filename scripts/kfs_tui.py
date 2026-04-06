@@ -1326,9 +1326,11 @@ class KFSApp(App):
         active_label = (
             "FAILED"
             if self.done and self.failed
-            else "DONE"
-            if self.done
-            else f"RUN {active_jobs}" if active_jobs else (self.current_section or "WAITING")
+            else (
+                "DONE"
+                if self.done
+                else f"RUN {active_jobs}" if active_jobs else (self.current_section or "WAITING")
+            )
         )
         elapsed = self._elapsed_seconds()
         branch_label = self.current_branch

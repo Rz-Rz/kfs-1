@@ -26,11 +26,13 @@ die() {
 
 assert_kmain_symbol() {
 	local kernel="$1"
+	local symbol_table
 	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make all/iso arch=${ARCH})"
+	symbol_table="$(nm -n "${kernel}")"
 
-	if ! nm -n "${kernel}" | grep -qE '[[:space:]]T[[:space:]]+kmain$'; then
+	if ! awk '$2 == "T" && $3 == "kmain" { found = 1 } END { exit(found ? 0 : 1) }' <<<"${symbol_table}"; then
 		echo "FAIL ${kernel}: missing Rust entry symbol (expected: T kmain)"
-		nm -n "${kernel}" | grep -E '\bkmain\b' || true
+		grep -E '\bkmain\b' <<<"${symbol_table}" || true
 		return 1
 	fi
 }

@@ -120,7 +120,9 @@ assert_release_symbol() {
 	local kernel="build/kernel-${ARCH}.bin"
 
 	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make test-artifacts arch=${ARCH})"
-	nm -n "${kernel}" | grep -qE "[[:space:]]T[[:space:]]+${symbol}$"
+	local symbol_table
+	symbol_table="$(nm -n "${kernel}")"
+	grep -qE "[[:space:]]T[[:space:]]+${symbol}$" <<<"${symbol_table}"
 
 	echo "PASS ${kernel}: ${symbol}"
 }
