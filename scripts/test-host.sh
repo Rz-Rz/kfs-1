@@ -28,6 +28,7 @@ declare -A ACTIVE_CASE_NAME=()
 declare -A ACTIVE_CASE_LOG=()
 declare -A ACTIVE_CASE_MODE=()
 declare -A ACTIVE_CASE_WORKSPACE_SLOT=()
+declare -A ACTIVE_CASE_STARTED_MS=()
 declare -A PRINTED_SECTION_HEADERS=()
 declare -a WORKSPACE_DIRS=()
 declare -a WORKSPACE_BUSY=()
@@ -133,6 +134,21 @@ emit_event() {
 	printf '\n'
 }
 
+now_ms() {
+	local value
+
+	value="$(date +%s%3N 2>/dev/null || true)"
+	if [[ "${value}" =~ ^[0-9]+$ ]]; then
+		printf '%s\n' "${value}"
+		return 0
+	fi
+
+	python3 - <<'PY'
+import time
+print(int(time.time() * 1000))
+PY
+}
+
 slugify() {
 	printf '%s' "$1" |
 		tr '[:upper:]' '[:lower:]' |
@@ -150,7 +166,7 @@ default_parallel_jobs() {
 
 	[[ "${jobs}" =~ ^[0-9]+$ ]] || jobs=1
 	((jobs >= 1)) || jobs=1
-	((jobs <= 4)) || jobs=4
+	((jobs <= 6)) || jobs=6
 	printf '%s\n' "${jobs}"
 }
 
@@ -250,7 +266,7 @@ init_debug_index() {
 	mkdir -p "${DEBUG_DIR}"
 	DEBUG_INDEX="${DEBUG_DIR}/case-index.tsv"
 	if [[ ! -f "${DEBUG_INDEX}" ]]; then
-		printf 'section\tsubgroup\tcase\ttitle\trc\tlog_path\n' >"${DEBUG_INDEX}"
+		printf 'section\tsubgroup\tcase\ttitle\trc\tstarted_ms\tfinished_ms\tduration_ms\tlog_path\n' >"${DEBUG_INDEX}"
 	fi
 }
 
@@ -260,7 +276,10 @@ persist_case_log() {
 	local title="$3"
 	local test_case="$4"
 	local rc="$5"
-	local log="$6"
+	local started_ms="$6"
+	local finished_ms="$7"
+	local duration_ms="$8"
+	local log="$9"
 	local section_slug subgroup_slug case_slug path
 
 	[[ -n "${DEBUG_DIR}" ]] || return 0
@@ -279,12 +298,15 @@ persist_case_log() {
 	cp "${log}" "${path}"
 
 	if [[ -n "${DEBUG_INDEX}" ]]; then
-		printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
 			"${section}" \
 			"${subgroup}" \
 			"${test_case}" \
 			"${title}" \
 			"${rc}" \
+			"${started_ms}" \
+			"${finished_ms}" \
+			"${duration_ms}" \
 			"${path}" >>"${DEBUG_INDEX}"
 	fi
 }
@@ -334,11 +356,8 @@ build_manifest() {
 	if [[ "${RUN_LINT}" == "1" ]]; then
 		printf '%s\t%s\t%s\t%s\t%s\n' "LINT" "-" "-" "-" "Run lint checks" >>"${entries}"
 	fi
-	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Rebuild the container toolchain image" >>"${entries}"
-	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify tools exist" >>"${entries}"
 	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify host test tools exist" >>"${entries}"
-	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Build canonical release ISO/IMG artifacts" >>"${entries}"
-	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Build test ISO/IMG artifacts" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "SETUP" "-" "-" "-" "Verify shared release/test/variant artifacts exist" >>"${entries}"
 	collect_section_entries "TESTS" "${SCRIPT_ROOT}/tests" "${entries}"
 	if [[ -d "${SCRIPT_ROOT}/architecture-tests" ]]; then
 		collect_section_entries "ARCHITECTURE TESTS" "${SCRIPT_ROOT}/architecture-tests" "${entries}"
@@ -380,24 +399,29 @@ run_item() {
 	local test_case="$5"
 	shift 5
 
-	emit_event "start" "${section}" "${subgroup}" "${title}" "${path}" "${test_case}"
-
 	color "1;34"
 	printf '%s ' "${title}"
 	reset_color
 
 	local log
+	local started_ms
+	local finished_ms
+	local duration_ms
 	log="$(mktemp -t kfs-test.XXXXXX)"
+	started_ms="$(now_ms)"
+	emit_event "start" "${section}" "${subgroup}" "${title}" "${path}" "${test_case}" "${started_ms}"
 	set +e
 	"$@" >"${log}" 2>&1
 	local rc="$?"
 	set -e
-	persist_case_log "${section}" "${subgroup}" "${title}" "${test_case}" "${rc}" "${log}"
+	finished_ms="$(now_ms)"
+	duration_ms="$((finished_ms - started_ms))"
 
 	if [[ "${rc}" -eq 0 ]]; then
+		persist_case_log "${section}" "${subgroup}" "${title}" "${test_case}" "${rc}" "${started_ms}" "${finished_ms}" "${duration_ms}" "${log}"
 		pass
 		printf '\n'
-		emit_event "result" "${section}" "${subgroup}" "${title}" "pass" "${path}" "${test_case}"
+		emit_event "result" "${section}" "${subgroup}" "${title}" "pass" "${path}" "${test_case}" "${started_ms}" "${finished_ms}" "${duration_ms}"
 		if [[ "${VERBOSE}" == "1" ]]; then
 			indent <"${log}"
 		fi
@@ -405,9 +429,10 @@ run_item() {
 		return 0
 	fi
 
+	persist_case_log "${section}" "${subgroup}" "${title}" "${test_case}" "${rc}" "${started_ms}" "${finished_ms}" "${duration_ms}" "${log}"
 	fail
 	printf '\n'
-	emit_event "result" "${section}" "${subgroup}" "${title}" "fail" "${path}" "${test_case}"
+	emit_event "result" "${section}" "${subgroup}" "${title}" "fail" "${path}" "${test_case}" "${started_ms}" "${finished_ms}" "${duration_ms}"
 	indent <"${log}"
 	rm -f "${log}"
 	return "${rc}"
@@ -437,6 +462,7 @@ dispatch_case() {
 	local pid
 	local case_rel
 	local run_root
+	local started_ms
 
 	case_rel="$(relative_case_path "${path}")"
 	run_root="${REPO_ROOT}"
@@ -450,8 +476,9 @@ dispatch_case() {
 	fi
 
 	print_section_header_once "${section}"
+	started_ms="$(now_ms)"
 	emit_event "section" "${section}"
-	emit_event "start" "${section}" "${subgroup}" "${description}" "${path}" "${test_case}"
+	emit_event "start" "${section}" "${subgroup}" "${description}" "${path}" "${test_case}" "${started_ms}"
 
 	log="$(mktemp -t kfs-test.XXXXXX)"
 	(
@@ -470,6 +497,7 @@ dispatch_case() {
 	ACTIVE_CASE_LOG["${pid}"]="${log}"
 	ACTIVE_CASE_MODE["${pid}"]="${mode}"
 	ACTIVE_CASE_WORKSPACE_SLOT["${pid}"]="${workspace_slot}"
+	ACTIVE_CASE_STARTED_MS["${pid}"]="${started_ms}"
 	RUNNING_JOBS=$((RUNNING_JOBS + 1))
 }
 
@@ -484,6 +512,9 @@ complete_case() {
 	local log="${ACTIVE_CASE_LOG[${pid}]}"
 	local mode="${ACTIVE_CASE_MODE[${pid}]:-local}"
 	local workspace_slot="${ACTIVE_CASE_WORKSPACE_SLOT[${pid}]:-}"
+	local started_ms="${ACTIVE_CASE_STARTED_MS[${pid}]:-0}"
+	local finished_ms
+	local duration_ms
 
 	unset "ACTIVE_CASE_SECTION[${pid}]"
 	unset "ACTIVE_CASE_SUBGROUP[${pid}]"
@@ -493,6 +524,7 @@ complete_case() {
 	unset "ACTIVE_CASE_LOG[${pid}]"
 	unset "ACTIVE_CASE_MODE[${pid}]"
 	unset "ACTIVE_CASE_WORKSPACE_SLOT[${pid}]"
+	unset "ACTIVE_CASE_STARTED_MS[${pid}]"
 	if [[ "${mode}" == "workspace" ]]; then
 		WORKSPACE_BUSY[workspace_slot]=0
 		ACTIVE_HEAVY_JOBS=$((ACTIVE_HEAVY_JOBS - 1))
@@ -501,7 +533,9 @@ complete_case() {
 	fi
 	RUNNING_JOBS=$((RUNNING_JOBS - 1))
 
-	persist_case_log "${section}" "${subgroup}" "${title}" "${test_case}" "${rc}" "${log}"
+	finished_ms="$(now_ms)"
+	duration_ms="$((finished_ms - started_ms))"
+	persist_case_log "${section}" "${subgroup}" "${title}" "${test_case}" "${rc}" "${started_ms}" "${finished_ms}" "${duration_ms}" "${log}"
 
 	color "1;34"
 	printf '[%s] ' "${section}"
@@ -511,14 +545,14 @@ complete_case() {
 	if [[ "${rc}" -eq 0 ]]; then
 		pass
 		printf '\n'
-		emit_event "result" "${section}" "${subgroup}" "${title}" "pass" "${path}" "${test_case}"
+		emit_event "result" "${section}" "${subgroup}" "${title}" "pass" "${path}" "${test_case}" "${started_ms}" "${finished_ms}" "${duration_ms}"
 		if [[ "${VERBOSE}" == "1" ]]; then
 			indent <"${log}"
 		fi
 	else
 		fail
 		printf '\n'
-		emit_event "result" "${section}" "${subgroup}" "${title}" "fail" "${path}" "${test_case}"
+		emit_event "result" "${section}" "${subgroup}" "${title}" "fail" "${path}" "${test_case}" "${started_ms}" "${finished_ms}" "${duration_ms}"
 		indent <"${log}"
 		TEST_FAILURES=1
 	fi
@@ -663,34 +697,14 @@ color "1;34"
 printf '%s\n' "SETUP"
 reset_color
 emit_event "section" "SETUP"
-if ! run_item "SETUP" "-" "Rebuild the container toolchain image" "-" "-" \
-	env KFS_FORCE_IMAGE_BUILD=1 make --no-print-directory container-image; then
-	emit_event "summary" "fail"
-	exit 1
-fi
-
-if ! run_item "SETUP" "-" "Verify tools exist" "-" "-" \
-	make --no-print-directory container-env-check; then
-	emit_event "summary" "fail"
-	exit 1
-fi
-
 if ! run_item "SETUP" "-" "Verify host test tools exist" "-" "-" \
 	bash -lc 'command -v rg >/dev/null 2>&1'; then
 	emit_event "summary" "fail"
 	exit 1
 fi
 
-if ! run_item "SETUP" "-" "Build canonical release ISO/IMG artifacts" "-" "-" \
-	bash scripts/with-build-lock.sh \
-	bash -lc "make -B img arch='${ARCH}' >/dev/null"; then
-	emit_event "summary" "fail"
-	exit 1
-fi
-
-if ! run_item "SETUP" "-" "Build test ISO/IMG artifacts" "-" "-" \
-	bash scripts/with-build-lock.sh \
-	bash -lc "make -B img-test arch='${ARCH}' >/dev/null"; then
+if ! run_item "SETUP" "-" "Verify shared release/test/variant artifacts exist" "-" "-" \
+	bash -lc "test -r 'build/os-${ARCH}.img' && test -r 'build/os-${ARCH}-test.img' && test -r 'build/os-${ARCH}-compact40x10.iso' && test -r 'build/rejections/section-${ARCH}-text-missing.stamp' && test -r 'build/rejections/layout-${ARCH}-bss-before-kernel.stamp' && test -r 'build/rejections/freestanding-${ARCH}-interp-pt-interp-present.stamp' && test -r 'build/reproducible/${ARCH}-release-artifacts-match-across-clean-rebuilds.stamp' && test -r 'build/reproducible/${ARCH}-release-artifacts-match-across-workdirs.stamp'"; then
 	emit_event "summary" "fail"
 	exit 1
 fi

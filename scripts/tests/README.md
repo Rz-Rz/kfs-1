@@ -73,8 +73,9 @@ In practice this means:
 - Pure host Rust unit tests and source-pattern checks can overlap freely.
 - Build-heavy, QEMU, architecture, stability, and rejection/runtime cases can overlap across isolated worker copies instead of serializing behind one shared `build/` tree.
 - If a new test writes a fixed path under `build/`, either give it a per-case path or wrap the critical section with `scripts/with-build-lock.sh`.
-- When a test needs production artifacts, prefer calling public `make` targets directly and let the `Makefile` own the Dockerized compile steps.
-- Avoid re-introducing `container.sh run -- make ...` wrappers for compilation; keep compile ownership in `Makefile`.
+- When a test needs shared production artifacts, prefer the Makefile-owned targets such as `make test-artifacts` and let the `Makefile` own the Dockerized compile steps.
+- Reproducibility proofs are also Makefile-owned now; use `make reproducible-builds` instead of rebuilding ad hoc inside a script.
+- Avoid re-introducing shell wrapper entrypoints for compilation; keep compile ownership in `Makefile`.
 
 Release-artifact proofs live in `scripts/tests/00-release-artifacts.sh` so they run in the
 `TESTS` section before later destructive rebuild cases can remove the tracked deliverables.
