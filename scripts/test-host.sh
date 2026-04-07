@@ -615,6 +615,7 @@ run_parallel_section() {
 	local entries="$2"
 	local max_jobs="$3"
 	local effective_heavy_jobs=0
+	local heavy_jobs_cap="${max_jobs}"
 	local local_jobs=0
 	local local_pending=()
 	local heavy_pending=()
@@ -654,6 +655,12 @@ run_parallel_section() {
 			effective_heavy_jobs=$((max_jobs / 2))
 			((effective_heavy_jobs >= 1)) || effective_heavy_jobs=1
 			((effective_heavy_jobs < max_jobs)) || effective_heavy_jobs=$((max_jobs - 1))
+		fi
+		if [[ "${title}" == "BOOT TESTS" && "${heavy_jobs_cap}" -gt 4 ]]; then
+			heavy_jobs_cap=4
+		fi
+		if ((effective_heavy_jobs > heavy_jobs_cap)); then
+			effective_heavy_jobs="${heavy_jobs_cap}"
 		fi
 	fi
 

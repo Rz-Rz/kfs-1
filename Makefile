@@ -160,8 +160,8 @@ define run_rustc_compile
 $(Q)$(call toolchain_exec,rustc $(strip $(1)) -o $(2) $(3))
 endef
 
-container_tty_args := $(if $(filter 1 true yes,$(KFS_CONTAINER_TTY)),-t,$(if $(filter 0 false no,$(KFS_CONTAINER_TTY)),,$(if $(shell [ -t 1 ] && printf 1),-t,)))
-container_stdin_args := $(if $(filter 1 true yes,$(KFS_CONTAINER_STDIN)),-i,$(if $(filter 0 false no,$(KFS_CONTAINER_STDIN)),,$(if $(shell [ -t 0 ] && printf 1),-i,)))
+container_tty_args := $(if $(filter 1 true yes,$(KFS_CONTAINER_TTY)),-t,$(if $(filter 0 false no,$(KFS_CONTAINER_TTY)),,))
+container_stdin_args := $(if $(filter 1 true yes,$(KFS_CONTAINER_STDIN)),-i,$(if $(filter 0 false no,$(KFS_CONTAINER_STDIN)),,))
 container_interactive_args := $(strip $(container_stdin_args) $(container_tty_args))
 container_kvm_args := $(if $(and $(filter 1,$(KFS_USE_KVM)),$(shell [ -e /dev/kvm ] && printf 1)),--device /dev/kvm,)
 gui_security_args := $(if $(or $(filter podman,$(container_engine)),$(and $(filter docker,$(container_engine)),$(filter 1,$(selinux_enforcing)))),--security-opt label=disable,)
@@ -494,6 +494,16 @@ test:
 	@bash -lc 'set -euo pipefail; \
 		mode="$${KFS_TEST_UI:-auto}"; \
 		run_lint="$${KFS_SKIP_LINT:-0}"; \
+		interactive_args="$(container_interactive_args)"; \
+		if [[ -z "$${interactive_args}" ]]; then \
+			if [ -t 0 ]; then \
+				interactive_args="-i"; \
+			fi; \
+			if [ -t 1 ]; then \
+				interactive_args="$${interactive_args} -t"; \
+			fi; \
+			interactive_args="$${interactive_args# }"; \
+		fi; \
 		if [[ "$${run_lint}" == "1" ]]; then \
 			run_lint=0; \
 		else \
@@ -515,7 +525,7 @@ test:
 				"$(toolchain_image)" \
 				bash scripts/test-host.sh $(arch); \
 		fi; \
-		exec $(container_engine) run --rm $(container_interactive_args) \
+		exec $(container_engine) run --rm $${interactive_args} \
 			-e KFS_INSIDE_CONTAINER=1 \
 			-e KFS_RUN_LINT="$${run_lint}" \
 			$(if $(TERM),-e TERM="$(TERM)",) \
@@ -586,11 +596,21 @@ test-ui:
 
 test-ui-demo:
 	@bash -lc 'set -euo pipefail; \
+		interactive_args="$(container_interactive_args)"; \
+		if [[ -z "$${interactive_args}" ]]; then \
+			if [ -t 0 ]; then \
+				interactive_args="-i"; \
+			fi; \
+			if [ -t 1 ]; then \
+				interactive_args="$${interactive_args} -t"; \
+			fi; \
+			interactive_args="$${interactive_args# }"; \
+		fi; \
 		if [ "$(KFS_INSIDE_CONTAINER)" = "1" ]; then \
 			exec env KFS_TUI_HOLD=1 python3 scripts/kfs_tui.py --demo; \
 		fi; \
 		$(MAKE) --no-print-directory container-image arch=$(arch); \
-		exec $(container_engine) run --rm $(container_interactive_args) \
+		exec $(container_engine) run --rm $${interactive_args} \
 			-e KFS_INSIDE_CONTAINER=1 \
 			-e KFS_TUI_HOLD=1 \
 			$(if $(TERM),-e TERM="$(TERM)",) \

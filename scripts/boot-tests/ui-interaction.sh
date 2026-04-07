@@ -61,7 +61,7 @@ run_case() {
 
 	case "${CASE}" in
 	backspace-rewinds-across-scrolled-blank-lines)
-		timeout_secs="${TEST_TIMEOUT_SECS:-360}"
+		timeout_secs="${TEST_TIMEOUT_SECS:-480}"
 		;;
 	bare-function-key-selection-matrix | alt-function-key-selection-matrix)
 		timeout_secs="${TEST_TIMEOUT_SECS:-120}"

@@ -1924,10 +1924,10 @@ SCENARIOS["backspace-blanks-the-last-visible-character-cell"] = [
     },
 ]
 # This case drives 59 rapid key events before waiting for the framebuffer to settle. Give it
-# plenty of slack so slower or more contended QEMU/VNC runs still observe the final rewound
-# framebuffer state in both TUI and plain suite modes.
+# enough slack for section-parallel boot runs, where several QEMU/VNC cases may still be
+# contending for CPU while the framebuffer catches up to the final rewound state.
 BACKSPACE_REWIND_STEP_DELAY_SECS = 0.25
-BACKSPACE_REWIND_TIMEOUT_SECS = 240.0
+BACKSPACE_REWIND_TIMEOUT_SECS = 360.0
 
 SCENARIOS["backspace-rewinds-across-scrolled-blank-lines"] = [
     *_fresh_terminal_blank_steps("beta_blank"),
