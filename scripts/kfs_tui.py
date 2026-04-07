@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -53,10 +54,15 @@ CSS = f"""
 Screen {{
     background: {BLACK};
     color: {AMBER};
+    layout: vertical;
+    width: 100%;
+    height: 100%;
+    overflow: hidden hidden;
 }}
 
 #topbar {{
     height: 2;
+    width: 100%;
     border-bottom: solid {AMBER_DIM};
     padding: 0 1;
 }}
@@ -72,8 +78,8 @@ Screen {{
 }}
 
 #counter {{
-    width: 108;
-    text-align: left;
+    width: auto;
+    text-align: right;
     color: {AMBER_DIM};
 }}
 
@@ -81,6 +87,7 @@ Screen {{
     grid-size: 3 2;
     grid-gutter: 0 1;
     padding: 0 1;
+    width: 100%;
     height: 1fr;
 }}
 
@@ -139,12 +146,14 @@ Screen {{
 
 #metrics_bar {{
     height: auto;
+    width: 100%;
     border-top: solid {AMBER_DIM};
     padding: 0;
 }}
 
 #metrics_layout {{
     height: auto;
+    width: 100%;
 }}
 
 #metrics_side_label {{
@@ -203,6 +212,14 @@ Screen {{
     height: 100%;
     align: center middle;
     background: {BLACK};
+}}
+
+Screen.layout-medium #grid {{
+    grid-size: 2 3;
+}}
+
+Screen.layout-narrow #grid {{
+    grid-size: 1 6;
 }}
 
 #rerun_button {{
@@ -876,6 +893,8 @@ class KFSApp(App):
         self.run_started_at: Optional[float] = None
         self.final_return_code = 0
         self.auto_exit_scheduled = False
+        self.grid_columns = GRID_COLUMNS
+        self.grid_rows = GRID_ROWS
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
@@ -910,6 +929,7 @@ class KFSApp(App):
         self._update_top_status()
         self._update_rerun_button()
         self._refresh_metrics_display(reload_snapshot=True)
+        self._apply_responsive_layout()
         self.set_interval(RUNNER_TICK_SECS, self._tick)
         self._boot_and_run()
 
@@ -938,6 +958,7 @@ class KFSApp(App):
             process = subprocess.Popen(
                 runner_command(self.runner_target, self.arch),
                 cwd=self.repo_root,
+                stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -957,6 +978,7 @@ class KFSApp(App):
 
         process = subprocess.run(
             ["bash", "scripts/test-host.sh", "--manifest", self.arch],
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -1355,14 +1377,13 @@ class KFSApp(App):
         if len(branch_label) > 28:
             branch_label = f"{branch_label[:25]}..."
         self.query_one("#counter", Static).update(
-            f"[{AMBER}]branch[/]={branch_label}  "
             f"[{AMBER}]arch[/]={self.arch}  "
             f"[{AMBER}]elapsed[/]={elapsed:4.1f}s  "
             f"[{RED_BRIGHT if active_label == 'FAILED' else AMBER}]active[/]={active_label}  "
-            f"[{AMBER}]run[/]={active_jobs}  "
             f"[{AMBER}]done[/]={done}/{total}  "
             f"[{GREEN_OK}]pass[/]={self.passed}  "
-            f"[{RED_BRIGHT}]fail[/]={self.failed}"
+            f"[{RED_BRIGHT}]fail[/]={self.failed}  "
+            f"[{AMBER_DIM}]{branch_label}[/]"
         )
 
     def _update_rerun_button(self) -> None:
@@ -1470,10 +1491,41 @@ class KFSApp(App):
             if index == panel_id:
                 panel.display = True
                 panel.add_class("expanded")
-                panel.styles.column_span = GRID_COLUMNS
-                panel.styles.row_span = GRID_ROWS
+                panel.styles.column_span = self.grid_columns
+                panel.styles.row_span = self.grid_rows
             else:
                 panel.display = False
+        self.call_after_refresh(self._sync_active_runner)
+
+    def on_resize(self, _event=None) -> None:
+        self._apply_responsive_layout()
+
+    def _apply_responsive_layout(self) -> None:
+        width = self.size.width
+        layout_class = "layout-wide"
+        columns = 3
+        rows = 2
+
+        if width < 96:
+            layout_class = "layout-narrow"
+            columns = 1
+            rows = 6
+        elif width < 144:
+            layout_class = "layout-medium"
+            columns = 2
+            rows = 3
+
+        for candidate in ("layout-wide", "layout-medium", "layout-narrow"):
+            self.remove_class(candidate)
+        self.add_class(layout_class)
+        self.grid_columns = columns
+        self.grid_rows = rows
+
+        if self.expanded_panel is not None:
+            panel = self.query_one(f"#panel_{self.expanded_panel}", TestPanel)
+            panel.styles.column_span = self.grid_columns
+            panel.styles.row_span = self.grid_rows
+
         self.call_after_refresh(self._sync_active_runner)
 
     def action_quit(self) -> None:
@@ -1506,6 +1558,7 @@ class KFSApp(App):
         process = subprocess.run(
             ["bash", script_path, self.arch, test_case],
             cwd=self.repo_root,
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -1541,7 +1594,11 @@ def main() -> None:
     args = parse_args()
     mode = "demo" if args.demo else "stdin" if args.stdin else "runner"
     app = KFSApp(mode=mode, arch=args.arch, runner_target=args.runner_target)
-    app.run()
+    terminal_size = shutil.get_terminal_size(fallback=(120, 40))
+    app.run(
+        mouse=os.environ.get("KFS_TUI_MOUSE", "0") == "1",
+        size=(terminal_size.columns, terminal_size.lines),
+    )
 
 
 if __name__ == "__main__":
