@@ -1,0 +1,1 @@
+PASS inline-asm-stays-in-arch-or-machine: inline asm stays in machine layer

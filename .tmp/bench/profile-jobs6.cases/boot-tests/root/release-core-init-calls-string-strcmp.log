@@ -1,0 +1,2 @@
+PASS src: string::strcmp call in core init
+PASS src: kfs_strcmp call in core init absent

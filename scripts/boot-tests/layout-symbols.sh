@@ -124,9 +124,11 @@ assert_symbol_ordering() {
 assert_kernel_exports_symbol() {
 	local kernel="$1"
 	local symbol="$2"
+	local symbol_table
 	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel}"
+	symbol_table="$(nm -n "${kernel}")"
 
-	if ! nm -n "${kernel}" | grep -qw "${symbol}"; then
+	if ! awk -v symbol="${symbol}" '$3 == symbol { found = 1 } END { exit(found ? 0 : 1) }' <<<"${symbol_table}"; then
 		echo "FAIL ${kernel}: missing layout symbol ${symbol}"
 		return 1
 	fi
@@ -223,22 +225,6 @@ run_direct_case() {
 	esac
 }
 
-run_host_case() {
-	case "${CASE}" in
-	release-kernel-exports-kernel-start | release-kernel-exports-kernel-end | release-kernel-exports-bss-start | release-kernel-exports-bss-end | release-kernel-links-layout-symbols-marker | release-symbol-ordering)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/layout-symbols.sh '${ARCH}' '${CASE}'"
-		;;
-	test-kernel-exports-kernel-start | test-kernel-exports-kernel-end | test-kernel-exports-bss-start | test-kernel-exports-bss-end | test-kernel-links-layout-symbols-marker | test-symbol-ordering)
-		bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-			bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/layout-symbols.sh '${ARCH}' '${CASE}'"
-		;;
-	rust-declares-layout-symbols | rust-references-kernel-start | rust-references-kernel-end | rust-references-bss-start | rust-references-bss-end)
-		run_direct_case
-		;;
-	esac
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -251,11 +237,6 @@ main() {
 	fi
 
 	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
-
-	if [[ -n "${CASE}" ]] && describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
-		return 0
-	fi
 
 	if [[ -n "${CASE}" ]]; then
 		run_direct_case

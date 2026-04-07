@@ -1,0 +1,2 @@
+PASS src: memory::memcpy call in core init
+PASS src: kfs_memcpy call in core init absent

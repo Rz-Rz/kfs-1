@@ -1,0 +1,9 @@
+PASS src: ColorCode owned by src/kernel/types/screen.rs
+PASS src: ColorCode owned by src/kernel/types/screen.rs owned only by src/kernel/types/screen.rs
+PASS src: ScreenCell owned by src/kernel/types/screen.rs
+PASS src: ScreenCell owned by src/kernel/types/screen.rs owned only by src/kernel/types/screen.rs
+PASS src: CursorPos owned by src/kernel/types/screen.rs
+PASS src: CursorPos owned by src/kernel/types/screen.rs owned only by src/kernel/types/screen.rs
+PASS src: ColorCode repr(transparent)
+PASS src: ScreenCell repr(C)
+PASS src: CursorPos repr(C)

@@ -1,0 +1,1 @@
+PASS entry-no-direct-driver-abi-calls: kmain entry does not reference VGA ABI directly

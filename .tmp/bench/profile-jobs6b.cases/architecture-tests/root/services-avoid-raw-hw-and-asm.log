@@ -1,0 +1,1 @@
+PASS services-avoid-raw-hw-and-asm: services avoid raw hardware access and inline asm

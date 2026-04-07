@@ -3,6 +3,8 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-}"
+# shellcheck disable=SC2034
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
 list_cases() {
 	cat <<'EOF'
@@ -66,27 +68,23 @@ assert_panic_handler_halts() {
 
 assert_release_kmain_disassembly_halts() {
 	local kernel="build/kernel-${ARCH}.bin"
+	local symbol_table
 	local start_addr
 	local stop_addr
 	local halt_disasm
 	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make all arch=${ARCH})"
+	symbol_table="$(nm -n "${kernel}")"
 
-	start_addr="$(
-		nm -n "${kernel}" |
-			awk '$3 == "kfs_arch_halt_forever" { print "0x" $1; exit }'
-	)"
+	start_addr="$(awk '$3 == "kfs_arch_halt_forever" { print "0x" $1; exit }' <<<"${symbol_table}")"
 	[[ -n "${start_addr}" ]] || die "missing symbol: kfs_arch_halt_forever in ${kernel}"
 
-	stop_addr="$(
-		nm -n "${kernel}" |
-			awk '
+	stop_addr="$(awk '
         $3 == "kfs_arch_halt_forever" { seen = 1; next }
         seen && $2 ~ /^[Tt]$/ && index($3, "kfs_arch_halt_forever") != 1 {
           print "0x" $1
           exit
         }
-      '
-	)"
+      ' <<<"${symbol_table}")"
 
 	if [[ -n "${stop_addr}" ]]; then
 		halt_disasm="$(objdump -d --start-address="${start_addr}" --stop-address="${stop_addr}" "${kernel}")"
@@ -94,13 +92,13 @@ assert_release_kmain_disassembly_halts() {
 		halt_disasm="$(objdump -d --start-address="${start_addr}" "${kernel}")"
 	fi
 
-	if ! printf '%s\n' "${halt_disasm}" | grep -q 'cli'; then
+	if ! grep -q 'cli' <<<"${halt_disasm}"; then
 		echo "FAIL ${kernel}: halt routine disassembly missing cli" >&2
 		printf '%s\n' "${halt_disasm}" >&2 || true
 		exit 1
 	fi
 
-	if ! printf '%s\n' "${halt_disasm}" | grep -q 'hlt'; then
+	if ! grep -q 'hlt' <<<"${halt_disasm}"; then
 		echo "FAIL ${kernel}: halt routine disassembly missing hlt" >&2
 		printf '%s\n' "${halt_disasm}" >&2 || true
 		exit 1
@@ -129,22 +127,6 @@ run_direct_case() {
 	esac
 }
 
-run_host_case() {
-	case "${CASE}" in
-	rust-kmain-path-halts | asm-boot-path-halts | panic-handler-halts)
-		run_direct_case
-		;;
-	release-kmain-disassembly-halts)
-		bash scripts/with-build-lock.sh \
-			bash scripts/container.sh run -- \
-			bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/halt-behavior.sh '${ARCH}' '${CASE}'"
-		;;
-	*)
-		die "unknown case: ${CASE}"
-		;;
-	esac
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -153,11 +135,6 @@ main() {
 
 	if [[ "${ARCH}" == "--description" ]]; then
 		describe_case "${CASE}"
-		return 0
-	fi
-
-	if describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
 		return 0
 	fi
 

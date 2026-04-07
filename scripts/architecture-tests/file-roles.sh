@@ -160,9 +160,15 @@ assert_private_leaf_imports_are_local() {
 
 assert_host_tests_link_through_real_library_boundary() {
 	local helper="${REPO_ROOT}/scripts/tests/unit/host-rust-lib.sh"
+	local makefile="${REPO_ROOT}/Makefile"
 
 	[[ -f "${helper}" ]] || {
 		echo "FAIL ${CASE}: missing ${helper#${REPO_ROOT}/}"
+		return 1
+	}
+
+	[[ -f "${makefile}" ]] || {
+		echo "FAIL ${CASE}: missing ${makefile#${REPO_ROOT}/}"
 		return 1
 	}
 
@@ -171,8 +177,13 @@ assert_host_tests_link_through_real_library_boundary() {
 		return 1
 	fi
 
-	if ! rg -n -- '--extern kfs=' "${helper}" >/dev/null; then
-		echo "FAIL ${CASE}: host test helper does not link through --extern kfs"
+	if ! rg -n 'make --no-print-directory host-rust-test' "${helper}" >/dev/null; then
+		echo "FAIL ${CASE}: host test helper does not delegate through make host-rust-test"
+		return 1
+	fi
+
+	if ! rg -n -- '--extern kfs=' "${makefile}" >/dev/null; then
+		echo "FAIL ${CASE}: Makefile host test rule does not link through --extern kfs"
 		return 1
 	fi
 

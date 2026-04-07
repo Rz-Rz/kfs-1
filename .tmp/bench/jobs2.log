@@ -1,0 +1,240 @@
+============================================================
+KFS TESTS
+============================================================
+arch: i386
+SETUP
+Rebuild the container toolchain image PASS
+Verify tools exist PASS
+Verify host test tools exist PASS
+Build canonical release ISO/IMG artifacts PASS
+Build test ISO/IMG artifacts PASS
+parallel jobs: 2
+heavy workers: 1
+
+TESTS
+[TESTS] canonical release ISO is an ISO9660 image PASS
+[TESTS] host console format unit tests pass through the real crate boundary PASS
+[TESTS] console service defines the no-allocation formatting helpers PASS
+[TESTS] console service defines printf/printk wrapper entrypoints PASS
+[TESTS] canonical release ISO stays within the 10 MB upper bound PASS
+[TESTS] host keyboard scancode decoding maps a letter press to printable ASCII PASS
+[TESTS] canonical release ISO boots via GRUB in QEMU PASS
+[TESTS] host keyboard scancode decoding keeps shift state until release PASS
+[TESTS] canonical release IMG is an ISO9660 image PASS
+[TESTS] canonical release IMG matches the release ISO bytes PASS
+[TESTS] host keyboard scancode decoding recognizes enter and backspace PASS
+[TESTS] canonical release IMG stays within the 10 MB upper bound PASS
+[TESTS] host keyboard scancode decoding keeps alt-function shortcuts distinct PASS
+[TESTS] canonical release IMG boots via GRUB in QEMU PASS
+[TESTS] linker script defines .rodata PASS
+[TESTS] linker script defines .data PASS
+[TESTS] linker script defines .bss PASS
+[TESTS] host keyboard scancode decoding tracks control press and release state PASS
+[TESTS] host keyboard scancode decoding updates right-alt modifier state PASS
+[TESTS] host keyboard scancode decoding recognizes the extended up arrow PASS
+[TESTS] host keyboard scancode decoding recognizes the extended down arrow PASS
+[TESTS] release kernel contains .text PASS
+[TESTS] host keyboard scancode decoding turns break codes into release events PASS
+[TESTS] host keyboard routing sends printable input to screen bytes PASS
+[TESTS] host keyboard routing turns enter into a newline byte PASS
+[TESTS] host keyboard routing sends backspace to the erase path PASS
+[TESTS] release kernel contains .rodata PASS
+[TESTS] host keyboard routing sends up arrow to viewport-up PASS
+[TESTS] host keyboard routing sends down arrow to viewport-down PASS
+[TESTS] host keyboard routing suppresses release events PASS
+[TESTS] host keyboard routing intercepts alt-function shortcuts PASS
+[TESTS] release kernel contains .data PASS
+[TESTS] host keyboard routing maps bare function keys onto terminal-selection commands PASS
+[TESTS] host keyboard routing maps F11 onto terminal creation PASS
+[TESTS] host keyboard routing maps F12 onto terminal destruction PASS
+[TESTS] host keyboard shortcut helpers map alt-function and selector commands to terminal indices PASS
+[TESTS] host keyboard shortcut helpers map direct function keys to select/create/destroy commands PASS
+[TESTS] release kernel contains .bss PASS
+[TESTS] host keyboard routing suppresses alt-modified printable input PASS
+[TESTS] host keyboard routing suppresses ctrl-modified printable input PASS
+[TESTS] host keyboard shortcut-prefix handling consumes Alt+A without echoing it PASS
+[TESTS] host keyboard shortcut-prefix handling turns Alt+A then C into terminal creation PASS
+[TESTS] release rodata marker lands in .rodata PASS
+[TESTS] host keyboard shortcut-prefix handling turns Alt+A then X into terminal destruction PASS
+[TESTS] host keyboard shortcut-prefix handling turns Alt+A then a digit into terminal selection PASS
+[TESTS] host keyboard shortcut-prefix handling maps Alt+A then 0 to the first terminal PASS
+[TESTS] host keyboard shortcut-prefix handling ignores repeated Alt+A until the command key arrives PASS
+[TESTS] keyboard driver defines the decoder and routing helpers PASS
+[TESTS] keyboard driver defines the polling facade PASS
+[TESTS] host layout-order unit tests pass PASS
+[TESTS] release data marker lands in .data PASS
+[TESTS] host VGA text cell unit tests pass PASS
+[TESTS] Rust defines the pure layout-order helper PASS
+[TESTS] Rust defines the VGA text cell helper PASS
+[TESTS] static source check: entry references the early-init sequence PASS
+[TESTS] static source check: entry references the console loop path PASS
+[TESTS] static source check: core init references the console write call PASS
+[TESTS] host memcpy baseline unit tests pass PASS
+[TESTS] host memcpy zero-length behavior is correct PASS
+[TESTS] host memcpy returns the original destination pointer PASS
+[TESTS] release bss marker lands in .bss PASS
+[TESTS] host memcpy preserves data when source and destination pointers are identical PASS
+[TESTS] host memcpy handles unaligned ordinary-memory pointers PASS
+[TESTS] host memcpy preserves bytes outside the requested range PASS
+[TESTS] host memset baseline unit tests pass PASS
+[TESTS] release .bss is emitted as NOBITS PASS
+
+ARCHITECTURE TESTS
+[ARCHITECTURE TESTS] ABI markers only live in approved kernel ABI boundaries PASS
+[ARCHITECTURE TESTS] services and non-entry core files have no ABI markers PASS
+[ARCHITECTURE TESTS] drivers have no ABI markers in the target architecture PASS
+[ARCHITECTURE TESTS] leaf files have no ABI markers PASS
+[ARCHITECTURE TESTS] target ABI facades use only stable low-level data forms PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with Rust references PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with slices or str PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with tuple data forms PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with unrepr-ed user structs/enums PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with trait objects PASS
+[ARCHITECTURE TESTS] reject exported ABI generic functions PASS
+[ARCHITECTURE TESTS] reject Option and Result crossing ABI signatures PASS
+[ARCHITECTURE TESTS] reject allocator-backed types crossing ABI signatures PASS
+[ARCHITECTURE TESTS] src/main.rs is the only kernel crate-root source and src/kernel/*.rs files are not compiled directly PASS
+[ARCHITECTURE TESTS] Makefile does not compile src/kernel/*.rs by glob PASS
+[ARCHITECTURE TESTS] kernel build emits one Rust kernel unit (kernel.o or kernel.a) PASS
+[ARCHITECTURE TESTS] kernel subsystem files are not emitted as separate Rust objects PASS
+[TESTS] host memset fills ordinary memory with the zero byte value PASS
+[ARCHITECTURE TESTS] checks that every architecture invariant has both enforcement and rejection coverage PASS
+[ARCHITECTURE TESTS] export ownership is enforced on source declarations PASS
+[TESTS] host memset zero-length behavior is correct PASS
+[ARCHITECTURE TESTS] artifact-level exports are traceable to expected source owners PASS
+[ARCHITECTURE TESTS] src/main.rs and src/lib.rs share the same src/kernel/mod.rs root without top-level src/kernel peer files PASS
+[ARCHITECTURE TESTS] kernel top-level directories match the target layer set PASS
+[ARCHITECTURE TESTS] each kernel layer has a mod.rs root PASS
+[ARCHITECTURE TESTS] private leaves stay under an owning subsystem path PASS
+[ARCHITECTURE TESTS] private leaves are imported only by owning facades PASS
+[ARCHITECTURE TESTS] host test wrappers compile src/lib.rs and link tests through --extern kfs PASS
+[ARCHITECTURE TESTS] host tests do not mount production source with #[path] or include! PASS
+[ARCHITECTURE TESTS] kernel source avoids cfg(test) path switching PASS
+[ARCHITECTURE TESTS] kernel binary crate root exists at src/main.rs PASS
+[ARCHITECTURE TESTS] host library crate root exists at src/lib.rs PASS
+[ARCHITECTURE TESTS] shared kernel module root exists at src/kernel/mod.rs PASS
+[ARCHITECTURE TESTS] freestanding support root exists at src/freestanding/mod.rs PASS
+[ARCHITECTURE TESTS] kernel first-level directories match the architecture allowlist PASS
+[ARCHITECTURE TESTS] src/kernel has only the canonical top-level mod.rs file PASS
+[ARCHITECTURE TESTS] types layer does not export ABI symbols PASS
+[ARCHITECTURE TESTS] core, services, and types avoid raw hardware access PASS
+[ARCHITECTURE TESTS] core entry avoids direct driver ABI calls and direct VGA writes PASS
+[ARCHITECTURE TESTS] ABI exports live only in target entry and klib facade files PASS
+[TESTS] host memset returns the original destination pointer PASS
+[ARCHITECTURE TESTS] kernel exports match the architecture allowlist exactly PASS
+[ARCHITECTURE TESTS] Makefile does not compile src/kernel peer files individually PASS
+[ARCHITECTURE TESTS] Makefile uses src/main.rs as the kernel Rust entrypoint PASS
+[ARCHITECTURE TESTS] each kernel layer has a mod.rs root PASS
+[ARCHITECTURE TESTS] start hands off only to kmain PASS
+[ARCHITECTURE TESTS] core init plus freestanding panic surfaces exist PASS
+[ARCHITECTURE TESTS] console runtime path files exist through services and drivers PASS
+[TESTS] host memset preserves bytes outside the requested range PASS
+[ARCHITECTURE TESTS] core entry and init avoid raw hardware access and inline asm PASS
+[ARCHITECTURE TESTS] services avoid raw hardware access and inline asm PASS
+[ARCHITECTURE TESTS] inline asm stays in arch or machine only PASS
+[ARCHITECTURE TESTS] typed x86 SIMD intrinsics stay in approved CPU-probe and private klib leaf files PASS
+[ARCHITECTURE TESTS] types layer stays free of side effects and hardware primitives PASS
+[ARCHITECTURE TESTS] core may depend only on services, types, and klib PASS
+[ARCHITECTURE TESTS] services do not depend on driver leaves or raw hardware I/O PASS
+[ARCHITECTURE TESTS] drivers do not own boot policy or import core/services PASS
+[ARCHITECTURE TESTS] klib does not depend on drivers, services, core, machine, or policy code PASS
+[ARCHITECTURE TESTS] types do not depend on I/O/policy or higher-layer orchestration modules PASS
+[ARCHITECTURE TESTS] machine stays primitive-only and avoids higher-layer policy dependencies PASS
+[ARCHITECTURE TESTS] runtime ownership artifacts exist for start -> core -> services -> drivers path PASS
+[ARCHITECTURE TESTS] boot start handoff enters kmain directly PASS
+[ARCHITECTURE TESTS] boot handoff does not jump directly to driver/helper surfaces PASS
+[ARCHITECTURE TESTS] core entry invokes the core init sequence PASS
+[ARCHITECTURE TESTS] core init installs SIMD policy through the services layer instead of importing machine directly PASS
+[ARCHITECTURE TESTS] core init delegates console work to services console PASS
+[ARCHITECTURE TESTS] services console reaches VGA through driver facade PASS
+[ARCHITECTURE TESTS] core entry does not call or declare VGA driver ABI directly PASS
+[ARCHITECTURE TESTS] helper boundary and type facade files exist PASS
+[ARCHITECTURE TESTS] helper ABI uses primitive/core-compatible types only PASS
+[ARCHITECTURE TESTS] helper and type code avoids std PASS
+[ARCHITECTURE TESTS] type layer avoids alias-only primitive wrappers PASS
+[ARCHITECTURE TESTS] Port uses repr(transparent) PASS
+[ARCHITECTURE TESTS] KernelRange uses repr(C) PASS
+[ARCHITECTURE TESTS] future screen type file exists PASS
+[ARCHITECTURE TESTS] ColorCode uses repr(transparent) PASS
+[ARCHITECTURE TESTS] ScreenCell uses repr(C) PASS
+[ARCHITECTURE TESTS] CursorPos uses repr(C) PASS
+[ARCHITECTURE TESTS] helper wrappers keep extern C and no_mangle PASS
+[ARCHITECTURE TESTS] private helper impl files are not imported directly outside boundary files PASS
+[ARCHITECTURE TESTS] serial runtime path uses Port through machine and driver layers PASS
+[ARCHITECTURE TESTS] layout path uses KernelRange instead of naked pairs PASS
+[ARCHITECTURE TESTS] Port is owned by src/kernel/machine/port.rs with repr(transparent) PASS
+[ARCHITECTURE TESTS] KernelRange is owned by src/kernel/types/range.rs with repr(C) PASS
+[ARCHITECTURE TESTS] ColorCode/ScreenCell/CursorPos are owned by src/kernel/types/screen.rs and have required repr PASS
+
+STABILITY TESTS
+[TESTS] host memory backend selection defaults to scalar when policy is uninitialized PASS
+[TESTS] host memory backend selection stays scalar while acceleration is still deferred PASS
+[STABILITY TESTS] manifest publishes the architecture test section PASS
+[TESTS] host memory backend selection stays scalar when runtime policy blocks acceleration PASS
+[STABILITY TESTS] manifest keeps architecture tests between unit tests and stability tests PASS
+[STABILITY TESTS] TUI recognizes ARCHITECTURE TESTS as a first-class section PASS
+[STABILITY TESTS] TUI renders ARCH as the architecture section label PASS
+[STABILITY TESTS] TUI panel title includes architecture PASS
+[STABILITY TESTS] architecture export allowlist exists and is non-empty PASS
+[STABILITY TESTS] Dockerfile pins the base image digest and toolchain versions PASS
+[TESTS] host memory backend selection chooses SSE2 when the runtime policy allows it PASS
+[TESTS] host memcpy preserves its contract on the SSE2 backend PASS
+[TESTS] host memset preserves its contract on the SSE2 backend PASS
+[TESTS] Rust defines memcpy in the kernel helper module PASS
+[TESTS] Rust defines memset in the kernel helper module PASS
+[TESTS] kernel memory family defines a canonical backend dispatch leaf PASS
+[TESTS] kernel memory facade exposes selected backend queries PASS
+[TESTS] kernel memory family exports kfs_memcpy PASS
+[TESTS] kernel memory family exports kfs_memset PASS
+[TESTS] kernel memory family does not fall back to extern memcpy PASS
+[TESTS] kernel memory family does not fall back to extern memset PASS
+[TESTS] release kernel exports kfs_memcpy PASS
+[STABILITY TESTS] default freestanding kernel only permits approved SIMD control-state instructions PASS
+[TESTS] release kernel exports kfs_memset PASS
+[TESTS] memory helpers avoid volatile ordinary-memory access PASS
+[TESTS] host SIMD support helper treats missing CPUID as no support PASS
+[TESTS] host SIMD support helper maps MMX/SSE/SSE2 bits correctly PASS
+[TESTS] uninitialized SIMD policy denies all acceleration PASS
+[TESTS] runtime-blocked SIMD policy preserves detection but denies execution PASS
+[TESTS] runtime-owned SIMD policy is observable while acceleration remains deferred PASS
+[TESTS] runtime-owned SIMD policy can allow SSE2 acceleration while MMX/SSE remain blocked PASS
+[TESTS] forced-scalar SIMD policy denies all acceleration PASS
+[STABILITY TESTS] compact freestanding kernel only permits approved SIMD control-state instructions PASS
+[STABILITY TESTS] Makefile uses a non-SIMD x86 Rust target for freestanding builds PASS
+[TESTS] no-CPUID SIMD policy denies all acceleration PASS
+[TESTS] CPUID-without-MMX/SSE/SSE2 still yields scalar-only policy PASS
+[TESTS] memory facade exposes the SIMD guardrail seam through klib PASS
+[TESTS] machine layer defines SIMD detection helpers PASS
+[TESTS] klib layer defines the runtime SIMD policy surface PASS
+[TESTS] klib runtime policy defaults to scalar guardrails PASS
+[TESTS] memory facade exposes SIMD guardrail queries without importing machine PASS
+[TESTS] host strlen baseline unit tests pass PASS
+[TESTS] host strlen stops at the first embedded NUL PASS
+[TESTS] host strlen handles an unaligned starting pointer PASS
+[TESTS] host strlen handles strings that cross a natural word boundary PASS
+[TESTS] host strcmp baseline unit tests pass PASS
+[TESTS] host strcmp handles prefix and empty/non-empty cases PASS
+[STABILITY TESTS] release kernel/ISO/IMG stay byte-identical across clean rebuilds PASS
+[TESTS] host strcmp returns equality for the same pointer PASS
+[TESTS] host strcmp uses unsigned-byte ordering for high-byte cases PASS
+[TESTS] Rust defines strlen in the kernel helper module PASS
+[TESTS] Rust defines strcmp in the kernel helper module PASS
+[TESTS] kernel string family exports kfs_strlen PASS
+[TESTS] kernel string family exports kfs_strcmp PASS
+[TESTS] kernel string family does not fall back to extern strlen PASS
+[TESTS] kernel string family does not fall back to extern strcmp PASS
+[TESTS] release kernel exports kfs_strlen PASS
+[TESTS] release kernel exports kfs_strcmp PASS
+[TESTS] string helpers avoid volatile ordinary-memory reads PASS
+[STABILITY TESTS] release kernel/ISO/IMG stay byte-identical across copied workdirs PASS
+[STABILITY TESTS] linker script captures .rodata subsections PASS
+[STABILITY TESTS] linker script captures .data subsections PASS
+[STABILITY TESTS] linker script captures .bss subsections PASS
+[STABILITY TESTS] linker script captures COMMON symbols PASS
+[TESTS] host Port unit tests pass PASS
+[TESTS] host KernelRange unit tests pass PASS
+[TESTS] host VGA bonus cursor normalization clamps out-of-bounds positions to the last visible cell PASS
+[TESTS] host VGA bonus screen writing advances the cursor over newline PASS
+[STABILITY TESTS] rodata subsection marker still lands in .rodata PASS
+[TESTS] host VGA bonus screen writing scrolls the latest rows into view PASS
+[TESTS] host VGA color model packs foreground and background nibbles PASS

@@ -1,0 +1,1 @@
+PASS kernel-tree-avoids-test-only-path-switching: kernel tree avoids cfg(test) path switching

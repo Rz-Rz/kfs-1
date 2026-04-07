@@ -1,0 +1,263 @@
+{
+  "wall_s": 114.062,
+  "cases_with_results": 477,
+  "failed_cases": 9,
+  "sections": [
+    {
+      "section": "BOOT TESTS",
+      "cases": 98,
+      "failed": 4,
+      "sum_s": 383.194,
+      "span_s": 104.765,
+      "start_offset_s": 9.297,
+      "end_offset_s": 114.062
+    },
+    {
+      "section": "TESTS",
+      "cases": 181,
+      "failed": 0,
+      "sum_s": 130.418,
+      "span_s": 65.378,
+      "start_offset_s": 0.406,
+      "end_offset_s": 65.784
+    },
+    {
+      "section": "STABILITY TESTS",
+      "cases": 22,
+      "failed": 0,
+      "sum_s": 16.223,
+      "span_s": 5.484,
+      "start_offset_s": 3.067,
+      "end_offset_s": 8.551
+    },
+    {
+      "section": "REJECTION TESTS",
+      "cases": 93,
+      "failed": 2,
+      "sum_s": 7.198,
+      "span_s": 4.48,
+      "start_offset_s": 5.014,
+      "end_offset_s": 9.494
+    },
+    {
+      "section": "ARCHITECTURE TESTS",
+      "cases": 81,
+      "failed": 3,
+      "sum_s": 3.816,
+      "span_s": 1.713,
+      "start_offset_s": 1.397,
+      "end_offset_s": 3.11
+    },
+    {
+      "section": "SETUP",
+      "cases": 2,
+      "failed": 0,
+      "sum_s": 0.038,
+      "span_s": 0.051,
+      "start_offset_s": 0.0,
+      "end_offset_s": 0.051
+    }
+  ],
+  "scripts_top": [
+    {
+      "section": "BOOT TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/boot-tests/ui-interaction.sh",
+      "cases": 18,
+      "failed": 1,
+      "sum_s": 319.106,
+      "span_s": 92.96,
+      "start_offset_s": 21.102,
+      "end_offset_s": 114.062
+    },
+    {
+      "section": "BOOT TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/boot-tests/compact-geometry.sh",
+      "cases": 6,
+      "failed": 0,
+      "sum_s": 40.404,
+      "span_s": 24.595,
+      "start_offset_s": 9.352,
+      "end_offset_s": 33.947
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/keyboard-input.sh",
+      "cases": 25,
+      "failed": 0,
+      "sum_s": 27.421,
+      "span_s": 14.562,
+      "start_offset_s": 1.227,
+      "end_offset_s": 15.789
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/memory-helpers.sh",
+      "cases": 28,
+      "failed": 0,
+      "sum_s": 18.601,
+      "span_s": 9.823,
+      "start_offset_s": 16.701,
+      "end_offset_s": 26.524
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/vga-history.sh",
+      "cases": 18,
+      "failed": 0,
+      "sum_s": 15.759,
+      "span_s": 8.573,
+      "start_offset_s": 50.853,
+      "end_offset_s": 59.426
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/string-helpers.sh",
+      "cases": 17,
+      "failed": 0,
+      "sum_s": 12.772,
+      "span_s": 6.608,
+      "start_offset_s": 31.656,
+      "end_offset_s": 38.264
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/simd-policy.sh",
+      "cases": 14,
+      "failed": 0,
+      "sum_s": 10.701,
+      "span_s": 5.75,
+      "start_offset_s": 26.108,
+      "end_offset_s": 31.858
+    },
+    {
+      "section": "STABILITY TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/stability-tests/freestanding-simd.sh",
+      "cases": 3,
+      "failed": 0,
+      "sum_s": 10.715,
+      "span_s": 5.354,
+      "start_offset_s": 3.197,
+      "end_offset_s": 8.551
+    },
+    {
+      "section": "BOOT TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/boot-tests/vga-memory.sh",
+      "cases": 3,
+      "failed": 0,
+      "sum_s": 4.699,
+      "span_s": 4.725,
+      "start_offset_s": 78.75,
+      "end_offset_s": 83.475
+    },
+    {
+      "section": "BOOT TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/boot-tests/memory-runtime.sh",
+      "cases": 14,
+      "failed": 0,
+      "sum_s": 6.847,
+      "span_s": 4.635,
+      "start_offset_s": 13.646,
+      "end_offset_s": 18.281
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/vga-vt.sh",
+      "cases": 11,
+      "failed": 0,
+      "sum_s": 7.006,
+      "span_s": 4.023,
+      "start_offset_s": 58.563,
+      "end_offset_s": 62.586
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/vga-color.sh",
+      "cases": 9,
+      "failed": 0,
+      "sum_s": 5.911,
+      "span_s": 3.876,
+      "start_offset_s": 40.625,
+      "end_offset_s": 44.501
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/vga-geometry.sh",
+      "cases": 8,
+      "failed": 0,
+      "sum_s": 6.047,
+      "span_s": 3.351,
+      "start_offset_s": 47.756,
+      "end_offset_s": 51.107
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/vga-writer-model.sh",
+      "cases": 7,
+      "failed": 0,
+      "sum_s": 5.038,
+      "span_s": 3.234,
+      "start_offset_s": 62.55,
+      "end_offset_s": 65.784
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/vga-geometry-preset.sh",
+      "cases": 6,
+      "failed": 0,
+      "sum_s": 5.173,
+      "span_s": 3.106,
+      "start_offset_s": 43.803,
+      "end_offset_s": 46.909
+    },
+    {
+      "section": "BOOT TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/boot-tests/boot-flow.sh",
+      "cases": 1,
+      "failed": 0,
+      "sum_s": 2.399,
+      "span_s": 2.399,
+      "start_offset_s": 9.297,
+      "end_offset_s": 11.696
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/unit/vga-bonus.sh",
+      "cases": 3,
+      "failed": 0,
+      "sum_s": 3.494,
+      "span_s": 2.306,
+      "start_offset_s": 39.35,
+      "end_offset_s": 41.656
+    },
+    {
+      "section": "TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/tests/00-release-artifacts.sh",
+      "cases": 7,
+      "failed": 0,
+      "sum_s": 4.29,
+      "span_s": 2.278,
+      "start_offset_s": 0.406,
+      "end_offset_s": 2.684
+    },
+    {
+      "section": "STABILITY TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/stability-tests/tui-manifest.sh",
+      "cases": 1,
+      "failed": 0,
+      "sum_s": 1.768,
+      "span_s": 1.768,
+      "start_offset_s": 4.997,
+      "end_offset_s": 6.765
+    },
+    {
+      "section": "STABILITY TESTS",
+      "script": "/home/motero/Code/kfs-1/scripts/stability-tests/architecture-gate.sh",
+      "cases": 6,
+      "failed": 0,
+      "sum_s": 3.486,
+      "span_s": 1.728,
+      "start_offset_s": 3.067,
+      "end_offset_s": 4.795
+    }
+  ]
+}

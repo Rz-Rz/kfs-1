@@ -1,0 +1,3279 @@
+============================================================
+KFS TESTS
+============================================================
+arch: i386
+SETUP
+Rebuild the container toolchain image PASS
+Verify tools exist PASS
+Verify host test tools exist PASS
+Build canonical release ISO/IMG artifacts PASS
+Build test ISO/IMG artifacts PASS
+parallel jobs: 8
+heavy workers: 4
+
+TESTS
+[TESTS] canonical release ISO boots via GRUB in QEMU FAIL
+  scripts/tests/00-release-artifacts.sh: line 51: qemu_mode: unbound variable
+[TESTS] canonical release ISO stays within the 10 MB upper bound PASS
+[TESTS] canonical release ISO is an ISO9660 image PASS
+[TESTS] canonical release IMG is an ISO9660 image PASS
+[TESTS] console service defines the no-allocation formatting helpers PASS
+[TESTS] console service defines printf/printk wrapper entrypoints PASS
+[TESTS] canonical release IMG boots via GRUB in QEMU FAIL
+  scripts/tests/00-release-artifacts.sh: line 51: qemu_mode: unbound variable
+[TESTS] canonical release IMG matches the release ISO bytes PASS
+[TESTS] canonical release IMG stays within the 10 MB upper bound PASS
+[TESTS] linker script defines .rodata PASS
+[TESTS] linker script defines .data PASS
+[TESTS] linker script defines .bss PASS
+[TESTS] host keyboard scancode decoding maps a letter press to printable ASCII FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.0pQgV9O4Vz/libkfs.rlib
+   --> tests/host_scancode.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.0pQgV9O4Vz/ut_keyboard_input_letter_key_press_maps_to_printable_ascii: No such file or directory
+[TESTS] host keyboard scancode decoding keeps shift state until release FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Sw2Kx5aNVz/libkfs.rlib
+   --> tests/host_scancode.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.Sw2Kx5aNVz/ut_keyboard_input_shift_changes_letter_case_until_release: No such file or directory
+[TESTS] host console format unit tests pass through the real crate boundary FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.lyiJy3XH5T/libkfs.rlib
+   --> tests/host_vga_format.rs:1:5
+    |
+  1 | use kfs::kernel::services::console::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 16: /tmp/tmp.lyiJy3XH5T/ut_console_format: No such file or directory
+[TESTS] host keyboard scancode decoding recognizes enter and backspace FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.uUSbVBMroX/libkfs.rlib
+   --> tests/host_scancode.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.uUSbVBMroX/ut_keyboard_input_enter_and_backspace_decode_as_control_keys: No such file or directory
+[TESTS] host keyboard scancode decoding keeps alt-function shortcuts distinct FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.4YNDKqWOw0/libkfs.rlib
+   --> tests/host_scancode.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.4YNDKqWOw0/ut_keyboard_input_alt_function_key_is_distinguishable_for_shortcuts: No such file or directory
+[TESTS] host keyboard scancode decoding updates right-alt modifier state FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.s3NsrnwfUz/libkfs.rlib
+   --> tests/host_scancode.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.s3NsrnwfUz/ut_keyboard_input_extended_right_alt_updates_modifier_state: No such file or directory
+[TESTS] host keyboard scancode decoding tracks control press and release state FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.YT6QBLzjLZ/libkfs.rlib
+   --> tests/host_scancode.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.YT6QBLzjLZ/ut_keyboard_input_control_modifier_tracks_press_and_release: No such file or directory
+[TESTS] host keyboard scancode decoding recognizes the extended up arrow FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.j2selM9azk/libkfs.rlib
+   --> tests/host_scancode.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.j2selM9azk/ut_keyboard_input_extended_up_arrow_decodes_as_a_navigation_key: No such file or directory
+[TESTS] host keyboard scancode decoding recognizes the extended down arrow FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Nt8NFDS3qc/libkfs.rlib
+   --> tests/host_scancode.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.Nt8NFDS3qc/ut_keyboard_input_extended_down_arrow_decodes_as_a_navigation_key: No such file or directory
+[TESTS] host keyboard scancode decoding turns break codes into release events FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.SU8xUYeQjl/libkfs.rlib
+   --> tests/host_scancode.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.SU8xUYeQjl/ut_keyboard_input_break_codes_become_release_events: No such file or directory
+[TESTS] host keyboard routing sends printable input to screen bytes FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.gNb8WnB94v/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.gNb8WnB94v/ut_keyboard_input_printable_input_routes_to_screen_byte_output: No such file or directory
+[TESTS] host keyboard routing turns enter into a newline byte FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.rdJD4J3gX8/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.rdJD4J3gX8/ut_keyboard_input_enter_routes_to_the_shared_newline_path: No such file or directory
+[TESTS] host keyboard routing sends backspace to the erase path FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.efdnP2WXvT/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.efdnP2WXvT/ut_keyboard_input_backspace_routes_to_the_erase_operation: No such file or directory
+[TESTS] host keyboard routing sends up arrow to viewport-up FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.7XHT7uWh4M/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.7XHT7uWh4M/ut_keyboard_input_up_arrow_routes_to_history_viewport_movement: No such file or directory
+[TESTS] host keyboard routing suppresses release events FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.ovtSX5p49J/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.ovtSX5p49J/ut_keyboard_input_key_release_events_do_not_echo: No such file or directory
+[TESTS] host keyboard routing sends down arrow to viewport-down FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.mK0OdY5WaF/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.mK0OdY5WaF/ut_keyboard_input_down_arrow_routes_to_history_viewport_movement: No such file or directory
+[TESTS] host keyboard routing intercepts alt-function shortcuts FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.bE9Cyey7wB/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.bE9Cyey7wB/ut_keyboard_input_alt_function_shortcuts_are_intercepted_instead_of_echoed: No such file or directory
+[TESTS] host keyboard routing maps bare function keys onto terminal-selection commands FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.rzlL7BIy6c/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.rzlL7BIy6c/ut_keyboard_input_bare_function_keys_select_terminals_without_echoing_text: No such file or directory
+[TESTS] host keyboard routing maps F11 onto terminal creation FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.6q4YWsPsYT/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.6q4YWsPsYT/ut_keyboard_input_f11_creates_a_terminal_without_a_prefix_key: No such file or directory
+[TESTS] host keyboard routing maps F12 onto terminal destruction FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.XDaLUfOfnH/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.XDaLUfOfnH/ut_keyboard_input_f12_destroys_the_current_terminal_without_a_prefix_key: No such file or directory
+[TESTS] host keyboard shortcut helpers map alt-function and selector commands to terminal indices FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.fSFX1YJaLN/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.fSFX1YJaLN/ut_keyboard_input_shortcut_terminal_indices_cover_alt_functions_and_command_selectors: No such file or directory
+[TESTS] host keyboard shortcut helpers map direct function keys to select/create/destroy commands FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.drF7bwKtt3/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.drF7bwKtt3/ut_keyboard_input_direct_function_shortcuts_cover_select_create_and_destroy: No such file or directory
+[TESTS] host keyboard routing suppresses alt-modified printable input FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Ys6DM5m6dz/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.Ys6DM5m6dz/ut_keyboard_input_alt_modified_printable_input_does_not_leave_garbage_text: No such file or directory
+[TESTS] host keyboard routing suppresses ctrl-modified printable input FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.vd4gAKnK4R/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.vd4gAKnK4R/ut_keyboard_input_ctrl_modified_printable_input_does_not_echo_text: No such file or directory
+[TESTS] host keyboard shortcut-prefix handling consumes Alt+A without echoing it FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.k1V9J6zBbl/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.k1V9J6zBbl/ut_keyboard_input_alt_a_prefix_consumes_the_trigger_key_without_echoing: No such file or directory
+[TESTS] host keyboard shortcut-prefix handling turns Alt+A then C into terminal creation FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.7OaMChkeEm/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.7OaMChkeEm/ut_keyboard_input_alt_a_prefix_followed_by_c_creates_a_terminal: No such file or directory
+[TESTS] host keyboard shortcut-prefix handling turns Alt+A then X into terminal destruction FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.zWqyrIs2Kh/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.zWqyrIs2Kh/ut_keyboard_input_alt_a_prefix_followed_by_x_destroys_the_current_terminal: No such file or directory
+[TESTS] keyboard driver defines the decoder and routing helpers PASS
+[TESTS] keyboard driver defines the polling facade PASS
+[TESTS] host keyboard shortcut-prefix handling turns Alt+A then a digit into terminal selection FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.qLbHn6LdFE/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.qLbHn6LdFE/ut_keyboard_input_alt_a_prefix_followed_by_a_digit_selects_that_terminal_number: No such file or directory
+[TESTS] host keyboard shortcut-prefix handling ignores repeated Alt+A until the command key arrives FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.mzyUn6ry13/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.mzyUn6ry13/ut_keyboard_input_alt_a_repeat_does_not_cancel_the_pending_terminal_command: No such file or directory
+[TESTS] host keyboard shortcut-prefix handling maps Alt+A then 0 to the first terminal FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.TmdDoL1ZST/libkfs.rlib
+   --> tests/host_keyboard_echo.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::keyboard::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.TmdDoL1ZST/ut_keyboard_input_alt_a_prefix_followed_by_zero_selects_the_first_terminal: No such file or directory
+[TESTS] host layout-order unit tests pass FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Npaub8LeTn/libkfs.rlib
+   --> tests/host_layout_and_vga_cell.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::vga_text_cell;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Npaub8LeTn/libkfs.rlib
+   --> tests/host_layout_and_vga_cell.rs:2:5
+    |
+  2 | use kfs::kernel::types::range::{layout_order_is_sane, KernelRange};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.Npaub8LeTn/ut_kmain_logic_layout_order: No such file or directory
+[TESTS] Rust defines the pure layout-order helper PASS
+[TESTS] host VGA text cell unit tests pass FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.mKkxm00VJA/libkfs.rlib
+   --> tests/host_layout_and_vga_cell.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::vga_text_cell;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.mKkxm00VJA/libkfs.rlib
+   --> tests/host_layout_and_vga_cell.rs:2:5
+    |
+  2 | use kfs::kernel::types::range::{layout_order_is_sane, KernelRange};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.mKkxm00VJA/ut_kmain_logic_vga_text_cell: No such file or directory
+[TESTS] Rust defines the VGA text cell helper PASS
+[TESTS] static source check: entry references the early-init sequence PASS
+[TESTS] static source check: entry references the console loop path PASS
+[TESTS] static source check: core init references the console write call PASS
+[TESTS] host memcpy baseline unit tests pass FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.dOUi6SUk7p/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.dOUi6SUk7p/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.dOUi6SUk7p/ut_memory: No such file or directory
+[TESTS] host memcpy zero-length behavior is correct FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.6hTEDMHy6Z/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.6hTEDMHy6Z/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.6hTEDMHy6Z/ut_memory: No such file or directory
+[TESTS] host memcpy returns the original destination pointer FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.oC3g599Jh5/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.oC3g599Jh5/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.oC3g599Jh5/ut_memory: No such file or directory
+[TESTS] host memcpy preserves data when source and destination pointers are identical FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.okp8ScGXBQ/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.okp8ScGXBQ/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.okp8ScGXBQ/ut_memory: No such file or directory
+[TESTS] host memcpy preserves bytes outside the requested range FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.oBqgZb6HRZ/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.oBqgZb6HRZ/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.oBqgZb6HRZ/ut_memory: No such file or directory
+[TESTS] host memcpy handles unaligned ordinary-memory pointers FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.9pcqH2QwD6/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.9pcqH2QwD6/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.9pcqH2QwD6/ut_memory: No such file or directory
+[TESTS] host memset baseline unit tests pass FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.k0YumUl6Np/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.k0YumUl6Np/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.k0YumUl6Np/ut_memory: No such file or directory
+[TESTS] host memset fills ordinary memory with the zero byte value FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.kr7j2M6awE/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.kr7j2M6awE/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.kr7j2M6awE/ut_memory: No such file or directory
+[TESTS] host memset preserves bytes outside the requested range FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.DfRpCZnAKl/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.DfRpCZnAKl/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.DfRpCZnAKl/ut_memory: No such file or directory
+[TESTS] host memset zero-length behavior is correct FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.h4reVV62OH/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.h4reVV62OH/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.h4reVV62OH/ut_memory: No such file or directory
+[TESTS] host memset returns the original destination pointer FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.5JXYg037x8/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.5JXYg037x8/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.5JXYg037x8/ut_memory: No such file or directory
+[TESTS] host memory backend selection defaults to scalar when policy is uninitialized FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.QTxEaMDRQb/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.QTxEaMDRQb/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.QTxEaMDRQb/ut_memory: No such file or directory
+[TESTS] host memory backend selection stays scalar while acceleration is still deferred FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.xvKDTFZl9u/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.xvKDTFZl9u/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.xvKDTFZl9u/ut_memory: No such file or directory
+[TESTS] host memory backend selection stays scalar when runtime policy blocks acceleration FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.A6y3OeyIcr/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.A6y3OeyIcr/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.A6y3OeyIcr/ut_memory: No such file or directory
+[TESTS] host memory backend selection chooses SSE2 when the runtime policy allows it FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Vpp1Oa2WU0/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Vpp1Oa2WU0/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.Vpp1Oa2WU0/ut_memory: No such file or directory
+[TESTS] host memcpy preserves its contract on the SSE2 backend FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.wUZ2gbweHQ/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.wUZ2gbweHQ/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.wUZ2gbweHQ/ut_memory: No such file or directory
+[TESTS] Rust defines memcpy in the kernel helper module PASS
+[TESTS] Rust defines memset in the kernel helper module PASS
+[TESTS] kernel memory family defines a canonical backend dispatch leaf PASS
+[TESTS] kernel memory facade exposes selected backend queries PASS
+[TESTS] kernel memory family exports kfs_memcpy PASS
+[TESTS] kernel memory family exports kfs_memset PASS
+[TESTS] kernel memory family does not fall back to extern memcpy PASS
+[TESTS] kernel memory family does not fall back to extern memset PASS
+[TESTS] memory helpers avoid volatile ordinary-memory access PASS
+[TESTS] host memset preserves its contract on the SSE2 backend FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.WjalekSwbh/libkfs.rlib
+   --> tests/host_memory.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory::{memcpy, memcpy_backend, memset, memset_backend, MemoryBackend};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.WjalekSwbh/libkfs.rlib
+   --> tests/host_memory.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.WjalekSwbh/ut_memory: No such file or directory
+[TESTS] host SIMD support helper treats missing CPUID as no support FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.PqC6lHJrUH/libkfs.rlib
+   --> tests/host_simd_policy.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.PqC6lHJrUH/libkfs.rlib
+   --> tests/host_simd_policy.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy, ScalarBlockReason, SimdExecutionMode, SimdFeature};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.PqC6lHJrUH/libkfs.rlib
+   --> tests/host_simd_policy.rs:3:5
+    |
+  3 | use kfs::kernel::machine::cpu::SimdDetection;
+    |     ^^^
+  
+  error: aborting due to 3 previous errors
+  
+  bash: line 14: /tmp/tmp.PqC6lHJrUH/ut_simd_policy: No such file or directory
+[TESTS] host SIMD support helper maps MMX/SSE/SSE2 bits correctly FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.aAc2nXDUvS/libkfs.rlib
+   --> tests/host_simd_policy.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.aAc2nXDUvS/libkfs.rlib
+   --> tests/host_simd_policy.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy, ScalarBlockReason, SimdExecutionMode, SimdFeature};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.aAc2nXDUvS/libkfs.rlib
+   --> tests/host_simd_policy.rs:3:5
+    |
+  3 | use kfs::kernel::machine::cpu::SimdDetection;
+    |     ^^^
+  
+  error: aborting due to 3 previous errors
+  
+  bash: line 14: /tmp/tmp.aAc2nXDUvS/ut_simd_policy: No such file or directory
+[TESTS] uninitialized SIMD policy denies all acceleration FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.qlOsdcse08/libkfs.rlib
+   --> tests/host_simd_policy.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.qlOsdcse08/libkfs.rlib
+   --> tests/host_simd_policy.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy, ScalarBlockReason, SimdExecutionMode, SimdFeature};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.qlOsdcse08/libkfs.rlib
+   --> tests/host_simd_policy.rs:3:5
+    |
+  3 | use kfs::kernel::machine::cpu::SimdDetection;
+    |     ^^^
+  
+  error: aborting due to 3 previous errors
+  
+  bash: line 14: /tmp/tmp.qlOsdcse08/ut_simd_policy: No such file or directory
+[TESTS] runtime-blocked SIMD policy preserves detection but denies execution FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.2dvAFo1Ma0/libkfs.rlib
+   --> tests/host_simd_policy.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.2dvAFo1Ma0/libkfs.rlib
+   --> tests/host_simd_policy.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy, ScalarBlockReason, SimdExecutionMode, SimdFeature};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.2dvAFo1Ma0/libkfs.rlib
+   --> tests/host_simd_policy.rs:3:5
+    |
+  3 | use kfs::kernel::machine::cpu::SimdDetection;
+    |     ^^^
+  
+  error: aborting due to 3 previous errors
+  
+  bash: line 14: /tmp/tmp.2dvAFo1Ma0/ut_simd_policy: No such file or directory
+[TESTS] runtime-owned SIMD policy is observable while acceleration remains deferred FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.jCg0grWWnn/libkfs.rlib
+   --> tests/host_simd_policy.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.jCg0grWWnn/libkfs.rlib
+   --> tests/host_simd_policy.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy, ScalarBlockReason, SimdExecutionMode, SimdFeature};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.jCg0grWWnn/libkfs.rlib
+   --> tests/host_simd_policy.rs:3:5
+    |
+  3 | use kfs::kernel::machine::cpu::SimdDetection;
+    |     ^^^
+  
+  error: aborting due to 3 previous errors
+  
+  bash: line 14: /tmp/tmp.jCg0grWWnn/ut_simd_policy: No such file or directory
+[TESTS] runtime-owned SIMD policy can allow SSE2 acceleration while MMX/SSE remain blocked FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.loniM3CBw5/libkfs.rlib
+   --> tests/host_simd_policy.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.loniM3CBw5/libkfs.rlib
+   --> tests/host_simd_policy.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy, ScalarBlockReason, SimdExecutionMode, SimdFeature};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.loniM3CBw5/libkfs.rlib
+   --> tests/host_simd_policy.rs:3:5
+    |
+  3 | use kfs::kernel::machine::cpu::SimdDetection;
+    |     ^^^
+  
+  error: aborting due to 3 previous errors
+  
+  bash: line 14: /tmp/tmp.loniM3CBw5/ut_simd_policy: No such file or directory
+[TESTS] forced-scalar SIMD policy denies all acceleration FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.ZIusocpjxm/libkfs.rlib
+   --> tests/host_simd_policy.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.ZIusocpjxm/libkfs.rlib
+   --> tests/host_simd_policy.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy, ScalarBlockReason, SimdExecutionMode, SimdFeature};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.ZIusocpjxm/libkfs.rlib
+   --> tests/host_simd_policy.rs:3:5
+    |
+  3 | use kfs::kernel::machine::cpu::SimdDetection;
+    |     ^^^
+  
+  error: aborting due to 3 previous errors
+  
+  bash: line 14: /tmp/tmp.ZIusocpjxm/ut_simd_policy: No such file or directory
+[TESTS] no-CPUID SIMD policy denies all acceleration FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.DOGXWsTM49/libkfs.rlib
+   --> tests/host_simd_policy.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.DOGXWsTM49/libkfs.rlib
+   --> tests/host_simd_policy.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy, ScalarBlockReason, SimdExecutionMode, SimdFeature};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.DOGXWsTM49/libkfs.rlib
+   --> tests/host_simd_policy.rs:3:5
+    |
+  3 | use kfs::kernel::machine::cpu::SimdDetection;
+    |     ^^^
+  
+  error: aborting due to 3 previous errors
+  
+  bash: line 14: /tmp/tmp.DOGXWsTM49/ut_simd_policy: No such file or directory
+[TESTS] CPUID-without-MMX/SSE/SSE2 still yields scalar-only policy FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.S1opCqNpuz/libkfs.rlib
+   --> tests/host_simd_policy.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.S1opCqNpuz/libkfs.rlib
+   --> tests/host_simd_policy.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy, ScalarBlockReason, SimdExecutionMode, SimdFeature};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.S1opCqNpuz/libkfs.rlib
+   --> tests/host_simd_policy.rs:3:5
+    |
+  3 | use kfs::kernel::machine::cpu::SimdDetection;
+    |     ^^^
+  
+  error: aborting due to 3 previous errors
+  
+  bash: line 14: /tmp/tmp.S1opCqNpuz/ut_simd_policy: No such file or directory
+[TESTS] machine layer defines SIMD detection helpers PASS
+[TESTS] klib layer defines the runtime SIMD policy surface PASS
+[TESTS] klib runtime policy defaults to scalar guardrails PASS
+[TESTS] memory facade exposes SIMD guardrail queries without importing machine PASS
+[TESTS] memory facade exposes the SIMD guardrail seam through klib FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.JyuJxx90ar/libkfs.rlib
+   --> tests/host_simd_policy.rs:1:5
+    |
+  1 | use kfs::kernel::klib::memory;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.JyuJxx90ar/libkfs.rlib
+   --> tests/host_simd_policy.rs:2:5
+    |
+  2 | use kfs::kernel::klib::simd::{self, RuntimePolicy, ScalarBlockReason, SimdExecutionMode, SimdFeature};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.JyuJxx90ar/libkfs.rlib
+   --> tests/host_simd_policy.rs:3:5
+    |
+  3 | use kfs::kernel::machine::cpu::SimdDetection;
+    |     ^^^
+  
+  error: aborting due to 3 previous errors
+  
+  bash: line 14: /tmp/tmp.JyuJxx90ar/ut_simd_policy: No such file or directory
+[TESTS] host strlen baseline unit tests pass FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.TPbBohA29N/libkfs.rlib
+   --> tests/host_string.rs:1:5
+    |
+  1 | use kfs::kernel::klib::string::{strcmp, strlen};
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.TPbBohA29N/ut_string_strlen_empty_string: No such file or directory
+[TESTS] host strlen stops at the first embedded NUL FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.q3A07tTSOA/libkfs.rlib
+   --> tests/host_string.rs:1:5
+    |
+  1 | use kfs::kernel::klib::string::{strcmp, strlen};
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.q3A07tTSOA/ut_string_strlen_embedded_nul: No such file or directory
+[TESTS] host strlen handles an unaligned starting pointer FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.mAj29BDzwJ/libkfs.rlib
+   --> tests/host_string.rs:1:5
+    |
+  1 | use kfs::kernel::klib::string::{strcmp, strlen};
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.mAj29BDzwJ/ut_string_strlen_unaligned_start: No such file or directory
+[TESTS] host strlen handles strings that cross a natural word boundary FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.rjCsr21HbJ/libkfs.rlib
+   --> tests/host_string.rs:1:5
+    |
+  1 | use kfs::kernel::klib::string::{strcmp, strlen};
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.rjCsr21HbJ/ut_string_strlen_crosses_natural_word_boundary: No such file or directory
+[TESTS] host strcmp baseline unit tests pass FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.LoPkmVBajH/libkfs.rlib
+   --> tests/host_string.rs:1:5
+    |
+  1 | use kfs::kernel::klib::string::{strcmp, strlen};
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.LoPkmVBajH/ut_string_strcmp_equal_strings: No such file or directory
+[TESTS] host strcmp handles prefix and empty/non-empty cases FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Wwl2WpVG5i/libkfs.rlib
+   --> tests/host_string.rs:1:5
+    |
+  1 | use kfs::kernel::klib::string::{strcmp, strlen};
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.Wwl2WpVG5i/ut_string_strcmp_prefix: No such file or directory
+[TESTS] host strcmp returns equality for the same pointer FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.xwVfFmZFZo/libkfs.rlib
+   --> tests/host_string.rs:1:5
+    |
+  1 | use kfs::kernel::klib::string::{strcmp, strlen};
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.xwVfFmZFZo/ut_string_strcmp_same_pointer: No such file or directory
+[TESTS] Rust defines strlen in the kernel helper module PASS
+[TESTS] Rust defines strcmp in the kernel helper module PASS
+[TESTS] kernel string family exports kfs_strlen PASS
+[TESTS] kernel string family exports kfs_strcmp PASS
+[TESTS] kernel string family does not fall back to extern strlen PASS
+[TESTS] host strcmp uses unsigned-byte ordering for high-byte cases FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.D87fZ09C3H/libkfs.rlib
+   --> tests/host_string.rs:1:5
+    |
+  1 | use kfs::kernel::klib::string::{strcmp, strlen};
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.D87fZ09C3H/ut_string_strcmp_high_byte_ordering: No such file or directory
+[TESTS] kernel string family does not fall back to extern strcmp PASS
+[TESTS] release kernel contains .data PASS
+[TESTS] release kernel contains .bss PASS
+[TESTS] release kernel contains .rodata PASS
+[TESTS] release kernel contains .text PASS
+[TESTS] release kernel exports kfs_memcpy PASS
+[TESTS] string helpers avoid volatile ordinary-memory reads PASS
+[TESTS] host Port unit tests pass FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.U4iQSZzEtH/libkfs.rlib
+   --> tests/host_types.rs:1:5
+    |
+  1 | use kfs::kernel::machine::port::Port;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.U4iQSZzEtH/libkfs.rlib
+   --> tests/host_types.rs:2:5
+    |
+  2 | use kfs::kernel::types::range::KernelRange;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.U4iQSZzEtH/ut_types_port: No such file or directory
+[TESTS] host KernelRange unit tests pass FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.HKp4ewDddW/libkfs.rlib
+   --> tests/host_types.rs:1:5
+    |
+  1 | use kfs::kernel::machine::port::Port;
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.HKp4ewDddW/libkfs.rlib
+   --> tests/host_types.rs:2:5
+    |
+  2 | use kfs::kernel::types::range::KernelRange;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.HKp4ewDddW/ut_types_kernel_range: No such file or directory
+[TESTS] host VGA bonus cursor normalization clamps out-of-bounds positions to the last visible cell FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Hbi80PBmXD/libkfs.rlib
+   --> tests/host_vga_bonus.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Hbi80PBmXD/libkfs.rlib
+   --> tests/host_vga_bonus.rs:4:5
+    |
+  4 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.Hbi80PBmXD/ut_vga_bonus_vga_bonus_normalize_cursor_pos_clamps_out_of_bounds_to_last_visible_cell: No such file or directory
+[TESTS] host VGA bonus screen writing advances the cursor over newline FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.k0CiFA8zht/libkfs.rlib
+   --> tests/host_vga_bonus.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.k0CiFA8zht/libkfs.rlib
+   --> tests/host_vga_bonus.rs:4:5
+    |
+  4 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.k0CiFA8zht/ut_vga_bonus_vga_bonus_write_screen_advances_cursor_over_newline: No such file or directory
+[TESTS] host VGA bonus screen writing scrolls the latest rows into view FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.SUfz9aqUkH/libkfs.rlib
+   --> tests/host_vga_bonus.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.SUfz9aqUkH/libkfs.rlib
+   --> tests/host_vga_bonus.rs:4:5
+    |
+  4 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.SUfz9aqUkH/ut_vga_bonus_vga_bonus_write_screen_scrolls_latest_rows_into_view: No such file or directory
+[TESTS] host VGA color model packs foreground and background nibbles FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.dxvQyDZQXz/libkfs.rlib
+   --> tests/host_color.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_get_color, vga_text_set_color, VGA_TEXT_DEFAULT_COLOR};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.dxvQyDZQXz/libkfs.rlib
+   --> tests/host_color.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::{vga_attribute, ColorCode, VgaColor};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.dxvQyDZQXz/ut_vga_color_attribute_packs_foreground_and_background: No such file or directory
+[TESTS] host VGA color model masks inputs to the low VGA nibble FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.FSivxl9BTH/libkfs.rlib
+   --> tests/host_color.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_get_color, vga_text_set_color, VGA_TEXT_DEFAULT_COLOR};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.FSivxl9BTH/libkfs.rlib
+   --> tests/host_color.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::{vga_attribute, ColorCode, VgaColor};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.FSivxl9BTH/ut_vga_color_attribute_masks_values_to_low_nibble: No such file or directory
+[TESTS] host VGA default attribute stays green on black FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.06JOezzyKa/libkfs.rlib
+   --> tests/host_color.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_get_color, vga_text_set_color, VGA_TEXT_DEFAULT_COLOR};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.06JOezzyKa/libkfs.rlib
+   --> tests/host_color.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::{vga_attribute, ColorCode, VgaColor};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.06JOezzyKa/ut_vga_color_default_attribute_is_green_on_black: No such file or directory
+[TESTS] host VGA color enum values match expected VGA palette codes FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.bAmDLocQ9c/libkfs.rlib
+   --> tests/host_color.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_get_color, vga_text_set_color, VGA_TEXT_DEFAULT_COLOR};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.bAmDLocQ9c/libkfs.rlib
+   --> tests/host_color.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::{vga_attribute, ColorCode, VgaColor};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.bAmDLocQ9c/ut_vga_color_enum_color_values_match_vga_codes: No such file or directory
+[TESTS] host VGA color enum wraps index-based selection across the palette range FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.ZdYkqwQw5Z/libkfs.rlib
+   --> tests/host_color.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_get_color, vga_text_set_color, VGA_TEXT_DEFAULT_COLOR};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.ZdYkqwQw5Z/libkfs.rlib
+   --> tests/host_color.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::{vga_attribute, ColorCode, VgaColor};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.ZdYkqwQw5Z/ut_vga_color_enum_from_index_wraps_in_palette_range: No such file or directory
+[TESTS] host VGA color API updates the active writer attribute FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.52MWfTpwmm/libkfs.rlib
+   --> tests/host_color.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_get_color, vga_text_set_color, VGA_TEXT_DEFAULT_COLOR};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.52MWfTpwmm/libkfs.rlib
+   --> tests/host_color.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::{vga_attribute, ColorCode, VgaColor};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.52MWfTpwmm/ut_vga_color_color_api_updates_the_active_writer_attribute: No such file or directory
+[TESTS] source defines the VGA attribute packing model PASS
+[TESTS] source defines the VGA color palette enum and index mapping PASS
+[TESTS] source defines a configurable VGA color API in the driver PASS
+[TESTS] host build selection uses the compiled default geometry preset FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.ftlLljcGjz/libkfs.rlib
+   --> tests/host_geometry_preset.rs:1:5
+    |
+  1 | use kfs::kernel::types::screen::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.ftlLljcGjz/libkfs.rlib
+   --> tests/host_geometry_preset.rs:5:5
+    |
+  5 | use kfs::kernel::drivers::vga_text::VGA_TEXT_HISTORY_ROWS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.ftlLljcGjz/ut_vga_geometry_preset_default_preset_matches_the_current_build_selection: No such file or directory
+[TESTS] host preset selection resolves the compact geometry FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.4upFhF7v9O/libkfs.rlib
+   --> tests/host_geometry_preset.rs:1:5
+    |
+  1 | use kfs::kernel::types::screen::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.4upFhF7v9O/libkfs.rlib
+   --> tests/host_geometry_preset.rs:5:5
+    |
+  5 | use kfs::kernel::drivers::vga_text::VGA_TEXT_HISTORY_ROWS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.4upFhF7v9O/ut_vga_geometry_preset_selecting_compact_preset_changes_the_visible_geometry: No such file or directory
+[TESTS] host history geometry keeps the selected visible width FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.2wwseIFq9Y/libkfs.rlib
+   --> tests/host_geometry_preset.rs:1:5
+    |
+  1 | use kfs::kernel::types::screen::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.2wwseIFq9Y/libkfs.rlib
+   --> tests/host_geometry_preset.rs:5:5
+    |
+  5 | use kfs::kernel::drivers::vga_text::VGA_TEXT_HISTORY_ROWS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.2wwseIFq9Y/ut_vga_geometry_preset_history_geometry_tracks_the_selected_visible_preset_width: No such file or directory
+[TESTS] host preset selection falls back to the default geometry on unknown names FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.TZgpYDX1Bh/libkfs.rlib
+   --> tests/host_geometry_preset.rs:1:5
+    |
+  1 | use kfs::kernel::types::screen::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.TZgpYDX1Bh/libkfs.rlib
+   --> tests/host_geometry_preset.rs:5:5
+    |
+  5 | use kfs::kernel::drivers::vga_text::VGA_TEXT_HISTORY_ROWS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.TZgpYDX1Bh/ut_vga_geometry_preset_unknown_preset_names_fall_back_to_the_default_geometry: No such file or directory
+[TESTS] screen types define geometry presets and selection helpers PASS
+[TESTS] Makefile passes the geometry preset cfg into rustc builds PASS
+[TESTS] host renderer centers a compact logical screen without duplicating rows or cells FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.wBoKbRCb96/libkfs.rlib
+   --> tests/host_geometry_writer.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.wBoKbRCb96/libkfs.rlib
+   --> tests/host_geometry_writer.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{ScreenDimensions, VGA_TEXT_PHYSICAL_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.wBoKbRCb96/ut_vga_geometry_writer_renderer_centers_compact_rows_without_duplicate_cells: No such file or directory
+[TESTS] host renderer computes the centered origin for a compact logical geometry FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.TiKPrrtYdO/libkfs.rlib
+   --> tests/host_geometry_writer.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.TiKPrrtYdO/libkfs.rlib
+   --> tests/host_geometry_writer.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{ScreenDimensions, VGA_TEXT_PHYSICAL_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.TiKPrrtYdO/ut_vga_geometry_writer_screen_render_origin_centers_logical_geometry_inside_physical_vga: No such file or directory
+[TESTS] screen types define the fixed physical VGA dimensions separately from the logical preset PASS
+[TESTS] VGA text driver defines a logical-to-physical render helper PASS
+[TESTS] writer redraw path renders the logical viewport into the fixed physical VGA buffer PASS
+[TESTS] host screen geometry reports width, height, and derived capacities FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.SL5mJ5lDKA/libkfs.rlib
+   --> tests/host_geometry.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_blit_viewport, vga_text_scroll_rows_up};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.SL5mJ5lDKA/libkfs.rlib
+   --> tests/host_geometry.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::ScreenDimensions;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.SL5mJ5lDKA/ut_vga_geometry_geometry_reports_dimensions_and_cell_capacity: No such file or directory
+[TESTS] host screen geometry clamps out-of-bounds rows and columns FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.HuB1J137UA/libkfs.rlib
+   --> tests/host_geometry.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_blit_viewport, vga_text_scroll_rows_up};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.HuB1J137UA/libkfs.rlib
+   --> tests/host_geometry.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::ScreenDimensions;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.HuB1J137UA/ut_vga_geometry_geometry_clamps_out_of_bounds_positions: No such file or directory
+[TESTS] host screen geometry computes flat cell indices from the configured width FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.gA1eZbJTmp/libkfs.rlib
+   --> tests/host_geometry.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_blit_viewport, vga_text_scroll_rows_up};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.gA1eZbJTmp/libkfs.rlib
+   --> tests/host_geometry.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::ScreenDimensions;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.gA1eZbJTmp/ut_vga_geometry_geometry_cell_index_uses_the_configured_width: No such file or directory
+[TESTS] host screen geometry computes tail viewport positions from the configured height FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.jHrbbHCKjU/libkfs.rlib
+   --> tests/host_geometry.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_blit_viewport, vga_text_scroll_rows_up};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.jHrbbHCKjU/libkfs.rlib
+   --> tests/host_geometry.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::ScreenDimensions;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.jHrbbHCKjU/ut_vga_geometry_geometry_tail_viewport_top_tracks_the_configured_height: No such file or directory
+[TESTS] host VGA row scrolling respects the supplied geometry width FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.hptrQVbyWv/libkfs.rlib
+   --> tests/host_geometry.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_blit_viewport, vga_text_scroll_rows_up};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.hptrQVbyWv/libkfs.rlib
+   --> tests/host_geometry.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::ScreenDimensions;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.hptrQVbyWv/ut_vga_geometry_scroll_rows_up_uses_the_supplied_geometry_width: No such file or directory
+[TESTS] host VGA viewport blits respect the supplied geometry dimensions FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.q4TzbpYCCH/libkfs.rlib
+   --> tests/host_geometry.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{vga_text_blit_viewport, vga_text_scroll_rows_up};
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.q4TzbpYCCH/libkfs.rlib
+   --> tests/host_geometry.rs:2:5
+    |
+  2 | use kfs::kernel::types::screen::ScreenDimensions;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.q4TzbpYCCH/ut_vga_geometry_blit_viewport_uses_the_supplied_geometry_dimensions: No such file or directory
+[TESTS] screen types define reusable geometry helper methods PASS
+[TESTS] VGA text driver defines geometry-aware scroll and blit helpers PASS
+[TESTS] host VGA cursor normalization resets out-of-bounds flat cursors to zero FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.1aunxP3AVS/libkfs.rlib
+   --> tests/host_cursor.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.1aunxP3AVS/libkfs.rlib
+   --> tests/host_cursor.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.1aunxP3AVS/ut_vga_history_vga_text_normalize_cursor_resets_out_of_bounds_cursor_to_zero: No such file or directory
+[TESTS] host VGA cursor normalization clamps out-of-bounds row and column positions FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.droycy1D4F/libkfs.rlib
+   --> tests/host_cursor.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.droycy1D4F/libkfs.rlib
+   --> tests/host_cursor.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.droycy1D4F/ut_vga_history_vga_text_normalize_cursor_pos_clamps_out_of_bounds_positions: No such file or directory
+[TESTS] host VGA writing advances the cursor on the same row for printable bytes FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.gsBJwDlDxg/libkfs.rlib
+   --> tests/host_cursor.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.gsBJwDlDxg/libkfs.rlib
+   --> tests/host_cursor.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.gsBJwDlDxg/ut_vga_history_vga_text_write_screen_advances_cursor_on_same_row: No such file or directory
+[TESTS] host VGA writing moves to the next row for newline bytes FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.4bGlOQprmK/libkfs.rlib
+   --> tests/host_cursor.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.4bGlOQprmK/libkfs.rlib
+   --> tests/host_cursor.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.4bGlOQprmK/ut_vga_history_vga_text_write_screen_moves_to_next_row_for_newline: No such file or directory
+[TESTS] host VGA writing wraps the last column to the next row FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.x1Qybo6gUE/libkfs.rlib
+   --> tests/host_cursor.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.x1Qybo6gUE/libkfs.rlib
+   --> tests/host_cursor.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.x1Qybo6gUE/ut_vga_history_vga_text_write_screen_wraps_last_column_to_next_row: No such file or directory
+[TESTS] host VGA screen writing scrolls the bottom row on newline FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.aLC8NnFTU9/libkfs.rlib
+   --> tests/host_scroll.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.aLC8NnFTU9/libkfs.rlib
+   --> tests/host_scroll.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.aLC8NnFTU9/ut_vga_history_vga_text_write_screen_scrolls_bottom_row_on_newline: No such file or directory
+[TESTS] host VGA screen writing keeps the latest rows visible after repeated scrolls FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.b7pChI5I97/libkfs.rlib
+   --> tests/host_scroll.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.b7pChI5I97/libkfs.rlib
+   --> tests/host_scroll.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.b7pChI5I97/ut_vga_history_vga_text_write_screen_keeps_latest_rows_visible_after_multiple_scrolls: No such file or directory
+[TESTS] host VGA history computes the live tail viewport top from the logical cursor row FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.wCQQJa8RK3/libkfs.rlib
+   --> tests/host_scroll.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.wCQQJa8RK3/libkfs.rlib
+   --> tests/host_scroll.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.wCQQJa8RK3/ut_vga_history_vga_text_tail_viewport_top_follows_live_cursor_row: No such file or directory
+[TESTS] host VGA history can blit older retained rows back into the visible viewport FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.278BOQgJQ3/libkfs.rlib
+   --> tests/host_scroll.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.278BOQgJQ3/libkfs.rlib
+   --> tests/host_scroll.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.278BOQgJQ3/ut_vga_history_vga_text_blit_viewport_restores_older_history_rows: No such file or directory
+[TESTS] host VGA terminal keeps the viewport snapped to the live tail after retained-history scrolling FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.W34Z7bvN8S/libkfs.rlib
+   --> tests/host_scroll.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.W34Z7bvN8S/libkfs.rlib
+   --> tests/host_scroll.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.W34Z7bvN8S/ut_vga_history_terminal_tracks_tail_viewport_after_history_scroll: No such file or directory
+[TESTS] host VGA terminal backspace blanks the previous retained-history character cell FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.IetkghPLWJ/libkfs.rlib
+   --> tests/host_scroll.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.IetkghPLWJ/libkfs.rlib
+   --> tests/host_scroll.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.IetkghPLWJ/ut_vga_history_terminal_backspace_blanks_the_previous_character_cell: No such file or directory
+[TESTS] host VGA terminal backspace from column-zero moves to previous row for wrapped lines FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.5aA3Wxwktk/libkfs.rlib
+   --> tests/host_scroll.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.5aA3Wxwktk/libkfs.rlib
+   --> tests/host_scroll.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.5aA3Wxwktk/ut_vga_history_terminal_backspace_at_line_wrap_deletes_last_character_of_previous_row: No such file or directory
+[TESTS] host VGA terminal backspace from column-zero after newline deletes last character on previous line FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.7Hpq3YqLiu/libkfs.rlib
+   --> tests/host_scroll.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.7Hpq3YqLiu/libkfs.rlib
+   --> tests/host_scroll.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.7Hpq3YqLiu/ut_vga_history_terminal_backspace_at_newline_boundary_deletes_previous_line_last_character: No such file or directory
+[TESTS] host VGA terminal backspace crosses blank scrolled lines instead of stopping at the viewport boundary FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Q7eGXZZoiY/libkfs.rlib
+   --> tests/host_scroll.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Q7eGXZZoiY/libkfs.rlib
+   --> tests/host_scroll.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.Q7eGXZZoiY/ut_vga_history_terminal_backspace_crosses_empty_lines_after_scroll: No such file or directory
+[TESTS] host VGA terminal backspace rewinds to the origin across explicit blank lines FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.5xoBpeYU2i/libkfs.rlib
+   --> tests/host_scroll.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.5xoBpeYU2i/libkfs.rlib
+   --> tests/host_scroll.rs:5:5
+    |
+  5 | use kfs::kernel::types::screen::{CursorPos, ScreenDimensions, VGA_TEXT_DIMENSIONS};
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.5xoBpeYU2i/ut_vga_history_terminal_backspace_rewinds_to_the_origin_across_blank_lines: No such file or directory
+[TESTS] release rodata marker lands in .rodata PASS
+
+ARCHITECTURE TESTS
+[TESTS] VGA text driver defines the cursor normalization helpers PASS
+[TESTS] VGA text driver defines the screen writer helper PASS
+[ARCHITECTURE TESTS] ABI markers only live in approved kernel ABI boundaries PASS
+[TESTS] VGA text driver defines the retained-history terminal model PASS
+[ARCHITECTURE TESTS] services and non-entry core files have no ABI markers PASS
+[ARCHITECTURE TESTS] drivers have no ABI markers in the target architecture PASS
+[ARCHITECTURE TESTS] leaf files have no ABI markers PASS
+[ARCHITECTURE TESTS] target ABI facades use only stable low-level data forms PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with Rust references PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with slices or str PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with tuple data forms PASS
+[TESTS] release bss marker lands in .bss PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with unrepr-ed user structs/enums PASS
+[ARCHITECTURE TESTS] reject exported ABI signatures with trait objects PASS
+[ARCHITECTURE TESTS] reject exported ABI generic functions PASS
+[ARCHITECTURE TESTS] reject Option and Result crossing ABI signatures PASS
+[ARCHITECTURE TESTS] reject allocator-backed types crossing ABI signatures PASS
+[TESTS] host virtual terminals keep retained output and cursor state isolated per terminal FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.EdaKXqA5YM/libkfs.rlib
+   --> tests/host_vt.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.EdaKXqA5YM/libkfs.rlib
+   --> tests/host_vt.rs:6:5
+    |
+  6 | use kfs::kernel::types::screen::VGA_TEXT_DIMENSIONS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.EdaKXqA5YM/ut_vga_vt_terminal_buffers_keep_output_and_cursor_state_isolated: No such file or directory
+[ARCHITECTURE TESTS] src/main.rs is the only kernel crate-root source and src/kernel/*.rs files are not compiled directly PASS
+[ARCHITECTURE TESTS] Makefile does not compile src/kernel/*.rs by glob PASS
+[ARCHITECTURE TESTS] kernel subsystem files are not emitted as separate Rust objects PASS
+[ARCHITECTURE TESTS] kernel build emits one Rust kernel unit (kernel.o or kernel.a) PASS
+[ARCHITECTURE TESTS] export ownership is enforced on source declarations PASS
+[TESTS] host virtual terminals keep each buffer intact when the active terminal changes FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.S5bGHzfuY8/libkfs.rlib
+   --> tests/host_vt.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.S5bGHzfuY8/libkfs.rlib
+   --> tests/host_vt.rs:6:5
+    |
+  6 | use kfs::kernel::types::screen::VGA_TEXT_DIMENSIONS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.S5bGHzfuY8/ut_vga_vt_active_terminal_selection_keeps_each_buffer_intact: No such file or directory
+[TESTS] host virtual terminals focus the new terminal when creating it FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.dW3XOIWjsY/libkfs.rlib
+   --> tests/host_vt.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.dW3XOIWjsY/libkfs.rlib
+   --> tests/host_vt.rs:6:5
+    |
+  6 | use kfs::kernel::types::screen::VGA_TEXT_DIMENSIONS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.dW3XOIWjsY/ut_vga_vt_creating_a_terminal_focuses_the_new_terminal: No such file or directory
+[ARCHITECTURE TESTS] checks that every architecture invariant has both enforcement and rejection coverage PASS
+[ARCHITECTURE TESTS] src/main.rs and src/lib.rs share the same src/kernel/mod.rs root without top-level src/kernel peer files PASS
+[ARCHITECTURE TESTS] kernel top-level directories match the target layer set PASS
+[ARCHITECTURE TESTS] each kernel layer has a mod.rs root PASS
+[ARCHITECTURE TESTS] private leaves stay under an owning subsystem path PASS
+[ARCHITECTURE TESTS] private leaves are imported only by owning facades PASS
+[ARCHITECTURE TESTS] host test wrappers compile src/lib.rs and link tests through --extern kfs PASS
+[ARCHITECTURE TESTS] host tests do not mount production source with #[path] or include! PASS
+[TESTS] host virtual terminals remove the current screen from the active order when destroying it FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.frcgopX5x4/libkfs.rlib
+   --> tests/host_vt.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.frcgopX5x4/libkfs.rlib
+   --> tests/host_vt.rs:6:5
+    |
+  6 | use kfs::kernel::types::screen::VGA_TEXT_DIMENSIONS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.frcgopX5x4/ut_vga_vt_destroying_the_current_terminal_removes_it_from_the_active_order: No such file or directory
+[ARCHITECTURE TESTS] kernel source avoids cfg(test) path switching PASS
+[ARCHITECTURE TESTS] kernel binary crate root exists at src/main.rs PASS
+[ARCHITECTURE TESTS] host library crate root exists at src/lib.rs PASS
+[ARCHITECTURE TESTS] shared kernel module root exists at src/kernel/mod.rs PASS
+[ARCHITECTURE TESTS] freestanding support root exists at src/freestanding/mod.rs PASS
+[ARCHITECTURE TESTS] kernel first-level directories match the architecture allowlist PASS
+[ARCHITECTURE TESTS] src/kernel has only the canonical top-level mod.rs file PASS
+[ARCHITECTURE TESTS] types layer does not export ABI symbols PASS
+[ARCHITECTURE TESTS] core, services, and types avoid raw hardware access PASS
+[ARCHITECTURE TESTS] core entry avoids direct driver ABI calls and direct VGA writes PASS
+[ARCHITECTURE TESTS] ABI exports live only in target entry and klib facade files PASS
+[TESTS] release data marker lands in .data PASS
+[ARCHITECTURE TESTS] Makefile does not compile src/kernel peer files individually PASS
+[ARCHITECTURE TESTS] Makefile uses src/main.rs as the kernel Rust entrypoint PASS
+[ARCHITECTURE TESTS] each kernel layer has a mod.rs root PASS
+[ARCHITECTURE TESTS] start hands off only to kmain PASS
+[ARCHITECTURE TESTS] core init plus freestanding panic surfaces exist PASS
+[TESTS] host virtual terminals switch the visible view when the active screen changes FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.uOFAuCAzFc/libkfs.rlib
+   --> tests/host_vt.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.uOFAuCAzFc/libkfs.rlib
+   --> tests/host_vt.rs:6:5
+    |
+  6 | use kfs::kernel::types::screen::VGA_TEXT_DIMENSIONS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.uOFAuCAzFc/ut_vga_vt_switching_active_terminal_changes_the_visible_view: No such file or directory
+[ARCHITECTURE TESTS] console runtime path files exist through services and drivers PASS
+[ARCHITECTURE TESTS] core entry and init avoid raw hardware access and inline asm PASS
+[ARCHITECTURE TESTS] services avoid raw hardware access and inline asm PASS
+[ARCHITECTURE TESTS] inline asm stays in arch or machine only PASS
+[ARCHITECTURE TESTS] typed x86 SIMD intrinsics stay in approved CPU-probe and private klib leaf files PASS
+[ARCHITECTURE TESTS] types layer stays free of side effects and hardware primitives PASS
+[ARCHITECTURE TESTS] core may depend only on services, types, and klib PASS
+[ARCHITECTURE TESTS] services do not depend on driver leaves or raw hardware I/O PASS
+[ARCHITECTURE TESTS] drivers do not own boot policy or import core/services PASS
+[ARCHITECTURE TESTS] klib does not depend on drivers, services, core, machine, or policy code PASS
+[ARCHITECTURE TESTS] types do not depend on I/O/policy or higher-layer orchestration modules PASS
+[ARCHITECTURE TESTS] machine stays primitive-only and avoids higher-layer policy dependencies PASS
+[TESTS] host virtual terminals preserve backspace history when switching back to a scrolled terminal FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.O59b8ca6Vj/libkfs.rlib
+   --> tests/host_vt.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.O59b8ca6Vj/libkfs.rlib
+   --> tests/host_vt.rs:6:5
+    |
+  6 | use kfs::kernel::types::screen::VGA_TEXT_DIMENSIONS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.O59b8ca6Vj/ut_vga_vt_switching_back_to_a_scrolled_terminal_preserves_backspace_history: No such file or directory
+[ARCHITECTURE TESTS] runtime ownership artifacts exist for start -> core -> services -> drivers path PASS
+[ARCHITECTURE TESTS] boot start handoff enters kmain directly PASS
+[ARCHITECTURE TESTS] boot handoff does not jump directly to driver/helper surfaces PASS
+[ARCHITECTURE TESTS] core entry invokes the core init sequence PASS
+[ARCHITECTURE TESTS] core init installs SIMD policy through the services layer instead of importing machine directly PASS
+[ARCHITECTURE TESTS] core init delegates console work to services console PASS
+[ARCHITECTURE TESTS] services console reaches VGA through driver facade PASS
+[ARCHITECTURE TESTS] core entry does not call or declare VGA driver ABI directly PASS
+[ARCHITECTURE TESTS] helper boundary and type facade files exist PASS
+[ARCHITECTURE TESTS] helper ABI uses primitive/core-compatible types only PASS
+[ARCHITECTURE TESTS] helper and type code avoids std PASS
+[ARCHITECTURE TESTS] type layer avoids alias-only primitive wrappers PASS
+[ARCHITECTURE TESTS] Port uses repr(transparent) PASS
+[ARCHITECTURE TESTS] KernelRange uses repr(C) PASS
+[ARCHITECTURE TESTS] future screen type file exists PASS
+[ARCHITECTURE TESTS] ColorCode uses repr(transparent) PASS
+[ARCHITECTURE TESTS] ScreenCell uses repr(C) PASS
+[ARCHITECTURE TESTS] CursorPos uses repr(C) PASS
+[ARCHITECTURE TESTS] helper wrappers keep extern C and no_mangle PASS
+[TESTS] host virtual terminals change the active-indicator overlay when the active label index changes FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.XVIME68ryi/libkfs.rlib
+   --> tests/host_vt.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: extern location for kfs does not exist: /tmp/tmp.XVIME68ryi/libkfs.rlib
+   --> tests/host_vt.rs:6:5
+    |
+  6 | use kfs::kernel::types::screen::VGA_TEXT_DIMENSIONS;
+    |     ^^^
+  
+  error: aborting due to 2 previous errors
+  
+  bash: line 14: /tmp/tmp.XVIME68ryi/ut_vga_vt_terminal_label_overlay_changes_with_active_label_index: No such file or directory
+[ARCHITECTURE TESTS] private helper impl files are not imported directly outside boundary files PASS
+[TESTS] VGA text driver defines the virtual terminal bank model PASS
+[TESTS] VGA text driver exposes active-terminal selection PASS
+[ARCHITECTURE TESTS] serial runtime path uses Port through machine and driver layers PASS
+[TESTS] VGA text driver defines terminal create and destroy lifecycle operations PASS
+[ARCHITECTURE TESTS] layout path uses KernelRange instead of naked pairs PASS
+[TESTS] VGA text driver defines active-indicator overlay helpers PASS
+[ARCHITECTURE TESTS] Port is owned by src/kernel/machine/port.rs with repr(transparent) PASS
+[ARCHITECTURE TESTS] KernelRange is owned by src/kernel/types/range.rs with repr(C) PASS
+[ARCHITECTURE TESTS] ColorCode/ScreenCell/CursorPos are owned by src/kernel/types/screen.rs and have required repr PASS
+
+STABILITY TESTS
+[TESTS] host VGA writer writes bytes in sequence FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.Y9CKrmF5Cl/libkfs.rlib
+   --> tests/host_vga_writer.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.Y9CKrmF5Cl/ut_vga_writer_vga_writer_writes_bytes_in_sequence: No such file or directory
+[TESTS] host VGA writer preserves unwritten cells FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.CqOThzJaNh/libkfs.rlib
+   --> tests/host_vga_writer.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.CqOThzJaNh/ut_vga_writer_vga_writer_preserves_unwritten_cells: No such file or directory
+[TESTS] host VGA writer wraps at the end of the buffer FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.QzOdiREBqx/libkfs.rlib
+   --> tests/host_vga_writer.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.QzOdiREBqx/ut_vga_writer_vga_writer_wraps_at_buffer_end: No such file or directory
+[TESTS] release .bss is emitted as NOBITS PASS
+[TESTS] host VGA writer continues from the provided cursor FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.RImZmFAHNQ/libkfs.rlib
+   --> tests/host_vga_writer.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.RImZmFAHNQ/ut_vga_writer_vga_writer_continues_from_existing_cursor: No such file or directory
+[TESTS] host VGA writer handles an empty buffer safely FAIL
+  error: extern block cannot be declared unsafe
+   --> src/kernel/core/entry.rs:5:1
+    |
+  5 | unsafe extern "C" {
+    | ^^^^^^
+  
+  error: aborting due to previous error
+  
+  error: extern location for kfs does not exist: /tmp/tmp.gsZBv63zf2/libkfs.rlib
+   --> tests/host_vga_writer.rs:1:5
+    |
+  1 | use kfs::kernel::drivers::vga_text::{
+    |     ^^^
+  
+  error: aborting due to previous error
+  
+  bash: line 14: /tmp/tmp.gsZBv63zf2/ut_vga_writer_vga_writer_handles_empty_buffer: No such file or directory
+[TESTS] Rust defines the shared VGA writer model helper PASS
+[TESTS] services console does not reset VGA writer state on each call PASS
+[TESTS] release kernel exports kfs_memset PASS
+[STABILITY TESTS] manifest publishes the architecture test section PASS
+[STABILITY TESTS] TUI recognizes ARCHITECTURE TESTS as a first-class section PASS
+[STABILITY TESTS] TUI renders ARCH as the architecture section label PASS
+[STABILITY TESTS] TUI panel title includes architecture PASS
+[STABILITY TESTS] architecture export allowlist exists and is non-empty PASS
+[STABILITY TESTS] Dockerfile pins the base image digest and toolchain versions PASS
+[STABILITY TESTS] manifest keeps architecture tests between unit tests and stability tests PASS
+[ARCHITECTURE TESTS] kernel exports match the architecture allowlist exactly PASS
+[STABILITY TESTS] Makefile uses a non-SIMD x86 Rust target for freestanding builds PASS
+[ARCHITECTURE TESTS] artifact-level exports are traceable to expected source owners PASS
+[TESTS] release kernel exports kfs_strlen PASS
+[STABILITY TESTS] default freestanding kernel only permits approved SIMD control-state instructions PASS
+[STABILITY TESTS] linker script captures .rodata subsections PASS
+[STABILITY TESTS] linker script captures .data subsections PASS
+[STABILITY TESTS] linker script captures .bss subsections PASS
+[STABILITY TESTS] linker script captures COMMON symbols PASS
+[STABILITY TESTS] compact freestanding kernel only permits approved SIMD control-state instructions PASS
+[TESTS] release kernel exports kfs_strcmp PASS
+[STABILITY TESTS] rodata subsection marker still lands in .rodata PASS
+[STABILITY TESTS] data subsection marker still lands in .data PASS
+[STABILITY TESTS] release kernel/ISO/IMG stay byte-identical across copied workdirs PASS
+[STABILITY TESTS] release kernel/ISO/IMG stay byte-identical across clean rebuilds PASS
+[STABILITY TESTS] test-host publishes a complete TUI manifest before execution PASS
+
+REJECTION TESTS
+[REJECTION TESTS] reject exported ABI signatures with references PASS
+[REJECTION TESTS] reject exported ABI signatures with slices or str PASS
+[REJECTION TESTS] reject exported ABI signatures with tuples PASS
+[REJECTION TESTS] reject exported ABI signatures with unrepr user types PASS
+[REJECTION TESTS] reject exported ABI signatures with trait objects PASS
+[REJECTION TESTS] reject generic exported ABI functions PASS
+[REJECTION TESTS] reject Option/Result in exported ABI signatures PASS
+[REJECTION TESTS] reject allocator-backed exported ABI signatures PASS
+[REJECTION TESTS] rejects ABI markers outside approved boundaries PASS
+[REJECTION TESTS] rejects ABI markers in services PASS
+[REJECTION TESTS] rejects ABI markers in drivers PASS
+[REJECTION TESTS] rejects ABI markers in leaf files PASS
+[REJECTION TESTS] keeps ABI markers on toolchain boundaries PASS
+[REJECTION TESTS] rejects forbidden ABI signature forms PASS
+[REJECTION TESTS] rejects missing layer mod.rs roots PASS
+[REJECTION TESTS] rejects boot asm calling driver or helper surfaces directly PASS
+[REJECTION TESTS] rejects inline asm in core PASS
+[REJECTION TESTS] rejects raw hardware access in services PASS
+[REJECTION TESTS] rejects typed SIMD intrinsics outside approved CPU-probe and private klib leaf files PASS
+[REJECTION TESTS] rejects side effects in types PASS
+[REJECTION TESTS] rejects a new top-level kernel peer file PASS
+[REJECTION TESTS] rejects a disallowed first-level kernel layer PASS
+[REJECTION TESTS] rejects a missing host library crate root PASS
+[REJECTION TESTS] rejects ABI exports in the types layer PASS
+[REJECTION TESTS] rejects raw hardware access in services PASS
+[REJECTION TESTS] rejects direct driver ABI calls from core entry PASS
+[REJECTION TESTS] rejects ABI export markers outside target facade files PASS
+[REJECTION TESTS] rejects per-file kernel compilation in the Makefile PASS
+[REJECTION TESTS] rejects unexpected export allowlist drift PASS
+[REJECTION TESTS] rejects Makefile using src/kernel/*.rs in source selection PASS
+[REJECTION TESTS] rejects build where kernel root entrypoint is not src/main.rs PASS
+[REJECTION TESTS] rejects multiple src/kernel sources being compiled PASS
+[REJECTION TESTS] rejects separate Rust outputs for kernel subsystem files PASS
+[STABILITY TESTS] bss subsection marker still lands in .bss PASS
+[REJECTION TESTS] checks that every architecture invariant has both positive and rejection coverage PASS
+[REJECTION TESTS] rejects export declarations in drivers PASS
+[REJECTION TESTS] rejects export declarations in services PASS
+[REJECTION TESTS] rejects export declarations in private leaf files PASS
+[REJECTION TESTS] rejects export declarations in types PASS
+[REJECTION TESTS] rejects export declarations in non-entry core PASS
+[REJECTION TESTS] rejects top-level Rust peer files under src/kernel PASS
+[REJECTION TESTS] rejects missing src/lib.rs for host-linked tests PASS
+[REJECTION TESTS] rejects private leaves outside owning subsystem paths PASS
+[REJECTION TESTS] rejects facade importing another subsystem's private leaf FAIL
+  FAIL cross-facade-leaf-import-fails: cross-facade leaf import unexpectedly passed
+[REJECTION TESTS] rejects host tests mounting production source directly PASS
+[REJECTION TESTS] rejects cfg(test) path switching in kernel source PASS
+[STABILITY TESTS] COMMON symbol is folded into .bss PASS
+[STABILITY TESTS] allocatable sections stay on the allowlist PASS
+[REJECTION TESTS] rejects forced .interp / PT_INTERP metadata PASS
+[REJECTION TESTS] rejects core depending on machine/arch internals PASS
+[REJECTION TESTS] rejects services importing driver leaves or touching raw hw I/O PASS
+[REJECTION TESTS] rejects drivers owning boot policy or importing core/services PASS
+[REJECTION TESTS] rejects klib depending on non-types layers or policy code PASS
+[REJECTION TESTS] rejects types owning I/O or orchestration policy PASS
+[REJECTION TESTS] rejects machine depending on higher-layer modules PASS
+[REJECTION TESTS] rejects forced .dynamic metadata PASS
+[REJECTION TESTS] rejects an unresolved external symbol PASS
+[REJECTION TESTS] rejects libc/dynamic-loader marker strings PASS
+[REJECTION TESTS] rejects bss_start before kernel_start PASS
+[REJECTION TESTS] rejects bss_end before bss_start PASS
+[REJECTION TESTS] rejects kernel_end before bss_end PASS
+[REJECTION TESTS] rejects a broken memory-helper self-check at runtime PASS
+[REJECTION TESTS] memory-helper failure stops before normal flow resumes PASS
+[REJECTION TESTS] dirty BSS failure stops before layout success PASS
+[REJECTION TESTS] rejects boot handoff jumping into driver ABI directly FAIL
+  PCRE2 is not available in this build of ripgrep
+  FAIL boot-calls-driver-directly-fails: direct boot jump into VGA helper unexpectedly passed
+[REJECTION TESTS] rejects entries that do not reach core init sequencing PASS
+[REJECTION TESTS] rejects kmain calling VGA ABI directly PASS
+[REJECTION TESTS] rejects core init importing machine SIMD policy directly instead of routing through services PASS
+[REJECTION TESTS] rejects core init skipping services console layer PASS
+[REJECTION TESTS] rejects services console bypassing driver facade PASS
+[REJECTION TESTS] rejects a non-zero BSS canary at runtime PASS
+[REJECTION TESTS] rejects a bad runtime layout assumption PASS
+[REJECTION TESTS] rejects .text with wrong section type FAIL
+  FAIL text-wrong-type: expected rejection message not found: .text exists but is not PROGBITS
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/boot.asm -> build/arch/i386/boot.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/common_markers.asm -> build/arch/i386/common_markers.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/multiboot_header.asm -> build/arch/i386/multiboot_header.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/runtime_io.asm -> build/arch/i386/runtime_io.o using nasm in Docker
+  RUST       compile the freestanding Rust kernel crate into one object file
+             rule: src/main.rs -> build/arch/i386/rust/kernel.o using rustc in Docker
+  LINK       link all assembly and Rust objects into the final kernel binary
+             rule: assembly objects + build/arch/i386/rust/kernel.o -> build/kernel-i386.bin using ld in Docker
+  ld: cannot open linker script file /tmp/kfs-negative-text-wrong-type.6bn8Oz/m3.2-negative-text-wrong-type.ld: No such file or directory
+  make: *** [Makefile:230: build/kernel-i386.bin] Error 1
+[REJECTION TESTS] rejects missing .text section FAIL
+  FAIL text-missing: expected rejection message not found: missing section .text
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/boot.asm -> build/arch/i386/boot.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/common_markers.asm -> build/arch/i386/common_markers.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/multiboot_header.asm -> build/arch/i386/multiboot_header.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/runtime_io.asm -> build/arch/i386/runtime_io.o using nasm in Docker
+  RUST       compile the freestanding Rust kernel crate into one object file
+             rule: src/main.rs -> build/arch/i386/rust/kernel.o using rustc in Docker
+  LINK       link all assembly and Rust objects into the final kernel binary
+             rule: assembly objects + build/arch/i386/rust/kernel.o -> build/kernel-i386.bin using ld in Docker
+  ld: cannot open linker script file /tmp/kfs-negative-text-missing.DxwYXn/m3.2-negative-text-missing.ld: No such file or directory
+  make: *** [Makefile:230: build/kernel-i386.bin] Error 1
+[REJECTION TESTS] layout failure stops before early-init success PASS
+[REJECTION TESTS] rejects missing .rodata section FAIL
+  FAIL rodata-missing: expected rejection message not found: missing section .rodata
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/boot.asm -> build/arch/i386/boot.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/common_markers.asm -> build/arch/i386/common_markers.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/multiboot_header.asm -> build/arch/i386/multiboot_header.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/runtime_io.asm -> build/arch/i386/runtime_io.o using nasm in Docker
+  RUST       compile the freestanding Rust kernel crate into one object file
+             rule: src/main.rs -> build/arch/i386/rust/kernel.o using rustc in Docker
+  LINK       link all assembly and Rust objects into the final kernel binary
+             rule: assembly objects + build/arch/i386/rust/kernel.o -> build/kernel-i386.bin using ld in Docker
+  ld: cannot open linker script file /tmp/kfs-negative-rodata-missing.DokJpR/m3.2-negative-rodata-missing.ld: No such file or directory
+  make: *** [Makefile:230: build/kernel-i386.bin] Error 1
+[REJECTION TESTS] rejects .rodata with wrong section type FAIL
+  FAIL rodata-wrong-type: expected rejection message not found: .rodata exists but is not PROGBITS
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/boot.asm -> build/arch/i386/boot.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/common_markers.asm -> build/arch/i386/common_markers.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/multiboot_header.asm -> build/arch/i386/multiboot_header.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/runtime_io.asm -> build/arch/i386/runtime_io.o using nasm in Docker
+  RUST       compile the freestanding Rust kernel crate into one object file
+             rule: src/main.rs -> build/arch/i386/rust/kernel.o using rustc in Docker
+  LINK       link all assembly and Rust objects into the final kernel binary
+             rule: assembly objects + build/arch/i386/rust/kernel.o -> build/kernel-i386.bin using ld in Docker
+  ld: cannot open linker script file /tmp/kfs-negative-rodata-wrong-type.J8kyhk/m3.2-negative-rodata-wrong-type.ld: No such file or directory
+  make: *** [Makefile:230: build/kernel-i386.bin] Error 1
+[REJECTION TESTS] rejects missing .data section FAIL
+  FAIL data-missing: expected rejection message not found: missing section .data
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/boot.asm -> build/arch/i386/boot.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/common_markers.asm -> build/arch/i386/common_markers.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/multiboot_header.asm -> build/arch/i386/multiboot_header.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/runtime_io.asm -> build/arch/i386/runtime_io.o using nasm in Docker
+  RUST       compile the freestanding Rust kernel crate into one object file
+             rule: src/main.rs -> build/arch/i386/rust/kernel.o using rustc in Docker
+  LINK       link all assembly and Rust objects into the final kernel binary
+             rule: assembly objects + build/arch/i386/rust/kernel.o -> build/kernel-i386.bin using ld in Docker
+  ld: cannot open linker script file /tmp/kfs-negative-data-missing.3IGVOh/m3.2-negative-data-missing.ld: No such file or directory
+  make: *** [Makefile:230: build/kernel-i386.bin] Error 1
+[REJECTION TESTS] rejects .data with wrong section type FAIL
+  FAIL data-wrong-type: expected rejection message not found: .data exists but is not PROGBITS
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/boot.asm -> build/arch/i386/boot.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/common_markers.asm -> build/arch/i386/common_markers.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/multiboot_header.asm -> build/arch/i386/multiboot_header.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/runtime_io.asm -> build/arch/i386/runtime_io.o using nasm in Docker
+  RUST       compile the freestanding Rust kernel crate into one object file
+             rule: src/main.rs -> build/arch/i386/rust/kernel.o using rustc in Docker
+  LINK       link all assembly and Rust objects into the final kernel binary
+             rule: assembly objects + build/arch/i386/rust/kernel.o -> build/kernel-i386.bin using ld in Docker
+  ld: cannot open linker script file /tmp/kfs-negative-data-wrong-type.EQ6qsD/m3.2-negative-data-wrong-type.ld: No such file or directory
+  make: *** [Makefile:230: build/kernel-i386.bin] Error 1
+[REJECTION TESTS] rejects missing .bss section FAIL
+  FAIL bss-missing: expected rejection message not found: missing section .bss
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/boot.asm -> build/arch/i386/boot.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/common_markers.asm -> build/arch/i386/common_markers.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/multiboot_header.asm -> build/arch/i386/multiboot_header.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/runtime_io.asm -> build/arch/i386/runtime_io.o using nasm in Docker
+  RUST       compile the freestanding Rust kernel crate into one object file
+             rule: src/main.rs -> build/arch/i386/rust/kernel.o using rustc in Docker
+  LINK       link all assembly and Rust objects into the final kernel binary
+             rule: assembly objects + build/arch/i386/rust/kernel.o -> build/kernel-i386.bin using ld in Docker
+  ld: cannot open linker script file /tmp/kfs-negative-bss-missing.2eWqzA/m3.2-negative-bss-missing.ld: No such file or directory
+  make: *** [Makefile:230: build/kernel-i386.bin] Error 1
+[REJECTION TESTS] rejects std usage in the helper/type layer PASS
+[REJECTION TESTS] rejects alias-only primitive wrappers in the type layer PASS
+[REJECTION TESTS] rejects Port without repr(transparent) PASS
+[REJECTION TESTS] rejects KernelRange without repr(C) PASS
+[REJECTION TESTS] rejects Port ownership outside src/kernel/machine/port.rs PASS
+[REJECTION TESTS] rejects KernelRange ownership outside src/kernel/types/range.rs PASS
+[REJECTION TESTS] rejects screen types outside src/kernel/types/screen.rs PASS
+[REJECTION TESTS] rejects missing future screen types PASS
+[REJECTION TESTS] rejects ColorCode without repr(transparent) PASS
+[REJECTION TESTS] rejects ScreenCell without repr(C) PASS
+[REJECTION TESTS] rejects CursorPos without repr(C) PASS
+[REJECTION TESTS] rejects helper exports without extern C PASS
+[REJECTION TESTS] rejects private helper imports outside boundary files PASS
+
+BOOT TESTS
+[REJECTION TESTS] rejects .bss with wrong section type FAIL
+  FAIL bss-wrong-type: expected rejection message not found: .bss exists but is not NOBITS
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/boot.asm -> build/arch/i386/boot.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/common_markers.asm -> build/arch/i386/common_markers.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/multiboot_header.asm -> build/arch/i386/multiboot_header.o using nasm in Docker
+  ASM        assemble one assembly source file into one ELF32 object file
+             rule: src/arch/i386/runtime_io.asm -> build/arch/i386/runtime_io.o using nasm in Docker
+  RUST       compile the freestanding Rust kernel crate into one object file
+             rule: src/main.rs -> build/arch/i386/rust/kernel.o using rustc in Docker
+  LINK       link all assembly and Rust objects into the final kernel binary
+             rule: assembly objects + build/arch/i386/rust/kernel.o -> build/kernel-i386.bin using ld in Docker
+  ld: cannot open linker script file /tmp/kfs-negative-bss-wrong-type.2F5mZI/m3.2-negative-bss-wrong-type.ld: No such file or directory
+  make: *** [Makefile:230: build/kernel-i386.bin] Error 1
+[REJECTION TESTS] rejects a broken string-helper self-check at runtime PASS
+[REJECTION TESTS] string-helper failure stops before normal flow resumes PASS
+[BOOT TESTS] build the generated test ISO artifact PASS
+[BOOT TESTS] build the generated test IMG artifact PASS
+[BOOT TESTS] host-driven VNC E2E proves boot renders 42 before the live console loop accepts real input FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/boot-flow-i386-boot-flow-renders-42-then-enters-live-console-loop.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/boot-flow-i386-boot-flow-renders-42-then-enters-live-console-loop.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/boot-flow-i386-boot-flow-renders-42-then-enters-live-console-loop.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/boot-flow-i386-boot-flow-renders-42-then-enters-live-console-loop.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E keeps the compact40x10 boot text centered in physical VGA space FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/compact-geometry-i386-compact-geometry-centers-42-in-physical-vga.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/compact-geometry-i386-compact-geometry-centers-42-in-physical-vga.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/compact-geometry-i386-compact-geometry-centers-42-in-physical-vga.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/compact-geometry-i386-compact-geometry-centers-42-in-physical-vga.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E keeps the compact40x10 terminal label in the physical top-right overlay region FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/compact-geometry-i386-compact-geometry-keeps-terminal-label-in-physical-top-right.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/compact-geometry-i386-compact-geometry-keeps-terminal-label-in-physical-top-right.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/compact-geometry-i386-compact-geometry-keeps-terminal-label-in-physical-top-right.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/compact-geometry-i386-compact-geometry-keeps-terminal-label-in-physical-top-right.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E keeps compact terminal output inside the centered viewport after terminal creation FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/compact-geometry-i386-compact-create-terminal-keeps-output-centered.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/compact-geometry-i386-compact-create-terminal-keeps-output-centered.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/compact-geometry-i386-compact-create-terminal-keeps-output-centered.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/compact-geometry-i386-compact-create-terminal-keeps-output-centered.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] kernel includes the Rust entry symbol PASS
+[BOOT TESTS] kernel exposes the ASM entry symbol PASS
+[BOOT TESTS] host-driven VNC E2E restores centered compact terminal contents when switching terminals FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/compact-geometry-i386-compact-switching-restores-centered-terminal-contents.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/compact-geometry-i386-compact-switching-restores-centered-terminal-contents.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/compact-geometry-i386-compact-switching-restores-centered-terminal-contents.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/compact-geometry-i386-compact-switching-restores-centered-terminal-contents.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] kernel has no PT_INTERP segment PASS
+[BOOT TESTS] host-driven VNC E2E restores the previous compact terminal after destroying the active one FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/compact-geometry-i386-compact-destroy-restores-previous-terminal.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/compact-geometry-i386-compact-destroy-restores-previous-terminal.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/compact-geometry-i386-compact-destroy-restores-previous-terminal.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/compact-geometry-i386-compact-destroy-restores-previous-terminal.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] kernel has no .interp section PASS
+[BOOT TESTS] host-driven VNC E2E keeps compact scrolling output inside the centered viewport FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/compact-geometry-i386-compact-scroll-keeps-output-inside-centered-viewport.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/compact-geometry-i386-compact-scroll-keeps-output-inside-centered-viewport.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/compact-geometry-i386-compact-scroll-keeps-output-inside-centered-viewport.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/compact-geometry-i386-compact-scroll-keeps-output-inside-centered-viewport.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] kernel has no .dynamic section PASS
+[BOOT TESTS] Rust kmain path ends in a halt loop PASS
+[BOOT TESTS] ASM boot path provides a halt loop PASS
+[BOOT TESTS] freestanding panic handler converges to the halt path PASS
+[BOOT TESTS] kernel has no undefined symbols PASS
+[BOOT TESTS] kernel has no libc marker strings PASS
+[BOOT TESTS] kernel has no loader marker strings PASS
+[BOOT TESTS] release kmain disassembly contains cli/hlt PASS
+[BOOT TESTS] release kernel exports kernel_start PASS
+[BOOT TESTS] release kernel exports kernel_end PASS
+[BOOT TESTS] release kernel exports bss_start PASS
+[BOOT TESTS] release kernel exports bss_end PASS
+[BOOT TESTS] release kernel keeps Rust layout handling in core entry PASS
+[BOOT TESTS] release layout symbols are monotonic PASS
+[BOOT TESTS] test kernel exports kernel_start PASS
+[BOOT TESTS] test kernel exports kernel_end PASS
+[BOOT TESTS] test kernel exports bss_start PASS
+[BOOT TESTS] Rust declares extern "C" layout symbols PASS
+[BOOT TESTS] Rust references kernel_start PASS
+[BOOT TESTS] Rust references kernel_end PASS
+[BOOT TESTS] Rust references bss_start PASS
+[BOOT TESTS] Rust references bss_end PASS
+[BOOT TESTS] test kernel exports bss_end PASS
+[BOOT TESTS] test kernel keeps Rust layout handling in core entry PASS
+[BOOT TESTS] test layout symbols are monotonic PASS
+[BOOT TESTS] release core init calls memory::memcpy in the memory sanity path PASS
+[BOOT TESTS] runtime emits MEMCPY_OK PASS
+[BOOT TESTS] runtime emits MEMCPY_BACKEND_SSE2 when the default CPU supports SSE2 PASS
+[BOOT TESTS] runtime falls back to MEMCPY_BACKEND_SCALAR when CPUID is forced unavailable PASS
+[BOOT TESTS] runtime falls back to MEMCPY_BACKEND_SCALAR when SIMD is forced off PASS
+[BOOT TESTS] release core init calls memory::memset in the memory sanity path PASS
+[BOOT TESTS] runtime emits MEMSET_OK PASS
+[BOOT TESTS] runtime emits MEMSET_BACKEND_SSE2 when the default CPU supports SSE2 PASS
+[BOOT TESTS] runtime falls back to MEMSET_BACKEND_SCALAR when CPUID is forced unavailable PASS
+[BOOT TESTS] runtime falls back to MEMSET_BACKEND_SCALAR when SIMD is forced off PASS
+[BOOT TESTS] runtime emits MEMORY_HELPERS_OK PASS
+[BOOT TESTS] runtime reaches SIMD ownership before selecting SSE2 memory backends PASS
+[BOOT TESTS] runtime emits backend markers before helper success markers PASS
+[BOOT TESTS] runtime emits MEMCPY_OK then MEMSET_OK then MEMORY_HELPERS_OK in order PASS
+[BOOT TESTS] GRUB boots the generated test ISO artifact PASS
+[BOOT TESTS] release boot code calls kmain PASS
+[BOOT TESTS] release kernel exports kmain PASS
+[BOOT TESTS] GRUB boots the generated test IMG artifact PASS
+[BOOT TESTS] runtime reaches Rust kmain PASS
+[BOOT TESTS] runtime confirms BSS starts at zero PASS
+[BOOT TESTS] runtime confirms exported layout bounds PASS
+[BOOT TESTS] runtime completes early init before normal flow PASS
+[BOOT TESTS] runtime markers appear in the expected order PASS
+[BOOT TESTS] runtime emits Phase 4 ownership markers and enables SSE2 acceleration on supported CPUs PASS
+[BOOT TESTS] runtime owns SIMD state and enables acceleration before helper self-check markers run PASS
+[BOOT TESTS] runtime falls back to scalar-only policy when CPUID is forced unavailable PASS
+[BOOT TESTS] runtime stays scalar-only and does not own state when SIMD policy is forced off PASS
+[BOOT TESTS] release core init calls string::strlen in the string sanity path PASS
+[BOOT TESTS] runtime emits STRLEN_OK PASS
+[BOOT TESTS] release core init calls string::strcmp in the string sanity path PASS
+[BOOT TESTS] runtime emits STRCMP_OK PASS
+[BOOT TESTS] runtime emits STRING_HELPERS_OK PASS
+[BOOT TESTS] runtime emits STRLEN_OK then STRCMP_OK then STRING_HELPERS_OK in order PASS
+[BOOT TESTS] runtime serial path works through machine Port and serial driver layers PASS
+[BOOT TESTS] runtime layout path still works through KernelRange PASS
+[BOOT TESTS] host-driven VNC E2E preserves isolated screen contents when switching terminals FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-terminal-switching-preserves-screen-contents.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-terminal-switching-preserves-screen-contents.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-terminal-switching-preserves-screen-contents.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-terminal-switching-preserves-screen-contents.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E maps F11 onto terminal creation and changes the visible active-terminal indicator FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-f11-creates-terminal-and-visible-indicator-changes.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-f11-creates-terminal-and-visible-indicator-changes.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-f11-creates-terminal-and-visible-indicator-changes.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-f11-creates-terminal-and-visible-indicator-changes.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E maps F12 onto terminal destruction and restores the prior active-terminal indicator FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-f12-destroys-current-terminal-and-visible-indicator-restores.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-f12-destroys-current-terminal-and-visible-indicator-restores.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-f12-destroys-current-terminal-and-visible-indicator-restores.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-f12-destroys-current-terminal-and-visible-indicator-restores.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E maps Alt+A then C onto terminal creation and changes the visible indicator FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-alt-a-c-creates-terminal-and-visible-indicator-changes.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-alt-a-c-creates-terminal-and-visible-indicator-changes.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-alt-a-c-creates-terminal-and-visible-indicator-changes.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-alt-a-c-creates-terminal-and-visible-indicator-changes.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E maps Alt+A then X onto terminal destruction and restores the prior indicator FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-alt-a-x-destroys-terminal-and-visible-indicator-restores.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-alt-a-x-destroys-terminal-and-visible-indicator-restores.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-alt-a-x-destroys-terminal-and-visible-indicator-restores.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-alt-a-x-destroys-terminal-and-visible-indicator-restores.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E maps Alt+A then a digit onto terminal selection FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-alt-a-digit-selects-target-terminal.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-alt-a-digit-selects-target-terminal.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-alt-a-digit-selects-target-terminal.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-alt-a-digit-selects-target-terminal.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E maps Alt+F1 through Alt+F12 onto visible terminal selection FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-alt-function-key-selection-matrix.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-alt-function-key-selection-matrix.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-alt-function-key-selection-matrix.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-alt-function-key-selection-matrix.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E maps bare F1 through F10 onto visible terminal selection FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-bare-function-key-selection-matrix.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-bare-function-key-selection-matrix.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-bare-function-key-selection-matrix.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-bare-function-key-selection-matrix.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E keeps the active-terminal indicator stable when destroying the last remaining terminal FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-destroying-last-terminal-keeps-active-indicator-stable.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-destroying-last-terminal-keeps-active-indicator-stable.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-destroying-last-terminal-keeps-active-indicator-stable.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-destroying-last-terminal-keeps-active-indicator-stable.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E leaves the active-terminal indicator unchanged when creating beyond terminal capacity FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-terminal-create-capacity-limit-is-a-no-op.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-terminal-create-capacity-limit-is-a-no-op.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-terminal-create-capacity-limit-is-a-no-op.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-terminal-create-capacity-limit-is-a-no-op.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E restores the dirty terminal after switching back from an untouched one FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-switching-back-from-an-untouched-terminal-restores-the-dirty-terminal.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-switching-back-from-an-untouched-terminal-restores-the-dirty-terminal.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-switching-back-from-an-untouched-terminal-restores-the-dirty-terminal.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-switching-back-from-an-untouched-terminal-restores-the-dirty-terminal.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E shows a blank screen on an untouched terminal FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-switching-to-an-untouched-terminal-shows-a-blank-screen.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-switching-to-an-untouched-terminal-shows-a-blank-screen.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-switching-to-an-untouched-terminal-shows-a-blank-screen.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-switching-to-an-untouched-terminal-shows-a-blank-screen.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E focuses a surviving terminal after destroying the highest active slot FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-destroying-from-a-high-slot-focuses-a-valid-survivor.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-destroying-from-a-high-slot-focuses-a-valid-survivor.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-destroying-from-a-high-slot-focuses-a-valid-survivor.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-destroying-from-a-high-slot-focuses-a-valid-survivor.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E lets ArrowDown return to the live tail viewport FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-arrow-down-returns-to-the-live-tail-viewport.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-arrow-down-returns-to-the-live-tail-viewport.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-arrow-down-returns-to-the-live-tail-viewport.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-arrow-down-returns-to-the-live-tail-viewport.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E lets ArrowUp restore an older viewport snapshot FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-arrow-up-restores-an-older-viewport-snapshot.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-arrow-up-restores-an-older-viewport-snapshot.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-arrow-up-restores-an-older-viewport-snapshot.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-arrow-up-restores-an-older-viewport-snapshot.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E visibly scrolls after repeated newline output FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-multi-line-output-scrolls-visibly-after-repeated-newlines.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-multi-line-output-scrolls-visibly-after-repeated-newlines.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-multi-line-output-scrolls-visibly-after-repeated-newlines.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-multi-line-output-scrolls-visibly-after-repeated-newlines.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E blanks the last visible character cell on Backspace FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-backspace-blanks-the-last-visible-character-cell.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-backspace-blanks-the-last-visible-character-cell.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-backspace-blanks-the-last-visible-character-cell.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-backspace-blanks-the-last-visible-character-cell.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E rewinds across scrolled blank lines on Backspace FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-backspace-rewinds-across-scrolled-blank-lines.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-backspace-rewinds-across-scrolled-blank-lines.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-backspace-rewinds-across-scrolled-blank-lines.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/ui-interaction-i386-backspace-rewinds-across-scrolled-blank-lines.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E moves visible output to the next row on Enter FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-newline-moves-visible-output-to-the-next-row.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-newline-moves-visible-output-to-the-next-row.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-newline-moves-visible-output-to-the-next-row.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/ui-interaction-i386-newline-moves-visible-output-to-the-next-row.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E wraps visible output onto the next row at line end FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-end-of-line-wrap-continues-on-the-next-row.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-end-of-line-wrap-continues-on-the-next-row.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-end-of-line-wrap-continues-on-the-next-row.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/ui-interaction-i386-end-of-line-wrap-continues-on-the-next-row.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E restores a scrolled terminal viewport after switching away and back FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-switching-back-to-a-scrolled-terminal-restores-its-viewport.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-switching-back-to-a-scrolled-terminal-restores-its-viewport.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-switching-back-to-a-scrolled-terminal-restores-its-viewport.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-1/build/ui-interaction-i386-switching-back-to-a-scrolled-terminal-restores-its-viewport.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] release kernel does not export removed VGA ABI symbols PASS
+[BOOT TESTS] host-driven VNC E2E renders the boot text with the default visible VGA colors FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/vga-memory-i386-vga-buffer-uses-default-attribute.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/vga-memory-i386-vga-buffer-uses-default-attribute.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/vga-memory-i386-vga-buffer-uses-default-attribute.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-0/build/vga-memory-i386-vga-buffer-uses-default-attribute.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E shows the boot text in the visible top-left screen region FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/vga-memory-i386-vga-buffer-starts-with-42.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/vga-memory-i386-vga-buffer-starts-with-42.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/vga-memory-i386-vga-buffer-starts-with-42.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-3/build/vga-memory-i386-vga-buffer-starts-with-42.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] host-driven VNC E2E keeps the visible boot text stable across repeated framebuffer captures FAIL
+  FAIL: qemu sockets did not appear after boot in time
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/vga-memory-i386-vga-buffer-stable-across-snapshots.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/vga-memory-i386-vga-buffer-stable-across-snapshots.qmp' is too long
+  Path must be less than 108 bytes
+  qemu-system-i386: -qmp unix:/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/vga-memory-i386-vga-buffer-stable-across-snapshots.qmp,server,nowait: UNIX socket path '/home/motero/Code/kfs-1/.tmp/test-host-workspaces.5Dkhu3/worker-2/build/vga-memory-i386-vga-buffer-stable-across-snapshots.qmp' is too long
+  Path must be less than 108 bytes
+[BOOT TESTS] driver VGA writer files exist and define writer helpers PASS
+[BOOT TESTS] core init uses services console instead of driver ABI PASS
+[BOOT TESTS] services console uses the VGA driver facade PASS

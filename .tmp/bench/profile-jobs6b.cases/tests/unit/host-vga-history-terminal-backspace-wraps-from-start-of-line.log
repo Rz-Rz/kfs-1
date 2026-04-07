@@ -1,0 +1,6 @@
+
+running 1 test
+test terminal_backspace_at_line_wrap_deletes_last_character_of_previous_row ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+

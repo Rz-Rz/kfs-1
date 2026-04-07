@@ -1,6 +1,7 @@
 # Test Framework Notes
 
 This directory is part of the shell-based test framework used by `scripts/test-host.sh`.
+The canonical entrypoints run that runner through the toolchain container.
 
 The current philosophy is:
 
@@ -13,7 +14,7 @@ This document exists mainly to make rebases easier for branches that still use t
 
 ## Directory Layout
 
-The host runner currently executes these sections:
+The container-backed runner currently executes these sections:
 
 - `scripts/tests/`
 - `scripts/architecture-tests/`
@@ -38,7 +39,7 @@ For a script to be discoverable by `scripts/test-host.sh`, it must:
 bash path/to/script.sh <arch> <case>
 ```
 
-The host runner does this:
+The runner does this:
 
 1. Finds `*.sh` files recursively in the section directory.
 2. Calls each script with `--list`.
@@ -47,8 +48,10 @@ The host runner does this:
 
 Hardcoded runner sections and their order are:
 
-- `SETUP`
-- `TESTS`
+- `TOOLCHAIN`
+- `BUILD`
+- `ARTIFACT CHECKS`
+- `HOST UNIT TESTS`
 - `ARCHITECTURE TESTS`
 - `STABILITY TESTS`
 - `REJECTION TESTS`
@@ -56,8 +59,31 @@ Hardcoded runner sections and their order are:
 
 That means the real unit of discovery is the listed case, not the script file.
 
+## Parallel Execution
+
+The runner now treats discovered test cases as schedulable jobs after `LINT`, `TOOLCHAIN`, and `BUILD`.
+
+- `LINT`, `TOOLCHAIN`, and `BUILD` stay serial because they prepare the shared toolchain and artifacts up front.
+- The remaining discovered cases run through a bounded worker pool one section at a time.
+- Use `KFS_TEST_JOBS=<n>` to override the worker count, or leave it unset / `auto` to use the runner default.
+- The suite-wide lock in `scripts/with-test-suite-lock.sh` still keeps two full `make test` runs from trampling each other.
+- Host-unit cases under `scripts/tests/unit/` stay in the main workspace.
+- Artifact checks also stay in the main workspace.
+- Heavyweight architecture/stability/rejection/boot cases run inside copied worker workspaces so they can mutate `build/` independently.
+- Set `KFS_KEEP_TEST_WORKSPACES=1` if you want to keep those copied worker repos around for debugging after a run.
+
+In practice this means:
+
+- Pure host Rust unit tests and source-pattern checks can overlap freely.
+- Build-heavy, QEMU, architecture, stability, and rejection/runtime cases can overlap across isolated worker copies instead of serializing behind one shared `build/` tree.
+- If a new test writes a fixed path under `build/`, either give it a per-case path or wrap the critical section with `scripts/with-build-lock.sh`.
+- When a test needs shared production artifacts, prefer the Makefile-owned targets such as `make test-artifacts` and let the `Makefile` own the Dockerized compile steps.
+- Reproducibility proofs are also Makefile-owned now; use `make reproducible-builds` instead of rebuilding ad hoc inside a script.
+- Rejection and reproducibility scripts should stay as stamp consumers; keep proof generation in Makefile targets instead of reintroducing script-local reference builders.
+- Avoid re-introducing shell wrapper entrypoints for compilation; keep compile ownership in `Makefile`.
+
 Release-artifact proofs live in `scripts/tests/00-release-artifacts.sh` so they run in the
-`TESTS` section before later destructive rebuild cases can remove the tracked deliverables.
+`ARTIFACT CHECKS` section after the `BUILD` stage has produced the canonical deliverables.
 
 ## Naming Rules
 

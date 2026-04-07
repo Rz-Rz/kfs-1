@@ -1,0 +1,2 @@
+PASS src: driver-level VGA color API
+PASS src: writer-level VGA color state accessors

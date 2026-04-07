@@ -1,0 +1,2 @@
+FAIL build/kernel-i386.bin: missing Rust entry symbol (expected: T kmain)
+001020ed T kmain

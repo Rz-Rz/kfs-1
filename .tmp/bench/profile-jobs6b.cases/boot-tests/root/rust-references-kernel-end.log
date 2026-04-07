@@ -1,0 +1,1 @@
+PASS src/kernel/core/entry.rs: kernel_end

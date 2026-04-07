@@ -74,7 +74,9 @@ assert_kernel_symbol_type() {
 	local kernel
 	kernel="$(kernel_path)"
 
-	nm -n "${kernel}" | grep -qE "${pattern}" ||
+	local symbol_table
+	symbol_table="$(nm -n "${kernel}")"
+	grep -qE "${pattern}" <<<"${symbol_table}" ||
 		die "expected ${expected} proof missing in ${kernel}"
 }
 
@@ -154,18 +156,6 @@ run_direct_case() {
 	esac
 }
 
-run_host_case() {
-	case "${CASE}" in
-	rodata-wildcard-capture | data-wildcard-capture | bss-wildcard-capture | common-wildcard-capture)
-		run_direct_case
-		return 0
-		;;
-	esac
-
-	bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-		bash -lc "make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/stability-tests/section-stability.sh '${ARCH}' '${CASE}'"
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -178,11 +168,6 @@ main() {
 	fi
 
 	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
-
-	if [[ -n "${CASE}" ]] && describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
-		return 0
-	fi
 
 	run_direct_case
 }

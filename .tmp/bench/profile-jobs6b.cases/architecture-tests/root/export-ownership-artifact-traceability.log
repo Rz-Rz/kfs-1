@@ -1,0 +1,2 @@
+FAIL export-ownership-artifact-traceability: artifact export ownership traceability failed
+missing source owner declaration for kmain

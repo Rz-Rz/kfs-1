@@ -1,0 +1,1 @@
+PASS screen-cell-missing-repr-c-fails: ScreenCell repr(C) marker rejected

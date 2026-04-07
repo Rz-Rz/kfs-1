@@ -1,0 +1,1 @@
+PASS core-init-avoids-raw-hw-and-asm: core avoids raw hardware access and inline asm

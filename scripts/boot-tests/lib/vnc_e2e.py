@@ -1114,7 +1114,7 @@ def _create_terminal_label_steps(target_count: int) -> list[dict]:
             "op": "capture_wait_foreground",
             "name": _label_sample_name(0),
             "region": "top_right_label",
-            "timeout_secs": 3.0,
+            "timeout_secs": 8.0,
             "wait_boot": True,
             "message": "alpha terminal label did not appear",
         }
@@ -1130,7 +1130,7 @@ def _create_terminal_label_steps(target_count: int) -> list[dict]:
                     "name": _label_sample_name(index),
                     "region": "top_right_label",
                     "message": f"F11 bootstrap to {TERMINAL_LABEL_NAMES[index]} failed",
-                    "timeout_secs": 3.0,
+                    "timeout_secs": 5.0,
                 },
             ]
         )
@@ -1158,7 +1158,7 @@ def _selection_matrix_steps(keys: list[str], target_count: int, use_chord: bool)
                     "name": f"selected_{key.lower()}",
                     "region": "top_right_label",
                     "message": f"{key} did not select terminal {index}",
-                    "timeout_secs": 3.0,
+                    "timeout_secs": 5.0,
                 },
                 {
                     "op": "assert_eq",
@@ -1924,9 +1924,10 @@ SCENARIOS["backspace-blanks-the-last-visible-character-cell"] = [
     },
 ]
 # This case drives 59 rapid key events before waiting for the framebuffer to settle. Give it
-# extra slack so slower QEMU/VNC runs still observe the final rewound framebuffer state.
+# enough slack for section-parallel boot runs, where several QEMU/VNC cases may still be
+# contending for CPU while the framebuffer catches up to the final rewound state.
 BACKSPACE_REWIND_STEP_DELAY_SECS = 0.25
-BACKSPACE_REWIND_TIMEOUT_SECS = 30.0
+BACKSPACE_REWIND_TIMEOUT_SECS = 360.0
 
 SCENARIOS["backspace-rewinds-across-scrolled-blank-lines"] = [
     *_fresh_terminal_blank_steps("beta_blank"),

@@ -56,15 +56,27 @@ build_kernel() {
 	[[ -r "${KERNEL_PATH}" ]] || die "missing artifact: ${KERNEL_PATH}"
 }
 
+kernel_path_for_preset() {
+	local preset="$1"
+
+	case "${preset}" in
+	vga80x25) printf 'build/kernel-%s.bin\n' "${ARCH}" ;;
+	compact40x10) printf 'build/kernel-%s-compact40x10.bin\n' "${ARCH}" ;;
+	*) die "unknown preset: ${preset}" ;;
+	esac
+}
+
 assert_kernel_has_only_approved_simd() {
 	local preset="$1"
+	local kernel
 	local disassembly
 	local current_symbol=""
 	local failures=()
 	local line
 
-	build_kernel "${preset}"
-	disassembly="$(objdump -Cd "${KERNEL_PATH}")"
+	kernel="$(kernel_path_for_preset "${preset}")"
+	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make test-artifacts arch=${ARCH})"
+	disassembly="$(objdump -Cd "${kernel}")"
 
 	while IFS= read -r line; do
 		if [[ "${line}" =~ ^[[:xdigit:]]+[[:space:]]+\<(.+)\>\:$ ]]; then
@@ -88,12 +100,12 @@ assert_kernel_has_only_approved_simd() {
 	done <<<"${disassembly}"
 
 	if ((${#failures[@]} > 0)); then
-		echo "FAIL ${KERNEL_PATH}: found SIMD/MMX/SSE instructions outside approved memory backends"
+		echo "FAIL ${kernel}: found SIMD/MMX/SSE instructions outside approved memory backends"
 		printf '%s\n' "${failures[@]:0:20}"
 		return 1
 	fi
 
-	echo "PASS ${KERNEL_PATH}: freestanding build limited SIMD usage to approved state-management instructions and owned memory backends"
+	echo "PASS ${kernel}: freestanding build limited SIMD usage to approved state-management instructions and owned memory backends"
 }
 
 run_case() {
@@ -116,18 +128,6 @@ run_case() {
 	esac
 }
 
-run_host_case() {
-	case "${CASE}" in
-	makefile-uses-non-simd-rust-target)
-		run_case
-		return 0
-		;;
-	esac
-
-	bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-		bash -lc "KFS_HOST_TEST_DIRECT=1 bash scripts/stability-tests/freestanding-simd.sh '${ARCH}' '${CASE}'"
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -140,11 +140,6 @@ main() {
 	fi
 
 	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
-
-	if [[ -n "${CASE}" ]] && describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
-		return 0
-	fi
 
 	run_case
 }

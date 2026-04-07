@@ -18,7 +18,7 @@ EOF
 describe_case() {
 	case "$1" in
 	architecture-section-present-in-manifest) printf '%s\n' "manifest publishes the architecture test section" ;;
-	architecture-section-order-is-stable) printf '%s\n' "manifest keeps architecture tests between unit tests and stability tests" ;;
+	architecture-section-order-is-stable) printf '%s\n' "manifest keeps architecture tests between host unit tests and stability tests" ;;
 	tui-recognizes-architecture-section) printf '%s\n' "TUI recognizes ARCHITECTURE TESTS as a first-class section" ;;
 	architecture-panel-label-is-arch) printf '%s\n' "TUI renders ARCH as the architecture section label" ;;
 	architecture-panel-title-is-updated) printf '%s\n' "TUI panel title includes architecture" ;;
@@ -54,18 +54,18 @@ assert_architecture_section_present() {
 }
 
 assert_architecture_section_order() {
-	local manifest tests_line arch_line stability_line
+	local manifest unit_line arch_line stability_line
 	manifest="$(manifest_output)"
-	tests_line="$(grep -n '^KFS_EVENT|section_total|TESTS|' <<<"${manifest}" | cut -d: -f1)"
+	unit_line="$(grep -n '^KFS_EVENT|section_total|HOST UNIT TESTS|' <<<"${manifest}" | cut -d: -f1)"
 	arch_line="$(grep -n '^KFS_EVENT|section_total|ARCHITECTURE TESTS|' <<<"${manifest}" | cut -d: -f1)"
 	stability_line="$(grep -n '^KFS_EVENT|section_total|STABILITY TESTS|' <<<"${manifest}" | cut -d: -f1)"
 
-	[[ -n "${tests_line}" && -n "${arch_line}" && -n "${stability_line}" ]] || {
+	[[ -n "${unit_line}" && -n "${arch_line}" && -n "${stability_line}" ]] || {
 		echo "FAIL ${CASE}: missing section_total ordering markers"
 		return 1
 	}
 
-	[[ "${tests_line}" -lt "${arch_line}" && "${arch_line}" -lt "${stability_line}" ]] || {
+	[[ "${unit_line}" -lt "${arch_line}" && "${arch_line}" -lt "${stability_line}" ]] || {
 		echo "FAIL ${CASE}: architecture section order drifted"
 		return 1
 	}
@@ -86,7 +86,7 @@ assert_architecture_panel_label() {
 }
 
 assert_architecture_panel_title() {
-	rg -n 'PANEL_TITLES = \[' -A4 scripts/kfs_tui.py | grep -q 'ARCHITECTURE / STABILITY / REJECTION' || {
+	rg -n 'PANEL_TITLES = \[' -A8 scripts/kfs_tui.py | grep -q 'Contracts / Proofs' || {
 		echo "FAIL ${CASE}: missing architecture panel title"
 		return 1
 	}

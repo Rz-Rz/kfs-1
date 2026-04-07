@@ -1,0 +1,1 @@
+PASS kernel-entrypoint-not-root-fails: non-root kernel source entrypoint rejected

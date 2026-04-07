@@ -1,0 +1,1 @@
+PASS makefile-does-not-compile-src-kernel-peers-individually: Makefile avoids per-file kernel peer compilation

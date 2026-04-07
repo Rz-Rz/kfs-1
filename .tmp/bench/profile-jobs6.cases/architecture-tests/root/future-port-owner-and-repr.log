@@ -1,0 +1,3 @@
+PASS src: Port owned by src/kernel/machine/port.rs
+PASS src: Port owned by src/kernel/machine/port.rs owned only by src/kernel/machine/port.rs
+PASS src: Port repr(transparent)

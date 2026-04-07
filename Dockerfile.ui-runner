@@ -1,0 +1,15 @@
+FROM ubuntu:22.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    bash \
+    coreutils \
+    qemu-system-x86 \
+    qemu-system-gui \
+    socat \
+    tigervnc-viewer \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work

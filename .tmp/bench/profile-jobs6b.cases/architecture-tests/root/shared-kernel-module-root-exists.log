@@ -1,0 +1,1 @@
+PASS shared-kernel-module-root-exists: src/kernel/mod.rs exists

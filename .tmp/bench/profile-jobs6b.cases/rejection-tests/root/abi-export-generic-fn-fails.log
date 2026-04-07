@@ -1,0 +1,1 @@
+PASS abi-export-generic-fn-fails: generic function in ABI export rejected

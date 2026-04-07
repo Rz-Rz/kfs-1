@@ -1,0 +1,1 @@
+PASS kernel-sources-glob-fails: src/kernel/*.rs glob in rust_source_files rejected

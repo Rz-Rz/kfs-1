@@ -130,18 +130,21 @@ assert_no_memory_pattern() {
 
 run_host_tests() {
 	local filter="$1"
-	local test_bin="build/ut_memory"
+	local test_bin="build/ut_memory_${filter%_}"
 
 	run_host_rust_test "${TEST_SOURCE}" "${test_bin}" "${filter}"
 }
 
 assert_release_symbol() {
 	local symbol="$1"
+	local kernel="build/kernel-${ARCH}.bin"
 
-	bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-		bash -lc "make -B all arch='${ARCH}' >/dev/null && nm -n 'build/kernel-${ARCH}.bin' | grep -qE '[[:space:]]T[[:space:]]+${symbol}$'"
+	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make test-artifacts arch=${ARCH})"
+	local symbol_table
+	symbol_table="$(nm -n "${kernel}")"
+	grep -qE "[[:space:]]T[[:space:]]+${symbol}$" <<<"${symbol_table}"
 
-	echo "PASS build/kernel-${ARCH}.bin: ${symbol}"
+	echo "PASS ${kernel}: ${symbol}"
 }
 
 run_direct_case() {

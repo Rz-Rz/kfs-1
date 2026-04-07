@@ -1,0 +1,1 @@
+PASS core-init-calls-simd-policy-service: core init uses services-owned SIMD policy initialization

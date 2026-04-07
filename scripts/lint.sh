@@ -32,10 +32,7 @@ run_direct() {
 }
 
 run_in_container() {
-	bash "${ROOT_DIR}/scripts/container.sh" build-image
-	exec bash "${ROOT_DIR}/scripts/with-build-lock.sh" \
-		bash "${ROOT_DIR}/scripts/container.sh" run -- \
-		env KFS_HOST_TEST_DIRECT=1 bash /work/scripts/lint-runner.sh
+	exec make --no-print-directory -C "${ROOT_DIR}" lint
 }
 
 if [[ "${KFS_HOST_TEST_DIRECT:-0}" == "1" ]]; then

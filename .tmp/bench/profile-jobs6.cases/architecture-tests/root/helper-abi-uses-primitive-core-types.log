@@ -1,0 +1,4 @@
+PASS src: no_mangle helper export
+PASS src: extern C helper export
+PASS src: extern C memory helper export
+PASS src: forbidden ABI types in helper exports

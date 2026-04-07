@@ -8,12 +8,14 @@ DOCKERFILE="Dockerfile"
 list_cases() {
 	cat <<'EOF'
 dockerfile-pins-ubuntu-apt-snapshot
+dockerfile-pins-base-and-tool-versions
 EOF
 }
 
 describe_case() {
 	case "$1" in
 	dockerfile-pins-ubuntu-apt-snapshot) printf '%s\n' "Dockerfile pins Ubuntu apt sources to a fixed snapshot timestamp" ;;
+	dockerfile-pins-base-and-tool-versions) printf '%s\n' "Dockerfile pins the base image digest and toolchain versions" ;;
 	*) return 1 ;;
 	esac
 }
@@ -41,8 +43,14 @@ run_case() {
 		assert_pattern 'sha256sum -c -' 'checksum verification for bootstrap deb'
 		assert_pattern 'snapshot\.ubuntu\.com/ubuntu/\$\{UBUNTU_SNAPSHOT\}/' 'direct snapshot apt source rewrite'
 		;;
+	dockerfile-pins-base-and-tool-versions)
+		assert_pattern '^FROM ubuntu:22\.04@sha256:' 'pinned Ubuntu base image digest'
+		assert_pattern '^ARG RUST_TOOLCHAIN=' 'pinned Rust toolchain version'
+		assert_pattern '^ARG RUFF_VERSION=' 'pinned ruff version'
+		assert_pattern '^ARG BLACK_VERSION=' 'pinned black version'
+		;;
 	*)
-		die "usage: $0 <arch> {dockerfile-pins-ubuntu-apt-snapshot}"
+		die "usage: $0 <arch> {dockerfile-pins-ubuntu-apt-snapshot|dockerfile-pins-base-and-tool-versions}"
 		;;
 	esac
 }

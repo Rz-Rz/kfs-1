@@ -1,0 +1,1 @@
+PASS makefile-does-not-glob-src-kernel-peers: Makefile does not reference src/kernel/*.rs in Rust source selection

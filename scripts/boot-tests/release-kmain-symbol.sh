@@ -3,6 +3,8 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-release-kernel-exports-kmain}"
+# shellcheck disable=SC2034
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 
 list_cases() {
 	cat <<'EOF'
@@ -24,11 +26,13 @@ die() {
 
 assert_kmain_symbol() {
 	local kernel="$1"
+	local symbol_table
 	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make all/iso arch=${ARCH})"
+	symbol_table="$(nm -n "${kernel}")"
 
-	if ! nm -n "${kernel}" | grep -qE '[[:space:]]T[[:space:]]+kmain$'; then
+	if ! awk '$2 == "T" && $3 == "kmain" { found = 1 } END { exit(found ? 0 : 1) }' <<<"${symbol_table}"; then
 		echo "FAIL ${kernel}: missing Rust entry symbol (expected: T kmain)"
-		nm -n "${kernel}" | grep -E '\bkmain\b' || true
+		grep -E '\bkmain\b' <<<"${symbol_table}" || true
 		return 1
 	fi
 }
@@ -39,12 +43,6 @@ run_direct() {
 	assert_kmain_symbol "build/kernel-${ARCH}.bin"
 }
 
-run_host_case() {
-	bash scripts/with-build-lock.sh \
-		bash scripts/container.sh run -- \
-		bash -lc "make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/release-kmain-symbol.sh '${ARCH}' '${CASE}'"
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -53,11 +51,6 @@ main() {
 
 	if [[ "${ARCH}" == "--description" ]]; then
 		describe_case "${CASE}"
-		return 0
-	fi
-
-	if describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
 		return 0
 	fi
 

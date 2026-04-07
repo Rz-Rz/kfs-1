@@ -1,0 +1,1 @@
+PASS test-only-path-switching-fails: cfg(test) path switching in kernel source rejected

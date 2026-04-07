@@ -1,0 +1,1 @@
+PASS simd-intrinsics-outside-owned-files-fails: typed SIMD intrinsics outside approved files rejected

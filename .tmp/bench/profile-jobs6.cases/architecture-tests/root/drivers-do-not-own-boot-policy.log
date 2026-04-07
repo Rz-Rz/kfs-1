@@ -1,0 +1,2 @@
+PASS drivers-do-not-own-boot-policy: upward dependencies from drivers into core/services absent
+PASS drivers-do-not-own-boot-policy: boot policy surface owned in drivers absent

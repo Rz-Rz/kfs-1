@@ -1,0 +1,1 @@
+PASS cursor-pos-missing-repr-c-fails: CursorPos repr(C) marker rejected

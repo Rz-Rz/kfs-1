@@ -46,6 +46,8 @@ ACTIVE_CYCLE_SECS = 5.0
 ACTIVE_SEGMENT_RATIO = 0.10
 RUNNER_TICK_SECS = 0.05
 MAX_ACTIVE_CELLS = 128
+GRID_COLUMNS = 3
+GRID_ROWS = 2
 
 CSS = f"""
 Screen {{
@@ -76,7 +78,7 @@ Screen {{
 }}
 
 #grid {{
-    grid-size: 2 2;
+    grid-size: 3 2;
     grid-gutter: 0 1;
     padding: 0 1;
     height: 1fr;
@@ -225,8 +227,10 @@ ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 EVENT_PREFIX = "KFS_EVENT|"
 KNOWN_SECTIONS = {
     "LINT",
-    "SETUP",
-    "TESTS",
+    "TOOLCHAIN",
+    "BUILD",
+    "ARTIFACT CHECKS",
+    "HOST UNIT TESTS",
     "ARCHITECTURE TESTS",
     "STABILITY TESTS",
     "REJECTION TESTS",
@@ -234,24 +238,37 @@ KNOWN_SECTIONS = {
 }
 SECTION_TO_PANEL = {
     "LINT": 0,
-    "SETUP": 0,
-    "TESTS": 1,
-    "ARCHITECTURE TESTS": 2,
-    "STABILITY TESTS": 2,
-    "REJECTION TESTS": 2,
-    "BOOT TESTS": 3,
+    "TOOLCHAIN": 0,
+    "BUILD": 1,
+    "ARTIFACT CHECKS": 2,
+    "HOST UNIT TESTS": 3,
+    "ARCHITECTURE TESTS": 4,
+    "STABILITY TESTS": 4,
+    "REJECTION TESTS": 4,
+    "BOOT TESTS": 5,
 }
-PANEL_TITLES = ["LINT / SETUP", "TESTS", "ARCHITECTURE / STABILITY / REJECTION", "BOOT TESTS"]
+PANEL_TITLES = [
+    "Lint / Toolchain",
+    "Artifact Build",
+    "Artifact Checks",
+    "Host Unit Tests",
+    "Contracts / Proofs",
+    "Boot / Runtime",
+]
 PANEL_SECTIONS = {
-    0: ["LINT", "SETUP"],
-    1: ["TESTS"],
-    2: ["ARCHITECTURE TESTS", "STABILITY TESTS", "REJECTION TESTS"],
-    3: ["BOOT TESTS"],
+    0: ["LINT", "TOOLCHAIN"],
+    1: ["BUILD"],
+    2: ["ARTIFACT CHECKS"],
+    3: ["HOST UNIT TESTS"],
+    4: ["ARCHITECTURE TESTS", "STABILITY TESTS", "REJECTION TESTS"],
+    5: ["BOOT TESTS"],
 }
 SECTION_LABELS = {
     "LINT": "LINT",
-    "SETUP": "SETUP",
-    "TESTS": "TESTS",
+    "TOOLCHAIN": "TOOLCHAIN",
+    "BUILD": "BUILD",
+    "ARTIFACT CHECKS": "ARTIFACT",
+    "HOST UNIT TESTS": "UNIT",
     "ARCHITECTURE TESTS": "ARCH",
     "STABILITY TESTS": "STABILITY",
     "REJECTION TESTS": "REJECTION",
@@ -282,41 +299,39 @@ BOOT_FRAMES = [
 DEMO_LINES = """KFS_EVENT|suite|i386
 KFS_EVENT|suite_total|6
 KFS_EVENT|section_total|LINT|1
-KFS_EVENT|section_total|SETUP|3
-KFS_EVENT|section_total|ARCHITECTURE TESTS|1
-KFS_EVENT|section_total|BOOT TESTS|2
+KFS_EVENT|section_total|TOOLCHAIN|2
+KFS_EVENT|section_total|BUILD|1
+KFS_EVENT|section_total|HOST UNIT TESTS|1
+KFS_EVENT|section_total|BOOT TESTS|1
 KFS_EVENT|declare|LINT|-|Run lint checks|-|-
-KFS_EVENT|declare|SETUP|-|Rebuild the container toolchain image|-|-
-KFS_EVENT|declare|SETUP|-|Verify tools exist|-|-
-KFS_EVENT|declare|SETUP|-|Verify host test tools exist|-|-
+KFS_EVENT|declare|TOOLCHAIN|-|Ensure the toolchain container image is ready|-|-
+KFS_EVENT|declare|TOOLCHAIN|-|Validate the container toolchain environment|-|-
+KFS_EVENT|declare|BUILD|-|Build canonical release ISO and IMG artifacts|-|-
 KFS_EVENT|section|LINT
 KFS_EVENT|start|LINT|-|Run lint checks|-|-
 Run lint checks PASS
 KFS_EVENT|result|LINT|-|Run lint checks|pass|-|-
-KFS_EVENT|declare|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
+KFS_EVENT|declare|HOST UNIT TESTS|-|host string helper unit tests pass through the real crate boundary|scripts/tests/unit/string-helpers.sh|host-strlen-unit-tests-pass
 KFS_EVENT|declare|BOOT TESTS|-|runtime reaches Rust kmain|scripts/boot-tests/release-kmain-symbol.sh|runtime-reaches-kmain
-KFS_EVENT|declare|BOOT TESTS|-|runtime markers appear in the expected order|scripts/boot-tests/runtime-markers.sh|runtime-markers-ordered
-KFS_EVENT|section|SETUP
-KFS_EVENT|start|SETUP|-|Rebuild the container toolchain image|-|-
-Rebuild the container toolchain image PASS
-KFS_EVENT|result|SETUP|-|Rebuild the container toolchain image|pass|-|-
-KFS_EVENT|start|SETUP|-|Verify tools exist|-|-
-Verify tools exist PASS
-KFS_EVENT|result|SETUP|-|Verify tools exist|pass|-|-
-KFS_EVENT|start|SETUP|-|Verify host test tools exist|-|-
-Verify host test tools exist PASS
-KFS_EVENT|result|SETUP|-|Verify host test tools exist|pass|-|-
-KFS_EVENT|section|ARCHITECTURE TESTS
-KFS_EVENT|start|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
-kernel architecture files stay in allowed directories PASS
-KFS_EVENT|result|ARCHITECTURE TESTS|-|kernel architecture files stay in allowed directories|pass|scripts/architecture-tests/kernel-architecture.sh|target-tree-has-kernel-root
+KFS_EVENT|section|TOOLCHAIN
+KFS_EVENT|start|TOOLCHAIN|-|Ensure the toolchain container image is ready|-|-
+Ensure the toolchain container image is ready PASS
+KFS_EVENT|result|TOOLCHAIN|-|Ensure the toolchain container image is ready|pass|-|-
+KFS_EVENT|start|TOOLCHAIN|-|Validate the container toolchain environment|-|-
+Validate the container toolchain environment PASS
+KFS_EVENT|result|TOOLCHAIN|-|Validate the container toolchain environment|pass|-|-
+KFS_EVENT|section|BUILD
+KFS_EVENT|start|BUILD|-|Build canonical release ISO and IMG artifacts|-|-
+Build canonical release ISO and IMG artifacts PASS
+KFS_EVENT|result|BUILD|-|Build canonical release ISO and IMG artifacts|pass|-|-
+KFS_EVENT|section|HOST UNIT TESTS
+KFS_EVENT|start|HOST UNIT TESTS|-|host string helper unit tests pass through the real crate boundary|scripts/tests/unit/string-helpers.sh|host-strlen-unit-tests-pass
+host string helper unit tests pass through the real crate boundary PASS
+KFS_EVENT|result|HOST UNIT TESTS|-|host string helper unit tests pass through the real crate boundary|pass|scripts/tests/unit/string-helpers.sh|host-strlen-unit-tests-pass
 KFS_EVENT|section|BOOT TESTS
 KFS_EVENT|start|BOOT TESTS|-|runtime reaches Rust kmain|scripts/boot-tests/release-kmain-symbol.sh|runtime-reaches-kmain
 runtime reaches Rust kmain PASS
 KFS_EVENT|result|BOOT TESTS|-|runtime reaches Rust kmain|pass|scripts/boot-tests/release-kmain-symbol.sh|runtime-reaches-kmain
-KFS_EVENT|start|BOOT TESTS|-|runtime markers appear in the expected order|scripts/boot-tests/runtime-markers.sh|runtime-markers-ordered
-runtime markers appear in the expected order PASS
-KFS_EVENT|result|BOOT TESTS|-|runtime markers appear in the expected order|pass|scripts/boot-tests/runtime-markers.sh|runtime-markers-ordered
 KFS_EVENT|summary|pass""".splitlines()
 
 
@@ -806,6 +821,13 @@ class MetricsBar(Vertical):
                 widget.add_class("metric-card-idle")
 
 
+def runner_command(target: str, arch: str) -> list[str]:
+    normalized = "test-host" if target == "test-plain" else target
+    if normalized == "test-host":
+        return ["bash", "scripts/test-host.sh", arch]
+    raise ValueError(f"unsupported runner target: {target}")
+
+
 class KFSApp(App):
     CSS = CSS
     BINDINGS = [
@@ -814,18 +836,19 @@ class KFSApp(App):
         Binding("escape", "quit", "Quit"),
     ]
 
-    def __init__(self, mode: str, arch: str, make_target: str, **kwargs):
+    def __init__(self, mode: str, arch: str, runner_target: str, **kwargs):
         super().__init__(**kwargs)
         self.mode = mode
         self.arch = arch
-        self.make_target = make_target
+        self.runner_target = runner_target
+        self.hold_open = os.environ.get("KFS_TUI_HOLD", "0") == "1"
         self.current_section: Optional[str] = None
         self.suite_total = 0
         self.discovered_total = 0
         self.passed = 0
         self.failed = 0
         self.active_runner_started_at: Optional[float] = None
-        self.active_panel: Optional[int] = None
+        self.active_panel_counts: dict[int, int] = {}
         self.expanded_panel: Optional[int] = None
         self.done = False
         self.boot_done = False
@@ -851,6 +874,8 @@ class KFSApp(App):
             cards=[],
         )
         self.run_started_at: Optional[float] = None
+        self.final_return_code = 0
+        self.auto_exit_scheduled = False
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
@@ -895,7 +920,7 @@ class KFSApp(App):
             self.call_from_thread(overlay.set_frame, frame)
             time.sleep(0.45)
         manifest_loaded = False
-        if self.mode == "make":
+        if self.mode == "runner":
             manifest_loaded = self._prefetch_manifest()
         self.call_from_thread(self._hide_boot)
         time.sleep(0.2)
@@ -911,7 +936,9 @@ class KFSApp(App):
             if manifest_loaded:
                 env["KFS_TUI_SKIP_MANIFEST"] = "1"
             process = subprocess.Popen(
-                ["make", self.make_target, f"arch={self.arch}"],
+                runner_command(self.runner_target, self.arch),
+                cwd=self.repo_root,
+                stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -931,6 +958,7 @@ class KFSApp(App):
 
         process = subprocess.run(
             ["bash", "scripts/test-host.sh", "--manifest", self.arch],
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -983,9 +1011,9 @@ class KFSApp(App):
         if stripped.endswith(" PASS") or stripped.endswith(" FAIL"):
             passed = stripped.endswith(" PASS")
             name = stripped[:-5].strip()
-            section = self.current_section or "SETUP"
+            section = self.current_section or "TOOLCHAIN"
             subgroup = "-"
-            panel_index = SECTION_TO_PANEL.get(self.current_section or "SETUP", 0)
+            panel_index = SECTION_TO_PANEL.get(self.current_section or "TOOLCHAIN", 0)
             if passed:
                 self.call_from_thread(
                     self._complete_item, panel_index, section, subgroup, name, True, []
@@ -1140,6 +1168,21 @@ class KFSApp(App):
             self._update_bar()
             self._update_panel_summaries()
 
+    def _active_job_count(self) -> int:
+        return sum(self.active_panel_counts.values())
+
+    def _panel_is_active(self, panel_index: int) -> bool:
+        return self.active_panel_counts.get(panel_index, 0) > 0
+
+    def _primary_active_panel(self) -> Optional[int]:
+        if self.expanded_panel is not None and self._panel_is_active(self.expanded_panel):
+            return self.expanded_panel
+
+        for panel_index in range(len(PANEL_TITLES)):
+            if self._panel_is_active(panel_index):
+                return panel_index
+        return None
+
     def _current_runner_progress(self) -> float:
         if self.active_runner_started_at is None:
             return 0.0
@@ -1165,12 +1208,13 @@ class KFSApp(App):
         if not self.active_cells:
             return
 
-        if self.active_panel is None:
+        panel_index = self._primary_active_panel()
+        if panel_index is None:
             self._hide_active_runner()
             return
 
         try:
-            panel = self.query_one(f"#panel_{self.active_panel}", TestPanel)
+            panel = self.query_one(f"#panel_{panel_index}", TestPanel)
         except Exception:
             self._hide_active_runner()
             return
@@ -1221,10 +1265,18 @@ class KFSApp(App):
         script_path: Optional[str] = None,
         test_case: Optional[str] = None,
     ) -> None:
-        if self.active_panel != panel_index or self.active_runner_started_at is None:
+        panel = self.query_one(f"#panel_{panel_index}", TestPanel)
+        item = panel._find_item(section, subgroup, name)
+        previous_status = item.status if item is not None else None
+        previous_primary = self._primary_active_panel()
+        if previous_status != "run":
+            self.active_panel_counts[panel_index] = self.active_panel_counts.get(panel_index, 0) + 1
+        current_primary = self._primary_active_panel()
+        if current_primary is not None and (
+            self.active_runner_started_at is None or current_primary != previous_primary
+        ):
             self.active_runner_started_at = time.monotonic()
-        self.active_panel = panel_index
-        self.query_one(f"#panel_{panel_index}", TestPanel).mark_running(
+        panel.mark_running(
             section,
             subgroup,
             name,
@@ -1248,7 +1300,19 @@ class KFSApp(App):
         panel = self.query_one(f"#panel_{panel_index}", TestPanel)
         item = panel._find_item(section, subgroup, name)
         previous_status = item.status if item is not None else None
+        previous_primary = self._primary_active_panel()
         panel.complete_item(section, subgroup, name, passed, error_log, script_path, test_case)
+        if previous_status == "run":
+            remaining = self.active_panel_counts.get(panel_index, 0) - 1
+            if remaining > 0:
+                self.active_panel_counts[panel_index] = remaining
+            else:
+                self.active_panel_counts.pop(panel_index, None)
+        current_primary = self._primary_active_panel()
+        if current_primary is None:
+            self.active_runner_started_at = None
+        elif current_primary != previous_primary:
+            self.active_runner_started_at = time.monotonic()
         if previous_status not in {"pass", "fail"}:
             if passed:
                 self.passed += 1
@@ -1278,10 +1342,15 @@ class KFSApp(App):
     def _update_top_status(self) -> None:
         total = max(self.suite_total or self.discovered_total, self.passed + self.failed, 1)
         done = self.passed + self.failed
+        active_jobs = self._active_job_count()
         active_label = (
             "FAILED"
             if self.done and self.failed
-            else "DONE" if self.done else (self.current_section or "WAITING")
+            else (
+                "DONE"
+                if self.done
+                else f"RUN {active_jobs}" if active_jobs else (self.current_section or "WAITING")
+            )
         )
         elapsed = self._elapsed_seconds()
         branch_label = self.current_branch
@@ -1292,6 +1361,7 @@ class KFSApp(App):
             f"[{AMBER}]arch[/]={self.arch}  "
             f"[{AMBER}]elapsed[/]={elapsed:4.1f}s  "
             f"[{RED_BRIGHT if active_label == 'FAILED' else AMBER}]active[/]={active_label}  "
+            f"[{AMBER}]run[/]={active_jobs}  "
             f"[{AMBER}]done[/]={done}/{total}  "
             f"[{GREEN_OK}]pass[/]={self.passed}  "
             f"[{RED_BRIGHT}]fail[/]={self.failed}"
@@ -1344,7 +1414,7 @@ class KFSApp(App):
                 state = "fail"
             elif panel_total > 0 and panel_done == panel_total:
                 state = "pass"
-            elif self.active_panel == panel_index:
+            elif self._panel_is_active(panel_index):
                 state = "active"
             else:
                 state = "idle"
@@ -1363,14 +1433,20 @@ class KFSApp(App):
             )
 
     def _finish(self, passed: bool) -> None:
+        if self.done:
+            return
         self.done = True
+        self.final_return_code = 0 if passed else 1
         self.active_runner_started_at = None
-        self.active_panel = None
+        self.active_panel_counts.clear()
         self._update_panel_summaries()
         self._refresh_metrics_display(reload_snapshot=True)
         self._sync_active_runner()
         self._update_top_status()
         self._update_rerun_button()
+        if not self.hold_open and not self.auto_exit_scheduled:
+            self.auto_exit_scheduled = True
+            self.set_timer(1.0, lambda: self.exit(return_code=self.final_return_code))
 
     def _tick(self) -> None:
         if self.boot_done and not self.done:
@@ -1381,7 +1457,7 @@ class KFSApp(App):
     def toggle_panel(self, panel_id: int) -> None:
         if self.expanded_panel == panel_id:
             self.expanded_panel = None
-            for index in range(4):
+            for index in range(len(PANEL_TITLES)):
                 panel = self.query_one(f"#panel_{index}", TestPanel)
                 panel.display = True
                 panel.remove_class("expanded")
@@ -1391,19 +1467,22 @@ class KFSApp(App):
             return
 
         self.expanded_panel = panel_id
-        for index in range(4):
+        for index in range(len(PANEL_TITLES)):
             panel = self.query_one(f"#panel_{index}", TestPanel)
             if index == panel_id:
                 panel.display = True
                 panel.add_class("expanded")
-                panel.styles.column_span = 2
-                panel.styles.row_span = 2
+                panel.styles.column_span = GRID_COLUMNS
+                panel.styles.row_span = GRID_ROWS
             else:
                 panel.display = False
         self.call_after_refresh(self._sync_active_runner)
 
     def action_quit(self) -> None:
-        self.exit()
+        if self.done:
+            self.exit(return_code=self.final_return_code)
+            return
+        self.exit(return_code=130)
 
     def action_rerun_failed(self) -> None:
         if self.last_failed_rerun is None or self.rerun_in_progress:
@@ -1429,6 +1508,7 @@ class KFSApp(App):
         process = subprocess.run(
             ["bash", script_path, self.arch, test_case],
             cwd=self.repo_root,
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -1456,14 +1536,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--arch", default="i386")
     parser.add_argument("--demo", action="store_true")
     parser.add_argument("--stdin", action="store_true")
-    parser.add_argument("--make-target", default="test-plain")
+    parser.add_argument("--runner-target", default="test-plain")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    mode = "demo" if args.demo else "stdin" if args.stdin else "make"
-    app = KFSApp(mode=mode, arch=args.arch, make_target=args.make_target)
+    mode = "demo" if args.demo else "stdin" if args.stdin else "runner"
+    app = KFSApp(mode=mode, arch=args.arch, runner_target=args.runner_target)
     app.run()
 
 

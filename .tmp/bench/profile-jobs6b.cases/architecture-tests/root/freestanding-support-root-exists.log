@@ -1,0 +1,1 @@
+PASS freestanding-support-root-exists: src/freestanding/mod.rs exists

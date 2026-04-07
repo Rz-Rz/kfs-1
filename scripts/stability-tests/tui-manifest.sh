@@ -61,7 +61,15 @@ assert_complete_manifest() {
 		return 1
 	}
 
-	for expected_section in "SETUP" "TESTS" "ARCHITECTURE TESTS" "STABILITY TESTS" "REJECTION TESTS" "BOOT TESTS"; do
+	for expected_section in \
+		"TOOLCHAIN" \
+		"BUILD" \
+		"ARTIFACT CHECKS" \
+		"HOST UNIT TESTS" \
+		"ARCHITECTURE TESTS" \
+		"STABILITY TESTS" \
+		"REJECTION TESTS" \
+		"BOOT TESTS"; do
 		awk -F'|' -v section="${expected_section}" '
       $2 == "section_total" && $3 == section { total = $4 + 0 }
       $2 == "declare" && $3 == section { declared += 1 }

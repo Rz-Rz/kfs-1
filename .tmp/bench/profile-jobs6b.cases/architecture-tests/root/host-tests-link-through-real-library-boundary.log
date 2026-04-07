@@ -1,0 +1,1 @@
+FAIL host-tests-link-through-real-library-boundary: host test helper does not link through --extern kfs

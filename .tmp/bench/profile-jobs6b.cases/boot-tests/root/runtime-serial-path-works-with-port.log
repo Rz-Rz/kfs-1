@@ -1,0 +1,2 @@
+PASS src: serial driver imports Port
+PASS src: diagnostics service reaches serial driver facade

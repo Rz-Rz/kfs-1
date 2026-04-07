@@ -1,0 +1,2 @@
+PASS klib-does-not-depend-on-device-code: forbidden cross-layer imports in klib absent
+PASS klib-does-not-depend-on-device-code: raw hardware/policy usage in klib absent

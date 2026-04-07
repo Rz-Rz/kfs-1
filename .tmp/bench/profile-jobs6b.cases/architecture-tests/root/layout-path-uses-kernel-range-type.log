@@ -1,0 +1,2 @@
+PASS src: KernelRange construction in core entry
+PASS src: KernelRange-based layout helper call from core init

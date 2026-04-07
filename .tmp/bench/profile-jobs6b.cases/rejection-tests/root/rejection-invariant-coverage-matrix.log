@@ -1,0 +1,79 @@
+{
+  "arch": "i386",
+  "total_invariants": 10,
+  "invariants": [
+    {
+      "id": "shared-roots",
+      "title": "Canonical crate roots and allowed kernel domains",
+      "positive": { "count": 9, "cases": [ "scripts/architecture-tests/kernel-architecture.sh::kernel-binary-crate-root-exists", "scripts/architecture-tests/kernel-architecture.sh::host-library-crate-root-exists", "scripts/architecture-tests/kernel-architecture.sh::shared-kernel-module-root-exists", "scripts/architecture-tests/kernel-architecture.sh::freestanding-support-root-exists", "scripts/architecture-tests/kernel-architecture.sh::kernel-first-level-dirs-match-allowlist", "scripts/architecture-tests/kernel-architecture.sh::no-top-level-kernel-peer-files", "scripts/architecture-tests/file-roles.sh::crate-roots-use-single-shared-kernel-root", "scripts/architecture-tests/file-roles.sh::kernel-top-level-directories-are-layers-only", "scripts/architecture-tests/file-roles.sh::layer-roots-are-mod-rs" ] },
+      "rejection": { "count": 4, "cases": [ "scripts/rejection-tests/architecture-rejections.sh::new-top-level-kernel-peer-file-fails", "scripts/rejection-tests/architecture-rejections.sh::disallowed-first-level-layer-fails", "scripts/rejection-tests/architecture-rejections.sh::host-library-root-missing-fails", "scripts/rejection-tests/file-role-rejections.sh::top-level-peer-file-fails" ] },
+      "covered": true
+    },
+    {
+      "id": "file-roles",
+      "title": "Private leaf locality and anti-bypass boundaries",
+      "positive": { "count": 5, "cases": [ "scripts/architecture-tests/file-roles.sh::private-leaves-stay-under-owning-subsystems", "scripts/architecture-tests/file-roles.sh::private-leaf-imports-are-local", "scripts/architecture-tests/file-roles.sh::host-tests-link-through-real-library-boundary", "scripts/architecture-tests/file-roles.sh::host-tests-do-not-mount-production-source", "scripts/architecture-tests/file-roles.sh::kernel-tree-avoids-test-only-path-switching" ] },
+      "rejection": { "count": 4, "cases": [ "scripts/rejection-tests/file-role-rejections.sh::orphan-leaf-location-fails", "scripts/rejection-tests/file-role-rejections.sh::cross-facade-leaf-import-fails", "scripts/rejection-tests/file-role-rejections.sh::host-test-source-mount-fails", "scripts/rejection-tests/file-role-rejections.sh::test-only-path-switching-fails" ] },
+      "covered": true
+    },
+    {
+      "id": "layer-dependencies",
+      "title": "Layer dependency direction and ownership",
+      "positive": { "count": 6, "cases": [ "scripts/architecture-tests/layer-dependencies.sh::core-depends-only-on-services-types-klib", "scripts/architecture-tests/layer-dependencies.sh::services-do-not-import-driver-leaves-or-raw-hw", "scripts/architecture-tests/layer-dependencies.sh::drivers-do-not-own-boot-policy", "scripts/architecture-tests/layer-dependencies.sh::klib-does-not-depend-on-device-code", "scripts/architecture-tests/layer-dependencies.sh::types-do-not-depend-on-io-or-policy", "scripts/architecture-tests/layer-dependencies.sh::machine-stays-primitive-only" ] },
+      "rejection": { "count": 6, "cases": [ "scripts/rejection-tests/layer-dependency-rejections.sh::core-imports-machine-fails", "scripts/rejection-tests/layer-dependency-rejections.sh::services-import-driver-leaf-fails", "scripts/rejection-tests/layer-dependency-rejections.sh::drivers-own-boot-policy-fails", "scripts/rejection-tests/layer-dependency-rejections.sh::klib-depends-on-device-code-fails", "scripts/rejection-tests/layer-dependency-rejections.sh::types-depend-on-policy-fails", "scripts/rejection-tests/layer-dependency-rejections.sh::machine-depends-on-drivers-fails" ] },
+      "covered": true
+    },
+    {
+      "id": "layer-contracts",
+      "title": "Layer contracts and raw hardware policy",
+      "positive": { "count": 8, "cases": [ "scripts/architecture-tests/layer-contracts.sh::layer-roots-exist-as-mod-rs", "scripts/architecture-tests/layer-contracts.sh::boot-start-hands-off-only-to-kmain", "scripts/architecture-tests/layer-contracts.sh::core-init-surface-exists", "scripts/architecture-tests/layer-contracts.sh::console-runtime-path-files-exist", "scripts/architecture-tests/layer-contracts.sh::core-init-avoids-raw-hw-and-asm", "scripts/architecture-tests/layer-contracts.sh::services-avoid-raw-hw-and-asm", "scripts/architecture-tests/layer-contracts.sh::inline-asm-stays-in-arch-or-machine", "scripts/architecture-tests/layer-contracts.sh::types-have-no-side-effects" ] },
+      "rejection": { "count": 6, "cases": [ "scripts/rejection-tests/architecture-layer-rejections.sh::layer-root-modrs-missing-fails", "scripts/rejection-tests/architecture-layer-rejections.sh::boot-calls-driver-directly-fails", "scripts/rejection-tests/architecture-layer-rejections.sh::core-inline-asm-fails", "scripts/rejection-tests/architecture-layer-rejections.sh::services-raw-hardware-fails", "scripts/rejection-tests/architecture-layer-rejections.sh::types-side-effect-fails", "scripts/rejection-tests/runtime-ownership-rejections.sh::boot-calls-driver-directly-fails" ] },
+      "covered": true
+    },
+    {
+      "id": "abi-markers",
+      "title": "ABI marker ownership and allowed boundaries",
+      "positive": { "count": 5, "cases": [ "scripts/architecture-tests/abi-contracts.sh::internal-extern-c-blocks-live-only-in-core-entry", "scripts/architecture-tests/abi-contracts.sh::services-and-nonentry-core-have-no-abi-markers", "scripts/architecture-tests/abi-contracts.sh::drivers-have-no-abi-markers", "scripts/architecture-tests/abi-contracts.sh::leaf-files-have-no-abi-markers", "scripts/architecture-tests/abi-contracts.sh::target-abi-facades-use-stable-low-level-signatures" ] },
+      "rejection": { "count": 6, "cases": [ "scripts/rejection-tests/architecture-abi-rejections.sh::extern-block-outside-core-entry-fails", "scripts/rejection-tests/architecture-abi-rejections.sh::services-abi-marker-fails", "scripts/rejection-tests/architecture-abi-rejections.sh::driver-abi-marker-fails", "scripts/rejection-tests/architecture-abi-rejections.sh::leaf-abi-marker-fails", "scripts/rejection-tests/architecture-abi-rejections.sh::allowed-toolchain-boundary-marker-pass", "scripts/rejection-tests/architecture-abi-rejections.sh::forbidden-abi-signature-form-fails" ] },
+      "covered": true
+    },
+    {
+      "id": "abi-contracts",
+      "title": "Cross-ABI data type restrictions",
+      "positive": { "count": 8, "cases": [ "scripts/architecture-tests/abi-data-contracts.sh::cross-abi-forbid-reference-types", "scripts/architecture-tests/abi-data-contracts.sh::cross-abi-forbid-slices-or-str", "scripts/architecture-tests/abi-data-contracts.sh::cross-abi-forbid-tuples-without-repr", "scripts/architecture-tests/abi-data-contracts.sh::cross-abi-forbid-unrepr-user-types", "scripts/architecture-tests/abi-data-contracts.sh::cross-abi-forbid-trait-objects", "scripts/architecture-tests/abi-data-contracts.sh::cross-abi-forbid-generics", "scripts/architecture-tests/abi-data-contracts.sh::cross-abi-forbid-option-result", "scripts/architecture-tests/abi-data-contracts.sh::cross-abi-forbid-allocator-types" ] },
+      "rejection": { "count": 8, "cases": [ "scripts/rejection-tests/abi-data-contract-rejections.sh::abi-export-reference-types-fails", "scripts/rejection-tests/abi-data-contract-rejections.sh::abi-export-slice-or-str-fails", "scripts/rejection-tests/abi-data-contract-rejections.sh::abi-export-tuple-fails", "scripts/rejection-tests/abi-data-contract-rejections.sh::abi-export-unrepr-user-type-fails", "scripts/rejection-tests/abi-data-contract-rejections.sh::abi-export-trait-object-fails", "scripts/rejection-tests/abi-data-contract-rejections.sh::abi-export-generic-fn-fails", "scripts/rejection-tests/abi-data-contract-rejections.sh::abi-export-option-result-fails", "scripts/rejection-tests/abi-data-contract-rejections.sh::abi-export-allocator-type-fails" ] },
+      "covered": true
+    },
+    {
+      "id": "export-ownership",
+      "title": "ABI symbol ownership by owning layer/file",
+      "positive": { "count": 2, "cases": [ "scripts/architecture-tests/export-ownership.sh::export-ownership-by-source-owner", "scripts/architecture-tests/export-ownership.sh::export-ownership-artifact-traceability" ] },
+      "rejection": { "count": 5, "cases": [ "scripts/rejection-tests/export-ownership-rejections.sh::drivers-export-ownership-fails", "scripts/rejection-tests/export-ownership-rejections.sh::services-export-ownership-fails", "scripts/rejection-tests/export-ownership-rejections.sh::leaf-export-ownership-fails", "scripts/rejection-tests/export-ownership-rejections.sh::types-export-ownership-fails", "scripts/rejection-tests/export-ownership-rejections.sh::core-nonentry-export-ownership-fails" ] },
+      "covered": true
+    },
+    {
+      "id": "runtime-path",
+      "title": "Runtime ownership handoff path",
+      "positive": { "count": 7, "cases": [ "scripts/architecture-tests/runtime-ownership.sh::runtime-path-artifacts-exist", "scripts/architecture-tests/runtime-ownership.sh::boot-start-hand-off-only-to-kmain", "scripts/architecture-tests/runtime-ownership.sh::start-not-direct-to-driver-or-helper", "scripts/architecture-tests/runtime-ownership.sh::entry-calls-core-init-sequence", "scripts/architecture-tests/runtime-ownership.sh::core-init-calls-services-console", "scripts/architecture-tests/runtime-ownership.sh::services-console-calls-driver-facade", "scripts/architecture-tests/runtime-ownership.sh::entry-no-direct-driver-abi-calls" ] },
+      "rejection": { "count": 6, "cases": [ "scripts/rejection-tests/architecture-layer-rejections.sh::boot-calls-driver-directly-fails", "scripts/rejection-tests/runtime-ownership-rejections.sh::boot-calls-driver-directly-fails", "scripts/rejection-tests/runtime-ownership-rejections.sh::entry-skips-core-init-fails", "scripts/rejection-tests/runtime-ownership-rejections.sh::kmain-calls-vga-directly-fails", "scripts/rejection-tests/runtime-ownership-rejections.sh::core-init-skips-services-fails", "scripts/rejection-tests/runtime-ownership-rejections.sh::services-console-skips-driver-facade-fails" ] },
+      "covered": true
+    },
+    {
+      "id": "build-graph",
+      "title": "Kernel build graph is single-rooted",
+      "positive": { "count": 4, "cases": [ "scripts/architecture-tests/build-graph.sh::kernel-rust-root-is-single-entry", "scripts/architecture-tests/build-graph.sh::makefile-does-not-glob-src-kernel-peers", "scripts/architecture-tests/build-graph.sh::build-produces-single-kernel-rust-unit", "scripts/architecture-tests/build-graph.sh::no-kernel-subsystem-rust-objects" ] },
+      "rejection": { "count": 5, "cases": [ "scripts/rejection-tests/architecture-rejections.sh::per-file-kernel-build-fails", "scripts/rejection-tests/build-graph-rejections.sh::kernel-sources-glob-fails", "scripts/rejection-tests/build-graph-rejections.sh::kernel-entrypoint-not-root-fails", "scripts/rejection-tests/build-graph-rejections.sh::kernel-sources-not-single-fails", "scripts/rejection-tests/build-graph-rejections.sh::kernel-subsystem-objects-fail" ] },
+      "covered": true
+    },
+    {
+      "id": "type-contracts",
+      "title": "Required façade types and repr ownership",
+      "positive": { "count": 17, "cases": [ "scripts/architecture-tests/type-contracts.sh::helper-boundary-files-exist", "scripts/architecture-tests/type-contracts.sh::helper-abi-uses-primitive-core-types", "scripts/architecture-tests/type-contracts.sh::kernel-helper-code-avoids-std", "scripts/architecture-tests/type-contracts.sh::no-alias-only-primitive-layer", "scripts/architecture-tests/type-contracts.sh::port-uses-repr-transparent", "scripts/architecture-tests/type-contracts.sh::kernel-range-uses-repr-c", "scripts/architecture-tests/type-contracts.sh::screen-types-exist", "scripts/architecture-tests/type-contracts.sh::color-code-uses-repr-transparent", "scripts/architecture-tests/type-contracts.sh::screen-cell-uses-repr-c", "scripts/architecture-tests/type-contracts.sh::cursor-pos-uses-repr-c", "scripts/architecture-tests/type-contracts.sh::helper-wrappers-use-extern-c-and-no-mangle", "scripts/architecture-tests/type-contracts.sh::helper-private-impl-not-imported-directly", "scripts/architecture-tests/type-contracts.sh::serial-path-uses-port-type", "scripts/architecture-tests/type-contracts.sh::layout-path-uses-kernel-range-type", "scripts/architecture-tests/type-contracts.sh::future-port-owner-and-repr", "scripts/architecture-tests/type-contracts.sh::future-kernel-range-owner-and-repr", "scripts/architecture-tests/type-contracts.sh::future-screen-types-owner-and-repr" ] },
+      "rejection": { "count": 13, "cases": [ "scripts/rejection-tests/type-architecture-rejections.sh::std-in-helper-layer-fails", "scripts/rejection-tests/type-architecture-rejections.sh::alias-only-primitive-layer-fails", "scripts/rejection-tests/type-architecture-rejections.sh::port-missing-repr-transparent-fails", "scripts/rejection-tests/type-architecture-rejections.sh::kernel-range-missing-repr-c-fails", "scripts/rejection-tests/type-architecture-rejections.sh::port-owner-path-fails", "scripts/rejection-tests/type-architecture-rejections.sh::kernel-range-owner-path-fails", "scripts/rejection-tests/type-architecture-rejections.sh::screen-types-owner-path-fails", "scripts/rejection-tests/type-architecture-rejections.sh::screen-types-missing-fail", "scripts/rejection-tests/type-architecture-rejections.sh::color-code-missing-repr-transparent-fails", "scripts/rejection-tests/type-architecture-rejections.sh::screen-cell-missing-repr-c-fails", "scripts/rejection-tests/type-architecture-rejections.sh::cursor-pos-missing-repr-c-fails", "scripts/rejection-tests/type-architecture-rejections.sh::helper-wrapper-missing-extern-c-fails", "scripts/rejection-tests/type-architecture-rejections.sh::private-helper-import-fails" ] },
+      "covered": true
+    }
+  ],
+  "covered_count": 10,
+  "missing_count": 0,
+  "missing_invariants": []
+}

@@ -39,7 +39,9 @@ die() {
 
 assert_rust_entry_symbol() {
 	local kernel="$1"
-	if ! nm -n "${kernel}" | grep -qw 'kmain'; then
+	local symbol_table
+	symbol_table="$(nm -n "${kernel}")"
+	if ! awk '$3 == "kmain" { found = 1 } END { exit(found ? 0 : 1) }' <<<"${symbol_table}"; then
 		echo "FAIL ${kernel}: Rust entry symbol missing (kmain)"
 		echo "hint: the kernel must include the Rust kernel entrypoint so M0.2 is proven for ASM+Rust, not ASM-only"
 		return 1
@@ -48,7 +50,9 @@ assert_rust_entry_symbol() {
 
 assert_asm_entry_symbol() {
 	local kernel="$1"
-	if ! nm -n "${kernel}" | grep -qw 'start'; then
+	local symbol_table
+	symbol_table="$(nm -n "${kernel}")"
+	if ! awk '$3 == "start" { found = 1 } END { exit(found ? 0 : 1) }' <<<"${symbol_table}"; then
 		echo "FAIL ${kernel}: ASM entry symbol missing (start)"
 		echo "hint: the test kernel must link the ASM boot object and expose the entry symbol"
 		return 1
@@ -198,11 +202,6 @@ run_direct() {
 	fi
 }
 
-run_host_case() {
-	bash scripts/with-build-lock.sh bash scripts/container.sh run -- \
-		bash -lc "make -B iso-test arch='${ARCH}' KFS_TEST_FORCE_FAIL='${KFS_TEST_FORCE_FAIL:-0}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/freestanding-kernel.sh '${ARCH}' '${CASE}'"
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -215,11 +214,6 @@ main() {
 	fi
 
 	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
-
-	if [[ -n "${CASE}" ]] && describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
-		return 0
-	fi
 
 	run_direct
 }

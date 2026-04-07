@@ -3,6 +3,8 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-core-init-uses-services-console}"
+# shellcheck disable=SC2034
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 KERNEL="build/kernel-${ARCH}.bin"
 DRIVER_SOURCE="src/kernel/drivers/vga_text/mod.rs"
 WRITER_SOURCE="src/kernel/drivers/vga_text/writer.rs"
@@ -89,12 +91,6 @@ run_direct_case() {
 	esac
 }
 
-run_host_case() {
-	bash scripts/with-build-lock.sh \
-		bash scripts/container.sh run -- \
-		bash -lc "make clean >/dev/null 2>&1 || true; make -B all arch='${ARCH}' >/dev/null && KFS_HOST_TEST_DIRECT=1 bash scripts/boot-tests/vga-writer.sh '${ARCH}' '${CASE}'"
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -108,11 +104,6 @@ main() {
 
 	[[ "${ARCH}" == "i386" ]] || die "unsupported arch: ${ARCH}"
 	[[ -r "${DRIVER_SOURCE}" ]] || die "missing VGA driver source: ${DRIVER_SOURCE}"
-
-	if describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
-		return 0
-	fi
 
 	run_direct_case
 }

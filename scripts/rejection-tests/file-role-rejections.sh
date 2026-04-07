@@ -153,8 +153,10 @@ EOF
 #!/usr/bin/env bash
 HOST_LIB_SOURCE="src/lib.rs"
 run_host_rust_test() {
-	rustc --crate-name kfs --crate-type rlib "${HOST_LIB_SOURCE}" >/dev/null
-	rustc --test --extern kfs=build/libkfs.rlib tests/host_sample.rs >/dev/null
+	KFS_HOST_LIB_SOURCE="${HOST_LIB_SOURCE}" \
+	KFS_HOST_TEST_SOURCE="tests/host_sample.rs" \
+	KFS_HOST_TEST_BIN_PATH="build/ut_host_sample" \
+	make --no-print-directory host-rust-test
 }
 EOF
 }
@@ -205,9 +207,38 @@ check_private_leaves_owned() {
 check_private_leaf_imports_local() {
 	local offenders
 	offenders="$(
-		find "${TMPDIR}/src/kernel" -type f -name '*.rs' -print0 |
-			xargs -0 rg -n '\#\[path[[:space:]]*=[[:space:]]*\"[^\"]*(string|memory|vga_text)/(imp|writer|sse2_[A-Za-z0-9_]+)\.rs\"|^\s*mod\s+(imp|writer|sse2_memcpy|sse2_memset)\s*;|\buse\s+crate::kernel::(?:klib|drivers)::(?:string|memory|vga_text)::(?:imp|writer|sse2_memcpy|sse2_memset)\b|\bcrate::kernel::(?:klib|drivers)::(?:string|memory|vga_text)::(?:imp|writer|sse2_memcpy|sse2_memset)\b' -P -S 2>/dev/null |
-			grep -vE '^.*/src/kernel/(klib/string/mod\.rs|klib/memory/mod\.rs|drivers/vga_text/mod\.rs):' || true
+		TMPDIR="${TMPDIR}" python3 - <<'PY'
+from __future__ import annotations
+
+import os
+import pathlib
+import re
+
+tmpdir = pathlib.Path(os.environ["TMPDIR"])
+kernel_root = tmpdir / "src/kernel"
+allowed = {
+    pathlib.Path("src/kernel/klib/string/mod.rs"),
+    pathlib.Path("src/kernel/klib/memory/mod.rs"),
+    pathlib.Path("src/kernel/drivers/vga_text/mod.rs"),
+}
+patterns = [
+    re.compile(r'\#\[path\s*=\s*"[^"]*(string|memory|vga_text)/(imp|writer|sse2_[A-Za-z0-9_]+)\.rs"\]'),
+    re.compile(r'^\s*mod\s+(imp|writer|sse2_memcpy|sse2_memset)\s*;', re.MULTILINE),
+    re.compile(r'\buse\s+crate::kernel::(klib|drivers)::(string|memory|vga_text)::(imp|writer|sse2_memcpy|sse2_memset)\b'),
+    re.compile(r'\bcrate::kernel::(klib|drivers)::(string|memory|vga_text)::(imp|writer|sse2_memcpy|sse2_memset)\b'),
+]
+
+offenders: list[str] = []
+for path in sorted(kernel_root.rglob("*.rs")):
+    rel = path.relative_to(tmpdir)
+    if rel in allowed:
+        continue
+    text = path.read_text(encoding="utf-8")
+    if any(pattern.search(text) for pattern in patterns):
+        offenders.append(str(rel))
+
+print("\n".join(offenders), end="")
+PY
 	)"
 	[[ -z "${offenders}" ]]
 }

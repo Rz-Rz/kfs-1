@@ -1,0 +1,6 @@
+
+running 1 test
+test alt_a_prefix_consumes_the_trigger_key_without_echoing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.00s
+

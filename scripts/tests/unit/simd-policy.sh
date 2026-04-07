@@ -84,7 +84,7 @@ assert_pattern() {
 
 run_host_tests() {
 	local filter="$1"
-	local test_bin="build/ut_simd_policy"
+	local test_bin="build/ut_simd_policy_${filter%_}"
 
 	run_host_rust_test "${TEST_SOURCE}" "${test_bin}" "${filter}"
 }

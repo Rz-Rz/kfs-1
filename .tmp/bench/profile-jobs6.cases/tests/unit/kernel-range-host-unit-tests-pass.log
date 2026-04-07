@@ -1,0 +1,10 @@
+
+running 5 tests
+test kernel_range_contains_uses_half_open_bounds ... ok
+test kernel_range_is_empty_when_end_is_not_after_start ... ok
+test kernel_range_len_saturates_when_end_precedes_start ... ok
+test kernel_range_len_tracks_non_empty_span ... ok
+test kernel_range_preserves_start_and_end_bounds ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+

@@ -88,8 +88,15 @@ check_layer_modrs() {
 }
 
 check_boot_only_kmain() {
-	! rg -n '^extern (vga_|kfs_strlen|kfs_strcmp|kfs_memcpy|kfs_memset)' "${TMPDIR}/src/arch/i386/boot.asm" >/dev/null &&
-		! rg -n 'call (?!kmain\b)[A-Za-z_][A-Za-z0-9_]*' -P "${TMPDIR}/src/arch/i386/boot.asm" >/dev/null
+	local boot="${TMPDIR}/src/arch/i386/boot.asm"
+	local bad_calls
+
+	if rg -n '^extern (vga_|kfs_strlen|kfs_strcmp|kfs_memcpy|kfs_memset)' "${boot}" >/dev/null; then
+		return 1
+	fi
+
+	bad_calls="$(rg -n '^\s*call\s+[A-Za-z_][A-Za-z0-9_]*' "${boot}" | grep -vE '^[0-9]+:\s*call\s+kmain\b' || true)"
+	[[ -z "${bad_calls}" ]]
 }
 
 check_core_no_asm() {

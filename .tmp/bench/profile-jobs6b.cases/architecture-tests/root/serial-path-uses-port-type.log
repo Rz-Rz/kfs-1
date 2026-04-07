@@ -1,0 +1,5 @@
+PASS src: Port machine primitive exists
+PASS src: serial driver imports Port
+PASS src: serial driver constructs machine Port values
+PASS src: diagnostics service reaches serial driver facade
+PASS src: Port leaking into core entry

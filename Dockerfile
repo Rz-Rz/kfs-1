@@ -8,6 +8,7 @@ ARG RUST_TOOLCHAIN=1.94.1
 ARG RUFF_VERSION=0.15.9
 ARG BLACK_VERSION=26.3.1
 
+COPY requirements.txt /tmp/requirements.txt
 ADD https://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/pool/main/c/ca-certificates/ca-certificates_${UBUNTU_CA_CERTIFICATES_VERSION}_all.deb /tmp/ubuntu-ca-certificates.deb
 
 RUN echo "${UBUNTU_CA_CERTIFICATES_SHA256}  /tmp/ubuntu-ca-certificates.deb" | sha256sum -c - \
@@ -37,6 +38,7 @@ RUN echo "${UBUNTU_CA_CERTIFICATES_SHA256}  /tmp/ubuntu-ca-certificates.deb" | s
     qemu-system-x86 \
     qemu-system-gui \
     ripgrep \
+    rsync \
     socat \
     tigervnc-viewer \
     xdotool \
@@ -58,6 +60,7 @@ RUN mkdir -p "${RUSTUP_HOME}" "${CARGO_HOME}" \
 
 RUN python3 -m pip install --no-cache-dir \
     "ruff==${RUFF_VERSION}" \
-    "black==${BLACK_VERSION}"
+    "black==${BLACK_VERSION}" \
+    -r /tmp/requirements.txt
 
 WORKDIR /work

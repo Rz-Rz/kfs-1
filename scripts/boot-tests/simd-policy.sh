@@ -3,10 +3,12 @@ set -euo pipefail
 
 ARCH="${1:-i386}"
 CASE="${2:-}"
+# shellcheck disable=SC2034
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 TIMEOUT_SECS="${TEST_TIMEOUT_SECS:-10}"
 PASS_RC="${TEST_PASS_RC:-33}"
-ISO="build/os-${ARCH}-test.iso"
 LOG="build/m5-simd-policy-${CASE}.log"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/qemu-direct.bash"
 
 list_cases() {
 	cat <<'EOF'
@@ -32,22 +34,35 @@ die() {
 	exit 2
 }
 
-run_qemu_capture() {
-	[[ -r "${ISO}" ]] || die "missing ISO: ${ISO} (build it with make iso-test arch=${ARCH})"
+iso_path() {
+	case "${CASE}" in
+	phase4-no-cpuid-stays-scalar)
+		printf 'build/os-%s-test-no-cpuid.iso\n' "${ARCH}"
+		;;
+	phase4-forced-disable-stays-scalar)
+		printf 'build/os-%s-test-disable-simd.iso\n' "${ARCH}"
+		;;
+	*)
+		printf 'build/os-%s-test.iso\n' "${ARCH}"
+		;;
+	esac
+}
 
-	set +e
-	timeout --foreground "${TIMEOUT_SECS}" \
-		qemu-system-i386 \
-		-cdrom "${ISO}" \
-		-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
-		-serial stdio \
-		-display none \
-		-monitor none \
-		-no-reboot \
-		-no-shutdown \
-		</dev/null >"${LOG}" 2>&1
-	local rc="$?"
-	set -e
+run_qemu_capture() {
+	local iso
+	local rc
+	iso="$(iso_path)"
+	[[ -r "${iso}" ]] || die "missing ISO: ${iso} (build it with make test-artifacts arch=${ARCH})"
+
+	rc="$(
+		qemu_direct_capture "${LOG}" "${TIMEOUT_SECS}" cdrom "${iso}" \
+			-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+			-serial stdio \
+			-display none \
+			-monitor none \
+			-no-reboot \
+			-no-shutdown
+	)"
 
 	if [[ "${rc}" -ne "${PASS_RC}" ]]; then
 		echo "FAIL ${CASE}: expected PASS rc=${PASS_RC}, got rc=${rc}" >&2
@@ -127,23 +142,6 @@ run_direct_case() {
 	esac
 }
 
-run_host_case() {
-	local make_env=""
-
-	case "${CASE}" in
-	phase4-no-cpuid-stays-scalar)
-		make_env="KFS_TEST_NO_CPUID=1"
-		;;
-	phase4-forced-disable-stays-scalar)
-		make_env="KFS_TEST_DISABLE_SIMD=1"
-		;;
-	esac
-
-	bash scripts/with-build-lock.sh \
-		bash scripts/container.sh run -- \
-		bash -lc "make clean >/dev/null 2>&1 || true; make -B iso-test arch='${ARCH}' ${make_env} >/dev/null && KFS_HOST_TEST_DIRECT=1 TEST_TIMEOUT_SECS='${TIMEOUT_SECS}' TEST_PASS_RC='${PASS_RC}' bash scripts/boot-tests/simd-policy.sh '${ARCH}' '${CASE}'"
-}
-
 main() {
 	if [[ "${ARCH}" == "--list" ]]; then
 		list_cases
@@ -152,11 +150,6 @@ main() {
 
 	if [[ "${ARCH}" == "--description" ]]; then
 		describe_case "${CASE}"
-		return 0
-	fi
-
-	if describe_case "${CASE}" >/dev/null 2>&1 && [[ "${KFS_HOST_TEST_DIRECT:-0}" != "1" ]]; then
-		run_host_case
 		return 0
 	fi
 

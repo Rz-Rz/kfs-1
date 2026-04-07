@@ -1,0 +1,1 @@
+PASS src: console printf/printk wrappers

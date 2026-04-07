@@ -1,0 +1,1 @@
+PASS cross-abi-forbid-tuples-without-repr: exported ABI signatures avoid tuple-form data
