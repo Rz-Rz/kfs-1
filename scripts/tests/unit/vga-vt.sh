@@ -16,6 +16,7 @@ list_cases() {
 	cat <<'EOF'
 host-vga-vt-terminal-buffers-keep-output-and-cursor-state-isolated
 host-vga-vt-active-terminal-selection-keeps-each-buffer-intact
+host-vga-vt-tabs-insert-a-fixed-four-spaces-from-any-column
 host-vga-vt-creating-a-terminal-focuses-the-new-terminal
 host-vga-vt-destroying-the-current-terminal-removes-it-from-the-active-order
 host-vga-vt-switching-active-terminal-changes-the-visible-view
@@ -32,6 +33,7 @@ describe_case() {
 	case "$1" in
 	host-vga-vt-terminal-buffers-keep-output-and-cursor-state-isolated) printf '%s\n' "host virtual terminals keep retained output and cursor state isolated per terminal" ;;
 	host-vga-vt-active-terminal-selection-keeps-each-buffer-intact) printf '%s\n' "host virtual terminals keep each buffer intact when the active terminal changes" ;;
+	host-vga-vt-tabs-insert-a-fixed-four-spaces-from-any-column) printf '%s\n' "host virtual terminals turn each tab byte into a fixed four-space indent from any column" ;;
 	host-vga-vt-creating-a-terminal-focuses-the-new-terminal) printf '%s\n' "host virtual terminals focus the new terminal when creating it" ;;
 	host-vga-vt-destroying-the-current-terminal-removes-it-from-the-active-order) printf '%s\n' "host virtual terminals remove the current screen from the active order when destroying it" ;;
 	host-vga-vt-switching-active-terminal-changes-the-visible-view) printf '%s\n' "host virtual terminals switch the visible view when the active screen changes" ;;
@@ -92,6 +94,9 @@ run_direct_case() {
 	host-vga-vt-active-terminal-selection-keeps-each-buffer-intact)
 		run_host_tests 'active_terminal_selection_keeps_each_buffer_intact'
 		;;
+	host-vga-vt-tabs-insert-a-fixed-four-spaces-from-any-column)
+		run_host_tests 'tabs_insert_a_fixed_four_spaces_from_any_column'
+		;;
 	host-vga-vt-creating-a-terminal-focuses-the-new-terminal)
 		run_host_tests 'creating_a_terminal_focuses_the_new_terminal'
 		;;
@@ -120,7 +125,7 @@ run_direct_case() {
 		assert_pattern '\bterminal_label\b|\bbuild_terminal_label_cells\b|\bVGA_TEXT_TERMINAL_LABELS\b|\bVGA_TEXT_TERMINAL_LABEL_WIDTH\b' 'terminal label overlay helpers' "${SOURCE_DRIVER}"
 		;;
 	*)
-		die "usage: $0 <arch> {host-vga-vt-terminal-buffers-keep-output-and-cursor-state-isolated|host-vga-vt-active-terminal-selection-keeps-each-buffer-intact|host-vga-vt-creating-a-terminal-focuses-the-new-terminal|host-vga-vt-destroying-the-current-terminal-removes-it-from-the-active-order|host-vga-vt-switching-active-terminal-changes-the-visible-view|host-vga-vt-switching-back-to-a-scrolled-terminal-preserves-backspace-history|host-vga-vt-terminal-label-overlay-changes-with-active-label-index|source-defines-vga-terminal-bank|source-defines-active-terminal-selector|source-defines-terminal-lifecycle|source-defines-terminal-label-overlay}"
+		die "usage: $0 <arch> {host-vga-vt-terminal-buffers-keep-output-and-cursor-state-isolated|host-vga-vt-active-terminal-selection-keeps-each-buffer-intact|host-vga-vt-tabs-insert-a-fixed-four-spaces-from-any-column|host-vga-vt-creating-a-terminal-focuses-the-new-terminal|host-vga-vt-destroying-the-current-terminal-removes-it-from-the-active-order|host-vga-vt-switching-active-terminal-changes-the-visible-view|host-vga-vt-switching-back-to-a-scrolled-terminal-preserves-backspace-history|host-vga-vt-terminal-label-overlay-changes-with-active-label-index|source-defines-vga-terminal-bank|source-defines-active-terminal-selector|source-defines-terminal-lifecycle|source-defines-terminal-label-overlay}"
 		;;
 	esac
 }

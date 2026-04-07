@@ -16,6 +16,7 @@ pub const VGA_TEXT_HISTORY_DIMENSIONS: ScreenDimensions =
 pub const VGA_TEXT_HISTORY_CELL_COUNT: usize = VGA_TEXT_HISTORY_ROWS * VGA_TEXT_DIMENSIONS.width();
 pub const VGA_TEXT_TERMINAL_COUNT: usize = 12;
 pub const VGA_TEXT_TERMINAL_LABEL_WIDTH: usize = 7;
+pub const VGA_TEXT_TAB_SPACES: usize = 4;
 
 // Result of "feed one byte into the history cursor".
 // We need both pieces of information: where the byte should land, and whether that
@@ -148,6 +149,23 @@ impl VgaTerminal {
     }
 
     pub fn put_byte(&mut self, byte: u8) {
+        if byte == b'\t' {
+            self.put_tab();
+            return;
+        }
+
+        self.put_raw_byte(byte);
+    }
+
+    fn put_tab(&mut self) {
+        let mut count = 0;
+        while count < VGA_TEXT_TAB_SPACES {
+            self.put_raw_byte(VGA_TEXT_BLANK_BYTE);
+            count += 1;
+        }
+    }
+
+    fn put_raw_byte(&mut self, byte: u8) {
         let write_row = self.cursor.row;
         let write_col = self.cursor.col;
         let result = self.cursor.put_byte(byte);
