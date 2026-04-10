@@ -133,7 +133,6 @@ qemu_vnc_run_case() {
 	local case_name="$6"
 	local log_path="$7"
 	local timeout_secs="$8"
-	local geometry_preset="${9:-}"
 
 	local engine
 	local mount_arg

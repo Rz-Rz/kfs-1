@@ -538,11 +538,10 @@ Proof:
 
 Status: ✅ Done
 Evidence:
-- Geometry types and preset selection now live in `src/kernel/types/screen.rs`.
-- The VGA text driver renders the logical viewport into the fixed `80x25` hardware buffer through `src/kernel/drivers/vga_text/mod.rs` and `src/kernel/drivers/vga_text/writer.rs`.
-- Build-time preset selection is exposed through `KFS_SCREEN_GEOMETRY_PRESET` in `Makefile`.
+- Geometry types live in `src/kernel/types/screen.rs`, and VGA text dimensions are fixed at `80x25`.
+- The VGA text driver redraws directly into the standard `80x25` hardware buffer through `src/kernel/drivers/vga_text/mod.rs` and `src/kernel/drivers/vga_text/writer.rs`.
+- The old build-time preset selection has been removed from `Makefile`.
 Proof:
 - `bash scripts/tests/unit/vga-geometry.sh i386`
 - `bash scripts/tests/unit/vga-geometry-writer.sh i386`
 - `bash scripts/tests/unit/vga-geometry-preset.sh i386`
-- `KFS_SCREEN_GEOMETRY_PRESET=compact40x10 make -B all arch=i386`

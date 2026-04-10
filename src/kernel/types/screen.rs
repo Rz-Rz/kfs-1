@@ -58,87 +58,6 @@ impl ScreenDimensions {
     }
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ScreenGeometryPreset {
-    Vga80x25,
-    Compact40x10,
-}
-
-impl ScreenGeometryPreset {
-    pub const fn geometry(self) -> ScreenDimensions {
-        match self {
-            ScreenGeometryPreset::Vga80x25 => ScreenDimensions::new(80, 25),
-            ScreenGeometryPreset::Compact40x10 => ScreenDimensions::new(40, 10),
-        }
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub const fn name(self) -> &'static str {
-        match self {
-            ScreenGeometryPreset::Vga80x25 => "vga80x25",
-            ScreenGeometryPreset::Compact40x10 => "compact40x10",
-        }
-    }
-}
-
-#[cfg_attr(not(test), allow(dead_code))]
-pub fn select_geometry_preset_from_name(name: Option<&str>) -> ScreenGeometryPreset {
-    match name {
-        Some(value) if geometry_preset_name_matches(value, b"compact40x10") => {
-            ScreenGeometryPreset::Compact40x10
-        }
-        Some(value) if geometry_preset_name_matches(value, b"vga80x25") => {
-            ScreenGeometryPreset::Vga80x25
-        }
-        Some(_) | None => ScreenGeometryPreset::Vga80x25,
-    }
-}
-
-fn geometry_preset_name_matches(name: &str, expected: &[u8]) -> bool {
-    let bytes = name.as_bytes();
-    if bytes.len() != expected.len() {
-        return false;
-    }
-
-    let mut idx = 0;
-    while idx < expected.len() {
-        if bytes[idx] != expected[idx] {
-            return false;
-        }
-        idx += 1;
-    }
-
-    true
-}
-
-pub const fn history_dimensions_for_visible(
-    visible_dimensions: ScreenDimensions,
-    history_rows: usize,
-) -> ScreenDimensions {
-    ScreenDimensions::new(visible_dimensions.width(), history_rows)
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct ScreenPosition {
-    row: usize,
-    col: usize,
-}
-
-impl ScreenPosition {
-    pub const fn new(row: usize, col: usize) -> Self {
-        Self { row, col }
-    }
-
-    pub const fn row(self) -> usize {
-        self.row
-    }
-
-    pub const fn col(self) -> usize {
-        self.col
-    }
-}
-
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ColorCode(u8);
@@ -247,11 +166,5 @@ impl CursorPos {
     }
 }
 
-#[cfg(kfs_geometry_preset_compact40x10)]
-pub const DEFAULT_SCREEN_GEOMETRY_PRESET: ScreenGeometryPreset = ScreenGeometryPreset::Compact40x10;
-#[cfg(not(kfs_geometry_preset_compact40x10))]
-pub const DEFAULT_SCREEN_GEOMETRY_PRESET: ScreenGeometryPreset = ScreenGeometryPreset::Vga80x25;
-
-// The hardware stays in the fixed VGA text mode even when we render a smaller logical viewport.
-pub const VGA_TEXT_PHYSICAL_DIMENSIONS: ScreenDimensions = ScreenDimensions::new(80, 25);
-pub const VGA_TEXT_DIMENSIONS: ScreenDimensions = DEFAULT_SCREEN_GEOMETRY_PRESET.geometry();
+// The VGA text driver always targets the standard 80x25 text-mode geometry.
+pub const VGA_TEXT_DIMENSIONS: ScreenDimensions = ScreenDimensions::new(80, 25);

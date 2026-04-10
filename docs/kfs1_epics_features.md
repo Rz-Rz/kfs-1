@@ -3542,10 +3542,10 @@ Definition of Done (B5):
 ## Bonus Epic B6: Screen Geometry / Different Screen Sizes
 
 Current repo behavior:
-- The live kernel still defaults to a subject-safe logical `80x25` screen.
-- You can build an alternate logical preset with `KFS_SCREEN_GEOMETRY_PRESET=compact40x10`.
-- Alternate logical geometries are rendered as a centered viewport inside the fixed VGA `80x25` hardware buffer.
-- This is geometry-aware rendering, not a true hardware VGA mode switch.
+- The live kernel uses the standard VGA text geometry of `80x25`.
+- Screen helpers still own width, height, cell-count, and viewport math.
+- The VGA writer redraws directly into the standard `80x25` buffer.
+- There is no build-time geometry preset override.
 
 ### ✅ Feature B6.1: Introduce a geometry abstraction for the screen layer
 Implementation tasks:
@@ -3565,11 +3565,11 @@ Proof / tests (definition of done):
 ### ✅ Feature B6.2: Make wrapping, clearing, and scrolling geometry-aware
 Implementation tasks:
 - Make newline, wrap, backspace, clear, and scroll logic derive limits from the active logical geometry.
-- Keep redraw behavior readable by projecting the logical viewport into the fixed hardware framebuffer.
+- Keep redraw behavior correct on the standard VGA framebuffer.
 
 Acceptance criteria:
-- The same writer logic behaves correctly for at least two geometries in host tests.
-- Alternate logical geometries stay readable in VGA text mode instead of interleaving or duplicating rows.
+- The same writer logic behaves correctly for the standard VGA geometry in host tests and runtime checks.
+- Removing the alternate geometry path does not regress wrapping, scrolling, or terminal restore behavior.
 
 Implementation scope:
 - `RUST` (screen/buffer model plus physical render step)
@@ -3580,19 +3580,18 @@ Proof / tests (definition of done):
 
 ### ✅ Feature B6.3: Provide a configurable geometry preset or build-time selection
 Implementation tasks:
-- Expose one place to select the default logical geometry preset.
-- Keep the default runtime preset subject-compatible (`80x25`) unless explicit VGA mode switching is implemented.
+- Remove the old build-time geometry preset selector.
+- Keep the runtime geometry fixed at the subject-safe VGA `80x25` mode unless explicit hardware mode switching is implemented.
 
 Acceptance criteria:
-- The kernel can be built with at least one non-default geometry without rewriting core screen logic.
-- The selected preset changes the logical writer geometry while the hardware framebuffer remains `80x25`.
+- No build-time geometry override remains in the kernel or `Makefile`.
+- The visible VGA text geometry is always `80x25`.
 
 Implementation scope:
 - `RUST` (configuration) and `MAKE`
 
 Proof / tests (definition of done):
-- UT-B6.3-1 (preset tests): `bash scripts/tests/unit/vga-geometry-preset.sh i386`
-- MANUAL-B6.3-1 (compact build): `KFS_SCREEN_GEOMETRY_PRESET=compact40x10 make -B all arch=i386`
+- UT-B6.3-1 (fixed-geometry tests): `bash scripts/tests/unit/vga-geometry-preset.sh i386`
 
 Definition of Done (B6):
-- Screen code is geometry-aware, tested against more than one logical size, and still defaults to a subject-safe visible mode unless explicit mode switching is added.
+- Screen code keeps its geometry helpers, but the active VGA text mode is fixed at `80x25` unless explicit hardware mode switching is added.

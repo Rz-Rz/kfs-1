@@ -422,7 +422,7 @@ build_manifest() {
 	printf '%s\t%s\t%s\t%s\t%s\n' "TOOLCHAIN" "-" "-" "-" "Validate the container toolchain environment" >>"${entries}"
 	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build canonical release ISO and IMG artifacts" >>"${entries}"
 	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build test and variant ISO and IMG artifacts" >>"${entries}"
-	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build compact UI ISO artifact" >>"${entries}"
+	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build standard UI IMG artifact" >>"${entries}"
 	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build rejection proof artifacts" >>"${entries}"
 	printf '%s\t%s\t%s\t%s\t%s\n' "BUILD" "-" "-" "-" "Build reproducibility proof artifacts" >>"${entries}"
 	collect_tests_entries "${entries}"
@@ -813,7 +813,7 @@ if ! run_item "BUILD" "-" "Build test and variant ISO and IMG artifacts" "-" "-"
 	exit 1
 fi
 
-if ! run_item "BUILD" "-" "Build compact UI ISO artifact" "-" "-" \
+if ! run_item "BUILD" "-" "Build standard UI IMG artifact" "-" "-" \
 	bash -lc "KFS_FORCE_REBUILD=1 ${MAKE_BIN} --no-print-directory test-ui-artifacts arch=${ARCH}"; then
 	emit_event "summary" "fail"
 	exit 1

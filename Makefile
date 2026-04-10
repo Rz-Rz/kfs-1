@@ -7,8 +7,6 @@ repro_env = LC_ALL=C LANG=C TZ=UTC SOURCE_DATE_EPOCH=$(source_date_epoch)
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
 img := build/os-$(arch).img
-kernel_compact := build/kernel-$(arch)-compact40x10.bin
-iso_compact := build/os-$(arch)-compact40x10.iso
 ui_runner_image := kfs1-ui-runner:latest
 ui_runner_containerfile := Dockerfile.ui-runner
 kernel_test := build/kernel-$(arch)-test.bin
@@ -56,8 +54,6 @@ rust_target := i586-unknown-linux-gnu
 rust_source_files := src/main.rs
 rust_object_files := build/arch/$(arch)/rust/kernel.o
 rust_output_dir := build/arch/$(arch)/rust
-rust_object_files_compact := build/arch/$(arch)/rust-compact40x10/kernel.o
-rust_output_dir_compact := build/arch/$(arch)/rust-compact40x10
 kernel_keepglobals := scripts/architecture-tests/fixtures/exports.$(arch).keepglobals
 
 KFS_TEST_FORCE_FAIL ?= 0
@@ -67,7 +63,6 @@ KFS_TEST_BAD_STRING ?= 0
 KFS_TEST_BAD_MEMORY ?= 0
 KFS_TEST_NO_CPUID ?= 0
 KFS_TEST_DISABLE_SIMD ?= 0
-KFS_SCREEN_GEOMETRY_PRESET ?= vga80x25
 KFS_SKIP_LINT ?= 0
 KFS_INSIDE_CONTAINER ?= 0
 KFS_CONTAINER_ENGINE ?=
@@ -88,7 +83,7 @@ container_mount := $(CURDIR):$(toolchain_workdir)$(if $(filter podman,$(containe
 container_user_args := $(if $(filter podman,$(container_engine)),--userns=keep-id,$(if $(and $(filter docker,$(container_engine)),$(filter 0,$(docker_rootless))),--user $(shell id -u):$(shell id -g),))
 compile_curdir := $(if $(filter 1,$(KFS_INSIDE_CONTAINER)),$(CURDIR),$(toolchain_workdir))
 
-RUST_CFG_FLAGS = $(if $(filter compact40x10,$(KFS_SCREEN_GEOMETRY_PRESET)),--cfg kfs_geometry_preset_compact40x10)
+RUST_CFG_FLAGS :=
 RUST_CODEGEN_FLAGS :=
 RUST_CODEGEN_FLAGS += --remap-path-prefix $(compile_curdir)=.
 FREESTANDING_RUSTC_FLAGS = \
@@ -212,10 +207,10 @@ FORCE:
 	metrics-sync \
 	lint test test-plain test-ui test-ui-demo test-ui-bootstrap \
 	dev iso-in-container run-in-container \
-		run-ui run-ui-compact \
-		iso-test toolchain-ready test-release-artifacts test-variant-artifacts test-ui-artifacts \
-		negative-test-proofs test-artifacts test-prep test-host test-qemu test-vga reproducible-builds \
-		img img-test run-img host-rust-test
+	run-ui \
+	iso-test toolchain-ready test-release-artifacts test-variant-artifacts test-ui-artifacts \
+	negative-test-proofs test-artifacts test-prep test-host test-qemu test-vga reproducible-builds \
+	img img-test run-img host-rust-test
 
 all: $(kernel)
 
@@ -240,15 +235,12 @@ run-iso:
 	@qemu-system-i386 -cdrom $(iso)
 
 ## Manual visual-proof entrypoints.
-## - run-ui: normal 80x25 UI
-## - run-ui-compact: compact 40x10 UI
-run-ui: KFS_SCREEN_GEOMETRY_PRESET := vga80x25
+## - run-ui: standard 80x25 UI
 run-ui: KFS_FORCE_REBUILD := 1
 run-ui: $(img)
 	$(call announce_step,RUN-UI,boot the IMG in the manual UI viewer,artifact: $(img))
 	@if command -v qemu-system-i386 >/dev/null 2>&1; then \
-		KFS_SCREEN_GEOMETRY_PRESET=$(KFS_SCREEN_GEOMETRY_PRESET) \
-			bash scripts/run-ui.sh $(arch); \
+		bash scripts/run-ui.sh $(arch); \
 	else \
 		if [ -z "$(container_engine)" ]; then \
 			echo "error: no container engine found (install podman or docker)" >&2; \
@@ -260,8 +252,7 @@ run-ui: $(img)
 		fi; \
 		test -n "$$DISPLAY" || { echo "error: DISPLAY is not set; cannot launch GUI command" >&2; exit 1; }; \
 		test -d /tmp/.X11-unix || { echo "error: /tmp/.X11-unix is missing; cannot mount X11 socket" >&2; exit 1; }; \
-		KFS_SCREEN_GEOMETRY_PRESET=$(KFS_SCREEN_GEOMETRY_PRESET) \
-			$(container_engine) run --rm $(container_tty_args) $(gui_security_args) \
+		$(container_engine) run --rm $(container_tty_args) $(gui_security_args) \
 				-e KFS_INSIDE_CONTAINER=1 \
 				-e DISPLAY="$$DISPLAY" \
 				$(if $(gui_xauth_host),-e XAUTHORITY=$(gui_xauth_container),) \
@@ -271,10 +262,6 @@ run-ui: $(img)
 				$(container_user_args) $(container_kvm_args) \
 				"$(ui_runner_image)" bash scripts/run-ui.sh $(arch); \
 	fi
-
-run-ui-compact: KFS_SCREEN_GEOMETRY_PRESET := compact40x10
-run-ui-compact:
-	@KFS_SCREEN_GEOMETRY_PRESET=compact40x10 $(MAKE) --no-print-directory run-ui arch=$(arch)
 
 iso: $(iso)
 
@@ -289,7 +276,7 @@ test-release-artifacts: $(img)
 
 test-variant-artifacts: $(img_test) $(test_variant_isos)
 
-test-ui-artifacts: $(iso_compact)
+test-ui-artifacts: $(img)
 
 negative-test-proofs: $(negative_test_stamps)
 
@@ -319,27 +306,6 @@ build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm $$(if $$(filter 1,$$(KFS_FORCE_RE
 	$(call announce_step,ASM,assemble one assembly source file into one ELF32 object file,rule: $< -> $@ using nasm in Docker)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(call toolchain_exec,nasm -felf32 $< -o $@)
-
-$(rust_output_dir_compact):
-	@mkdir -p $@
-
-$(rust_object_files_compact): KFS_SCREEN_GEOMETRY_PRESET := compact40x10
-$(rust_object_files_compact): src/main.rs | $(rust_output_dir_compact) container-image
-	$(call announce_step,RUST,compile the freestanding Rust kernel crate into one object file,rule: $< -> $@ using rustc in Docker)
-	$(call run_rustc_compile,$(FREESTANDING_RUSTC_FLAGS),$@,$<)
-
-$(kernel_compact): KFS_SCREEN_GEOMETRY_PRESET := compact40x10
-$(iso_compact): KFS_SCREEN_GEOMETRY_PRESET := compact40x10
-
-$(kernel_compact): $(assembly_object_files) $(rust_object_files_compact) $(linker_script) $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | container-image
-	$(call announce_step,LINK,link all assembly and Rust objects into the final kernel binary,rule: assembly objects + $(rust_object_files_compact) -> $(kernel_compact) using ld in Docker)
-	$(Q)$(call toolchain_exec,ld -m elf_i386 -n -T $(linker_script) -o $(kernel_compact) $(assembly_object_files) $(rust_object_files_compact))
-	$(call announce_step,OBJCOPY,trim the final kernel to the allowed exported global symbols,rule: keep symbols listed in $(kernel_keepglobals) inside $(kernel_compact))
-	$(Q)$(call toolchain_exec,objcopy --keep-global-symbols=$(kernel_keepglobals) $(kernel_compact))
-
-$(iso_compact): $(kernel_compact) $(grub_cfg) $$(if $$(filter 1,$$(KFS_FORCE_REBUILD)),FORCE,) | container-image
-	$(call announce_step,ISO,package the kernel and GRUB config into a bootable ISO,rule: $(kernel_compact) + $(grub_cfg) -> $(iso_compact) using grub-mkrescue in Docker)
-	$(call package_iso_rule,$(kernel_compact),$(iso_compact))
 
 iso-test: $(iso_test)
 
