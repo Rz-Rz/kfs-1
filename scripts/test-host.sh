@@ -237,16 +237,40 @@ sync_workspace_copy() {
 		"${REPO_ROOT}/" "${workspace}/"
 }
 
+workspace_parent_root() {
+	if [[ -n "${KFS_TEST_WORKSPACE_ROOT:-}" ]]; then
+		printf '%s\n' "${KFS_TEST_WORKSPACE_ROOT}"
+		return 0
+	fi
+
+	printf '%s\n' "${TMPDIR:-/tmp}/kfs-test-host-workspaces-${USER:-$(id -u)}"
+}
+
+prune_stale_workspace_pools() {
+	local parent_root="$1"
+	local root
+
+	[[ "${KFS_KEEP_TEST_WORKSPACES:-0}" != "1" ]] || return 0
+
+	for root in "${parent_root}" "${REPO_ROOT}/.tmp"; do
+		[[ -d "${root}" ]] || continue
+		find "${root}" -maxdepth 1 -type d -name 'test-host-workspaces.*' -exec rm -rf {} +
+	done
+}
+
 init_workspace_pool() {
 	local count="$1"
 	local index
 	local workspace
+	local parent_root
 
 	WORKSPACE_COUNT="${count}"
 	((WORKSPACE_COUNT > 0)) || return 0
 
-	mkdir -p "${REPO_ROOT}/.tmp"
-	WORKSPACE_POOL_ROOT="$(mktemp -d "${REPO_ROOT}/.tmp/test-host-workspaces.XXXXXX")"
+	parent_root="$(workspace_parent_root)"
+	mkdir -p "${parent_root}"
+	prune_stale_workspace_pools "${parent_root}"
+	WORKSPACE_POOL_ROOT="$(mktemp -d "${parent_root}/test-host-workspaces.XXXXXX")"
 
 	for ((index = 0; index < WORKSPACE_COUNT; index += 1)); do
 		workspace="${WORKSPACE_POOL_ROOT}/worker-${index}"
