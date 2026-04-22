@@ -11,8 +11,6 @@ build/
 build/*-test.img
 !build/
 build/*
-!build/os-i386.iso
-!build/os-i386.img
 .venv-test-ui/
 __pycache__/
 scripts/__pycache__/
