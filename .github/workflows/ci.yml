@@ -10,34 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       KFS_CONTAINER_ENGINE: docker
-      KFS_CONTAINER_IMAGE: kfs1-dev:latest
       KFS_CONTAINER_TTY: 0
       NO_COLOR: 1
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install host test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ripgrep
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build dev image cached
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile
-          tags: kfs1-dev:latest
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Container env check
-        run: make container-env-check
-
-      - name: Lint
-        run: make lint
-
-      - name: Test container
-        run: KFS_SKIP_LINT=1 make test
+      - name: Test
+        run: make test
