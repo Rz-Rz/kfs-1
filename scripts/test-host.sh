@@ -9,6 +9,7 @@ TUI_PROTOCOL="${KFS_TUI_PROTOCOL:-0}"
 SKIP_TUI_MANIFEST="${KFS_TUI_SKIP_MANIFEST:-0}"
 DEBUG_DIR="${KFS_TEST_DEBUG_DIR:-}"
 RUN_LINT="${KFS_RUN_LINT:-0}"
+SKIP_VNC_E2E="${KFS_SKIP_VNC_E2E:-0}"
 PARALLEL_JOBS="${KFS_TEST_JOBS:-auto}"
 SCRIPT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_ROOT}/.." && pwd)"
@@ -362,6 +363,9 @@ append_script_cases() {
 		[[ -n "${test_case}" ]] || continue
 		description="$(bash "${path}" --description "${test_case}")"
 		[[ -n "${description}" ]] || die "missing description in ${path} for case ${test_case}"
+		if [[ "${SKIP_VNC_E2E}" == "1" && "${title}" == "BOOT TESTS" && "${description}" == host-driven\ VNC\ E2E* ]]; then
+			continue
+		fi
 		printf '%s\t%s\t%s\t%s\t%s\n' "${title}" "${subgroup}" "${path}" "${test_case}" "${description}" >>"${entries}"
 	done < <(bash "${path}" --list)
 }

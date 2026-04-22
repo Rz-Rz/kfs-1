@@ -471,12 +471,13 @@ test-qemu: $(img_test) container-image
 test-host:
 	@bash -lc 'set -euo pipefail; \
 		if [ "$(KFS_INSIDE_CONTAINER)" = "1" ]; then \
-			exec env KFS_RUN_LINT=0 bash scripts/test-host.sh $(arch); \
+			exec env KFS_RUN_LINT=0 KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" bash scripts/test-host.sh $(arch); \
 		fi; \
 		$(MAKE) --no-print-directory container-image arch=$(arch); \
 		exec $(container_engine) run --rm \
 			-e KFS_INSIDE_CONTAINER=1 \
 			-e KFS_RUN_LINT=0 \
+			-e KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" \
 			-v $(container_mount) -w $(toolchain_workdir) \
 			$(container_user_args) $(container_kvm_args) \
 			"$(toolchain_image)" \
@@ -512,15 +513,16 @@ test:
 		fi; \
 		if [ "$(KFS_INSIDE_CONTAINER)" = "1" ]; then \
 			if [[ "$${mode}" == "0" ]] || [[ -n "$${CI:-}" ]] || [[ -n "$${GITHUB_ACTIONS:-}" ]] || [[ ! -t 1 ]]; then \
-				exec env KFS_RUN_LINT="$${run_lint}" bash scripts/test-host.sh $(arch); \
+				exec env KFS_RUN_LINT="$${run_lint}" KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" bash scripts/test-host.sh $(arch); \
 			fi; \
-			exec env KFS_RUN_LINT="$${run_lint}" KFS_TUI_HOLD="$${KFS_TUI_HOLD:-1}" python3 scripts/kfs_tui.py --arch "$(arch)" --runner-target test-host; \
+			exec env KFS_RUN_LINT="$${run_lint}" KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" KFS_TUI_HOLD="$${KFS_TUI_HOLD:-1}" python3 scripts/kfs_tui.py --arch "$(arch)" --runner-target test-host; \
 		fi; \
 		$(MAKE) --no-print-directory container-image arch=$(arch); \
 		if [[ "$${mode}" == "0" ]] || [[ -n "$${CI:-}" ]] || [[ -n "$${GITHUB_ACTIONS:-}" ]] || [[ ! -t 1 ]]; then \
 			exec $(container_engine) run --rm \
 				-e KFS_INSIDE_CONTAINER=1 \
 				-e KFS_RUN_LINT="$${run_lint}" \
+				-e KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" \
 				-v $(container_mount) -w $(toolchain_workdir) \
 				$(container_user_args) $(container_kvm_args) \
 				"$(toolchain_image)" \
@@ -529,6 +531,7 @@ test:
 		exec $(container_engine) run --rm $${interactive_args} \
 			-e KFS_INSIDE_CONTAINER=1 \
 			-e KFS_RUN_LINT="$${run_lint}" \
+			-e KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" \
 			-e KFS_TUI_HOLD="$${KFS_TUI_HOLD:-1}" \
 			$(if $(TERM),-e TERM="$(TERM)",) \
 			-v $(container_mount) -w $(toolchain_workdir) \
