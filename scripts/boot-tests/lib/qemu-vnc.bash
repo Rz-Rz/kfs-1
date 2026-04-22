@@ -18,6 +18,15 @@ qemu_vnc_tmp_dir() {
 	printf '%s/.tmp\n' "${root}"
 }
 
+qemu_vnc_lock_file() {
+	if [[ -n "${KFS_VNC_E2E_LOCK_FILE:-}" ]]; then
+		printf '%s\n' "${KFS_VNC_E2E_LOCK_FILE}"
+		return 0
+	fi
+
+	printf '%s/kfs-vnc-e2e-%s.lock\n' "${TMPDIR:-/tmp}" "${USER:-$(id -u)}"
+}
+
 qemu_vnc_container_path() {
 	local host_path="$1"
 	local root relative
@@ -134,12 +143,15 @@ qemu_vnc_run_case() {
 	local artifact_path_abs
 	local script_path_host
 	local script_path_container
+	local script_workdir
 	local vnc_socket_runtime
 	local qmp_socket_runtime
+	local lock_file
 	local local_run=0
 
 	artifact_path_abs="$(qemu_vnc_abs_path "${artifact_path}")"
 	script_path_host="$(mktemp "$(qemu_vnc_tmp_dir)/qemu-vnc-${case_name}.XXXXXX.sh")"
+	lock_file="$(qemu_vnc_lock_file)"
 	[[ -r "${artifact_path_abs}" ]] || qemu_vnc_die "missing artifact: ${artifact_path_abs}"
 	[[ "${artifact_target}" == "iso" || "${artifact_target}" == "img" ]] || qemu_vnc_die "unsupported artifact target: ${artifact_target}"
 	vnc_socket_runtime="/tmp/kfs-vnc-${arch}-$$-$RANDOM.sock"
@@ -152,6 +164,7 @@ qemu_vnc_run_case() {
 		local_run=1
 		artifact_path_container="${artifact_path_abs}"
 		log_container="${log_path}"
+		script_workdir="$(qemu_vnc_repo_root)"
 	else
 		engine="$(qemu_vnc_container_engine)"
 		mount_arg="$(qemu_vnc_container_mount "${engine}")"
@@ -164,12 +177,13 @@ qemu_vnc_run_case() {
 		artifact_path_container="$(qemu_vnc_container_path "${artifact_path_abs}")"
 		script_path_container="$(qemu_vnc_container_path "${script_path_host}")"
 		log_container="$(qemu_vnc_container_path "${log_path}")"
+		script_workdir="/work"
 	fi
 
 	cat >"${script_path_host}" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-cd /work
+cd '${script_workdir}'
 rm -f '${vnc_socket_runtime}' '${qmp_socket_runtime}' '${log_container}'
 
 qemu-system-i386 \\
@@ -218,11 +232,11 @@ EOF
 	chmod +x "${script_path_host}"
 
 	if (( local_run )); then
-		if bash scripts/with-build-lock.sh bash "${script_path_host}"; then
+		if KFS_BUILD_LOCK_FILE="${lock_file}" bash scripts/with-build-lock.sh bash "${script_path_host}"; then
 			rm -f "${script_path_host}"
 			return 0
 		fi
-	elif bash scripts/with-build-lock.sh "${container_args[@]}" "kfs1-dev:latest" bash "${script_path_container}"; then
+	elif KFS_BUILD_LOCK_FILE="${lock_file}" bash scripts/with-build-lock.sh "${container_args[@]}" "kfs1-dev:latest" bash "${script_path_container}"; then
 		rm -f "${script_path_host}"
 		return 0
 	fi

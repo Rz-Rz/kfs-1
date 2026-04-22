@@ -67,9 +67,9 @@ The runner now treats discovered test cases as schedulable jobs after `LINT`, `T
 - The remaining discovered cases run through a bounded worker pool one section at a time.
 - Use `KFS_TEST_JOBS=<n>` to override the worker count, or leave it unset / `auto` to use the runner default.
 - The suite-wide lock in `scripts/with-test-suite-lock.sh` still keeps two full `make test` runs from trampling each other.
-- Host-unit cases under `scripts/tests/unit/` stay in the main workspace.
+- Host-unit cases under `scripts/tests/unit/` stay in the main workspace. When running inside the container, their compiled test binaries default to `${TMPDIR:-/tmp}`; set `KFS_HOST_TEST_OUTPUT_ROOT=<dir>` to choose another scratch location.
 - Artifact checks also stay in the main workspace.
-- Heavyweight architecture/stability/rejection/boot cases run inside copied worker workspaces so they can mutate `build/` independently.
+- Heavyweight architecture/stability/rejection/boot cases run inside copied worker workspaces so they can mutate `build/` independently. By default those copied workspaces live under `${TMPDIR:-/tmp}`; set `KFS_TEST_WORKSPACE_ROOT=<dir>` to choose another scratch location.
 - Set `KFS_KEEP_TEST_WORKSPACES=1` if you want to keep those copied worker repos around for debugging after a run.
 
 In practice this means:

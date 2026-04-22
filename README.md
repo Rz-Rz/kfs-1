@@ -109,3 +109,4 @@ Optional: if your host has KVM and you want acceleration
 - `KFS_QEMU_SMOKE_TIMEOUT_SECS=5` sets the smoke duration in seconds
 - `KFS_VGA_BOOT_WAIT_SECS=1` sets how long the VGA-memory harness waits before reading `0xB8000`
 - `KFS_TEST_UI=0|1|auto` forces plain tests, forces the TUI, or auto-selects based on TTY/CI (default: `auto`)
+- `KFS_TUI_HOLD=0|1` controls whether the interactive TUI stays open after PASS/FAIL (default: `1` for interactive `make test`)

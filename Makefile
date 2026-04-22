@@ -72,8 +72,13 @@ KFS_SKIP_LINT ?= 0
 KFS_INSIDE_CONTAINER ?= 0
 KFS_CONTAINER_ENGINE ?=
 KFS_VERBOSE ?= 0
-toolchain_image := kfs1-dev:latest
+toolchain_image_name := kfs1-dev
 toolchain_containerfile := Dockerfile
+toolchain_git_commit := $(shell git rev-parse --short=12 HEAD 2>/dev/null || printf nogit)
+toolchain_image_content_signature := $(shell git hash-object "$(toolchain_containerfile)" requirements.txt 2>/dev/null | git hash-object --stdin | cut -c1-16)
+toolchain_image_signature := sig-$(toolchain_image_content_signature)-$(toolchain_git_commit)
+toolchain_image := $(toolchain_image_name):$(toolchain_image_signature)
+toolchain_image_latest := $(toolchain_image_name):latest
 toolchain_workdir := /work
 
 container_engine := $(if $(KFS_CONTAINER_ENGINE),$(KFS_CONTAINER_ENGINE),$(shell if command -v podman >/dev/null 2>&1; then printf podman; elif command -v docker >/dev/null 2>&1; then printf docker; fi))
@@ -402,15 +407,11 @@ container-image:
 			need_build=1; \
 		elif ! $(container_engine) image inspect "$(toolchain_image)" >/dev/null 2>&1; then \
 			need_build=1; \
-		elif [ ! -f "$(toolchain_image_stamp)" ]; then \
-			need_build=1; \
-		elif [ "$(toolchain_containerfile)" -nt "$(toolchain_image_stamp)" ] || [ requirements.txt -nt "$(toolchain_image_stamp)" ]; then \
-			need_build=1; \
 		fi; \
 		if [ "$${need_build}" = "1" ]; then \
 			echo "container: building image $(toolchain_image) (engine=$(container_engine))"; \
-			$(container_engine) build -t "$(toolchain_image)" -f "$(toolchain_containerfile)" .; \
-			touch "$(toolchain_image_stamp)"; \
+			$(container_engine) build -t "$(toolchain_image)" -t "$(toolchain_image_latest)" -f "$(toolchain_containerfile)" .; \
+			printf '%s\n' "$(toolchain_image_signature)" > "$(toolchain_image_stamp)"; \
 		fi; \
 	fi
 
@@ -470,12 +471,13 @@ test-qemu: $(img_test) container-image
 test-host:
 	@bash -lc 'set -euo pipefail; \
 		if [ "$(KFS_INSIDE_CONTAINER)" = "1" ]; then \
-			exec env KFS_RUN_LINT=0 bash scripts/test-host.sh $(arch); \
+			exec env KFS_RUN_LINT=0 KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" bash scripts/test-host.sh $(arch); \
 		fi; \
 		$(MAKE) --no-print-directory container-image arch=$(arch); \
 		exec $(container_engine) run --rm \
 			-e KFS_INSIDE_CONTAINER=1 \
 			-e KFS_RUN_LINT=0 \
+			-e KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" \
 			-v $(container_mount) -w $(toolchain_workdir) \
 			$(container_user_args) $(container_kvm_args) \
 			"$(toolchain_image)" \
@@ -511,15 +513,16 @@ test:
 		fi; \
 		if [ "$(KFS_INSIDE_CONTAINER)" = "1" ]; then \
 			if [[ "$${mode}" == "0" ]] || [[ -n "$${CI:-}" ]] || [[ -n "$${GITHUB_ACTIONS:-}" ]] || [[ ! -t 1 ]]; then \
-				exec env KFS_RUN_LINT="$${run_lint}" bash scripts/test-host.sh $(arch); \
+				exec env KFS_RUN_LINT="$${run_lint}" KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" bash scripts/test-host.sh $(arch); \
 			fi; \
-			exec env KFS_RUN_LINT="$${run_lint}" python3 scripts/kfs_tui.py --arch "$(arch)" --runner-target test-host; \
+			exec env KFS_RUN_LINT="$${run_lint}" KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" KFS_TUI_HOLD="$${KFS_TUI_HOLD:-1}" python3 scripts/kfs_tui.py --arch "$(arch)" --runner-target test-host; \
 		fi; \
 		$(MAKE) --no-print-directory container-image arch=$(arch); \
 		if [[ "$${mode}" == "0" ]] || [[ -n "$${CI:-}" ]] || [[ -n "$${GITHUB_ACTIONS:-}" ]] || [[ ! -t 1 ]]; then \
 			exec $(container_engine) run --rm \
 				-e KFS_INSIDE_CONTAINER=1 \
 				-e KFS_RUN_LINT="$${run_lint}" \
+				-e KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" \
 				-v $(container_mount) -w $(toolchain_workdir) \
 				$(container_user_args) $(container_kvm_args) \
 				"$(toolchain_image)" \
@@ -528,6 +531,8 @@ test:
 		exec $(container_engine) run --rm $${interactive_args} \
 			-e KFS_INSIDE_CONTAINER=1 \
 			-e KFS_RUN_LINT="$${run_lint}" \
+			-e KFS_SKIP_VNC_E2E="$${KFS_SKIP_VNC_E2E:-0}" \
+			-e KFS_TUI_HOLD="$${KFS_TUI_HOLD:-1}" \
 			$(if $(TERM),-e TERM="$(TERM)",) \
 			-v $(container_mount) -w $(toolchain_workdir) \
 			$(container_user_args) $(container_kvm_args) \
