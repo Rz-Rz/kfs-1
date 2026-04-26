@@ -15,23 +15,19 @@ die() {
 
 list_cases() {
 	cat <<'EOF'
-host-vga-geometry-preset-default-preset-matches-the-current-build-selection
-host-vga-geometry-preset-compact-preset-changes-the-visible-geometry
-host-vga-geometry-preset-history-geometry-tracks-the-selected-visible-width
-host-vga-geometry-preset-unknown-preset-names-fall-back-to-the-default-geometry
-source-defines-geometry-preset-selection
-makefile-passes-geometry-preset-cfg
+host-vga-geometry-is-fixed-to-standard-vga
+host-vga-history-geometry-tracks-the-fixed-visible-width
+source-removes-geometry-preset-selection
+makefile-removes-geometry-preset-cfg
 EOF
 }
 
 describe_case() {
 	case "$1" in
-	host-vga-geometry-preset-default-preset-matches-the-current-build-selection) printf '%s\n' "host build selection uses the compiled default geometry preset" ;;
-	host-vga-geometry-preset-compact-preset-changes-the-visible-geometry) printf '%s\n' "host preset selection resolves the compact geometry" ;;
-	host-vga-geometry-preset-history-geometry-tracks-the-selected-visible-width) printf '%s\n' "host history geometry keeps the selected visible width" ;;
-	host-vga-geometry-preset-unknown-preset-names-fall-back-to-the-default-geometry) printf '%s\n' "host preset selection falls back to the default geometry on unknown names" ;;
-	source-defines-geometry-preset-selection) printf '%s\n' "screen types define geometry presets and selection helpers" ;;
-	makefile-passes-geometry-preset-cfg) printf '%s\n' "Makefile passes the geometry preset cfg into rustc builds" ;;
+	host-vga-geometry-is-fixed-to-standard-vga) printf '%s\n' "host VGA geometry stays fixed at the standard 80x25 dimensions" ;;
+	host-vga-history-geometry-tracks-the-fixed-visible-width) printf '%s\n' "host history geometry keeps the fixed visible width" ;;
+	source-removes-geometry-preset-selection) printf '%s\n' "screen types no longer define alternate geometry preset selectors" ;;
+	makefile-removes-geometry-preset-cfg) printf '%s\n' "Makefile no longer exposes geometry preset cfg wiring" ;;
 	*) return 1 ;;
 	esac
 }
@@ -66,6 +62,19 @@ assert_pattern() {
 	echo "PASS src: ${label}"
 }
 
+assert_no_pattern() {
+	local pattern="$1"
+	local label="$2"
+	shift 2
+
+	if find_pattern "${pattern}" "$@"; then
+		echo "FAIL src: found ${label}"
+		return 1
+	fi
+
+	echo "PASS src: ${label}"
+}
+
 run_host_tests() {
 	local filter="$1"
 	local lib_flags="$2"
@@ -81,30 +90,24 @@ run_direct_case() {
 	ensure_sources_exist
 
 	case "${CASE}" in
-	host-vga-geometry-preset-default-preset-matches-the-current-build-selection)
-		run_host_tests 'default_preset_matches_the_current_build_selection' '' ''
+	host-vga-geometry-is-fixed-to-standard-vga)
+		run_host_tests 'vga_text_dimensions_are_fixed_to_standard_vga' '' ''
+		;;
+	host-vga-history-geometry-tracks-the-fixed-visible-width)
 		run_host_tests \
-			'default_preset_matches_the_current_build_selection' \
-			'--cfg kfs_geometry_preset_compact40x10' \
-			'--cfg kfs_expect_compact_geometry'
+			'history_geometry_tracks_the_fixed_visible_width' \
+			'' \
+			''
 		;;
-	host-vga-geometry-preset-compact-preset-changes-the-visible-geometry)
-		run_host_tests 'selecting_compact_preset_changes_the_visible_geometry' '' ''
+	source-removes-geometry-preset-selection)
+		assert_no_pattern '\bScreenGeometryPreset\b|\bselect_geometry_preset_from_name\b|\bhistory_dimensions_for_visible\b|\bDEFAULT_SCREEN_GEOMETRY_PRESET\b|\bkfs_geometry_preset_compact40x10\b' 'geometry preset selection helpers' "${TYPE_SOURCE}"
 		;;
-	host-vga-geometry-preset-history-geometry-tracks-the-selected-visible-width)
-		run_host_tests 'history_geometry_tracks_the_selected_visible_preset_width' '' ''
-		;;
-	host-vga-geometry-preset-unknown-preset-names-fall-back-to-the-default-geometry)
-		run_host_tests 'unknown_preset_names_fall_back_to_the_default_geometry' '' ''
-		;;
-	source-defines-geometry-preset-selection)
-		assert_pattern '\bScreenGeometryPreset\b|\bselect_geometry_preset_from_name\b|\bhistory_dimensions_for_visible\b|\bDEFAULT_SCREEN_GEOMETRY_PRESET\b' 'geometry preset selection helpers' "${TYPE_SOURCE}"
-		;;
-	makefile-passes-geometry-preset-cfg)
-		assert_pattern 'KFS_SCREEN_GEOMETRY_PRESET|RUST_CFG_FLAGS|kfs_geometry_preset_compact40x10' 'Makefile geometry preset cfg wiring' "${MAKEFILE_SOURCE}"
+	makefile-removes-geometry-preset-cfg)
+		assert_no_pattern 'KFS_SCREEN_GEOMETRY_PRESET|kfs_geometry_preset_compact40x10|run-ui-compact' 'Makefile geometry preset cfg wiring' "${MAKEFILE_SOURCE}"
+		assert_pattern 'run-ui' 'Makefile standard VGA UI target' "${MAKEFILE_SOURCE}"
 		;;
 	*)
-		die "usage: $0 <arch> {host-vga-geometry-preset-default-preset-matches-the-current-build-selection|host-vga-geometry-preset-compact-preset-changes-the-visible-geometry|host-vga-geometry-preset-history-geometry-tracks-the-selected-visible-width|host-vga-geometry-preset-unknown-preset-names-fall-back-to-the-default-geometry|source-defines-geometry-preset-selection|makefile-passes-geometry-preset-cfg}"
+		die "usage: $0 <arch> {host-vga-geometry-is-fixed-to-standard-vga|host-vga-history-geometry-tracks-the-fixed-visible-width|source-removes-geometry-preset-selection|makefile-removes-geometry-preset-cfg}"
 		;;
 	esac
 }

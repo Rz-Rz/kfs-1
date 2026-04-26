@@ -1,7 +1,7 @@
 mod writer;
 
 use crate::kernel::types::screen::{
-    ColorCode, CursorPos, ScreenDimensions, ScreenPosition, VgaColor, VGA_TEXT_DIMENSIONS,
+    ColorCode, CursorPos, ScreenDimensions, VgaColor, VGA_TEXT_DIMENSIONS,
 };
 
 // This module keeps a larger logical text history than the hardware can show at once.
@@ -16,6 +16,7 @@ pub const VGA_TEXT_HISTORY_DIMENSIONS: ScreenDimensions =
 pub const VGA_TEXT_HISTORY_CELL_COUNT: usize = VGA_TEXT_HISTORY_ROWS * VGA_TEXT_DIMENSIONS.width();
 pub const VGA_TEXT_TERMINAL_COUNT: usize = 12;
 pub const VGA_TEXT_TERMINAL_LABEL_WIDTH: usize = 7;
+pub const VGA_TEXT_TAB_SPACES: usize = 4;
 
 // Result of "feed one byte into the history cursor".
 // We need both pieces of information: where the byte should land, and whether that
@@ -148,6 +149,23 @@ impl VgaTerminal {
     }
 
     pub fn put_byte(&mut self, byte: u8) {
+        if byte == b'\t' {
+            self.put_tab();
+            return;
+        }
+
+        self.put_raw_byte(byte);
+    }
+
+    fn put_tab(&mut self) {
+        let mut count = 0;
+        while count < VGA_TEXT_TAB_SPACES {
+            self.put_raw_byte(VGA_TEXT_BLANK_BYTE);
+            count += 1;
+        }
+    }
+
+    fn put_raw_byte(&mut self, byte: u8) {
         let write_row = self.cursor.row;
         let write_col = self.cursor.col;
         let result = self.cursor.put_byte(byte);
@@ -480,23 +498,6 @@ pub fn build_terminal_label_cells(
     cells
 }
 
-// Alternate logical layouts are centered inside the fixed VGA framebuffer so rows stay readable.
-pub const fn screen_render_origin(
-    logical_dimensions: ScreenDimensions,
-    physical_dimensions: ScreenDimensions,
-) -> ScreenPosition {
-    ScreenPosition::new(
-        physical_dimensions
-            .height()
-            .saturating_sub(logical_dimensions.height())
-            / 2,
-        physical_dimensions
-            .width()
-            .saturating_sub(logical_dimensions.width())
-            / 2,
-    )
-}
-
 pub const fn vga_text_tail_viewport_top(cursor_row: usize) -> usize {
     VGA_TEXT_DIMENSIONS.tail_viewport_top(cursor_row)
 }
@@ -677,54 +678,6 @@ pub fn vga_text_blit_viewport<T: Copy>(
         }
 
         screen_row += 1;
-    }
-}
-
-// Take a logical screen and place it inside the fixed physical VGA area.
-// If the logical layout is smaller than 80x25, this centers it and blanks the rest.
-pub fn render_logical_screen_to_physical<T: Copy>(
-    logical_dimensions: ScreenDimensions,
-    physical_dimensions: ScreenDimensions,
-    logical_screen: &[T],
-    physical_screen: &mut [T],
-    blank: T,
-) {
-    let physical_cells = physical_dimensions.cell_count();
-    if physical_screen.len() < physical_cells {
-        return;
-    }
-
-    let logical_cells = logical_dimensions.cell_count();
-    if logical_screen.len() < logical_cells {
-        return;
-    }
-
-    let origin = screen_render_origin(logical_dimensions, physical_dimensions);
-    let copy_width = logical_dimensions.width().min(physical_dimensions.width());
-    let copy_height = logical_dimensions
-        .height()
-        .min(physical_dimensions.height());
-    let mut idx = 0;
-    while idx < physical_cells {
-        unsafe {
-            *physical_screen.get_unchecked_mut(idx) = blank;
-        }
-        idx += 1;
-    }
-
-    let mut row = 0;
-    while row < copy_height {
-        let logical_row_start = row * logical_dimensions.width();
-        let physical_row_start = physical_dimensions.cell_index(origin.row() + row, origin.col());
-        let mut col = 0;
-        while col < copy_width {
-            unsafe {
-                *physical_screen.get_unchecked_mut(physical_row_start + col) =
-                    *logical_screen.get_unchecked(logical_row_start + col);
-            }
-            col += 1;
-        }
-        row += 1;
     }
 }
 

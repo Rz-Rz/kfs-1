@@ -17,7 +17,6 @@ die() {
 list_cases() {
 	cat <<'EOF'
 default-freestanding-kernel-limits-approved-simd-state-instructions
-compact-freestanding-kernel-limits-approved-simd-state-instructions
 makefile-uses-non-simd-rust-target
 EOF
 }
@@ -25,7 +24,6 @@ EOF
 describe_case() {
 	case "$1" in
 	default-freestanding-kernel-limits-approved-simd-state-instructions) printf '%s\n' "default freestanding kernel only permits approved SIMD control-state instructions" ;;
-	compact-freestanding-kernel-limits-approved-simd-state-instructions) printf '%s\n' "compact freestanding kernel only permits approved SIMD control-state instructions" ;;
 	makefile-uses-non-simd-rust-target) printf '%s\n' "Makefile uses a non-SIMD x86 Rust target for freestanding builds" ;;
 	*) return 1 ;;
 	esac
@@ -42,41 +40,27 @@ assert_makefile_wiring() {
 }
 
 build_kernel() {
-	local preset="$1"
 	local build_log
 
 	rm -f "${KERNEL_PATH}"
 	build_log="$(mktemp -t kfs-simd-build.XXXXXX)"
-	if ! KFS_SCREEN_GEOMETRY_PRESET="${preset}" make -B "${KERNEL_PATH}" arch="${ARCH}" >"${build_log}" 2>&1; then
+	if ! make -B "${KERNEL_PATH}" arch="${ARCH}" >"${build_log}" 2>&1; then
 		cat "${build_log}" >&2
 		rm -f "${build_log}"
-		die "failed to build ${KERNEL_PATH} for preset ${preset}"
+		die "failed to build ${KERNEL_PATH}"
 	fi
 	rm -f "${build_log}"
 	[[ -r "${KERNEL_PATH}" ]] || die "missing artifact: ${KERNEL_PATH}"
 }
 
-kernel_path_for_preset() {
-	local preset="$1"
-
-	case "${preset}" in
-	vga80x25) printf 'build/kernel-%s.bin\n' "${ARCH}" ;;
-	compact40x10) printf 'build/kernel-%s-compact40x10.bin\n' "${ARCH}" ;;
-	*) die "unknown preset: ${preset}" ;;
-	esac
-}
-
 assert_kernel_has_only_approved_simd() {
-	local preset="$1"
-	local kernel
 	local disassembly
 	local current_symbol=""
 	local failures=()
 	local line
 
-	kernel="$(kernel_path_for_preset "${preset}")"
-	[[ -r "${kernel}" ]] || die "missing artifact: ${kernel} (build it with make test-artifacts arch=${ARCH})"
-	disassembly="$(objdump -Cd "${kernel}")"
+	build_kernel
+	disassembly="$(objdump -Cd "${KERNEL_PATH}")"
 
 	while IFS= read -r line; do
 		if [[ "${line}" =~ ^[[:xdigit:]]+[[:space:]]+\<(.+)\>\:$ ]]; then
@@ -100,12 +84,12 @@ assert_kernel_has_only_approved_simd() {
 	done <<<"${disassembly}"
 
 	if ((${#failures[@]} > 0)); then
-		echo "FAIL ${kernel}: found SIMD/MMX/SSE instructions outside approved memory backends"
+		echo "FAIL ${KERNEL_PATH}: found SIMD/MMX/SSE instructions outside approved memory backends"
 		printf '%s\n' "${failures[@]:0:20}"
 		return 1
 	fi
 
-	echo "PASS ${kernel}: freestanding build limited SIMD usage to approved state-management instructions and owned memory backends"
+	echo "PASS ${KERNEL_PATH}: freestanding build limited SIMD usage to approved state-management instructions and owned memory backends"
 }
 
 run_case() {
@@ -113,10 +97,7 @@ run_case() {
 
 	case "${CASE}" in
 	default-freestanding-kernel-limits-approved-simd-state-instructions)
-		assert_kernel_has_only_approved_simd "vga80x25"
-		;;
-	compact-freestanding-kernel-limits-approved-simd-state-instructions)
-		assert_kernel_has_only_approved_simd "compact40x10"
+		assert_kernel_has_only_approved_simd
 		;;
 	makefile-uses-non-simd-rust-target)
 		assert_makefile_wiring

@@ -69,6 +69,44 @@ fn active_terminal_selection_keeps_each_buffer_intact() {
 }
 
 #[test]
+fn tabs_insert_a_fixed_four_spaces_from_any_column() {
+    let mut terminal = VgaTerminalBank::new();
+    terminal.reset();
+
+    let active = terminal.active_mut();
+    active.put_byte(b'A');
+    active.put_byte(b'\t');
+    active.put_byte(b'B');
+    active.put_byte(b'\t');
+
+    assert_eq!(
+        active.history[0],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'A')
+    );
+
+    for col in 1..5 {
+        assert_eq!(
+            active.history[col],
+            vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE)
+        );
+    }
+
+    assert_eq!(
+        active.history[5],
+        vga_text_cell(VGA_TEXT_DEFAULT_COLOR, b'B')
+    );
+
+    for col in 6..10 {
+        assert_eq!(
+            active.history[col],
+            vga_text_cell(VGA_TEXT_DEFAULT_COLOR, VGA_TEXT_BLANK_BYTE)
+        );
+    }
+
+    assert_eq!(active.cursor, VgaHistoryCursor { row: 0, col: 10 });
+}
+
+#[test]
 // This checks that creating a terminal focuses the new screen and keeps prior contents isolated.
 fn creating_a_terminal_focuses_the_new_terminal() {
     let mut bank = VgaTerminalBank::new();

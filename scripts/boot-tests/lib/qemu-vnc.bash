@@ -133,7 +133,6 @@ qemu_vnc_run_case() {
 	local case_name="$6"
 	local log_path="$7"
 	local timeout_secs="$8"
-	local geometry_preset="${9:-}"
 
 	local engine
 	local mount_arg
@@ -148,6 +147,7 @@ qemu_vnc_run_case() {
 	local qmp_socket_runtime
 	local lock_file
 	local local_run=0
+	local qemu_artifact_args
 
 	artifact_path_abs="$(qemu_vnc_abs_path "${artifact_path}")"
 	script_path_host="$(mktemp "$(qemu_vnc_tmp_dir)/qemu-vnc-${case_name}.XXXXXX.sh")"
@@ -180,6 +180,17 @@ qemu_vnc_run_case() {
 		script_workdir="/work"
 	fi
 
+	case "${artifact_target}" in
+	iso)
+		qemu_artifact_args="-cdrom '${artifact_path_container}' \\
+  -boot d"
+		;;
+	img)
+		qemu_artifact_args="-drive 'format=raw,file=${artifact_path_container}' \\
+  -boot order=c"
+		;;
+	esac
+
 	cat >"${script_path_host}" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
@@ -187,8 +198,7 @@ cd '${script_workdir}'
 rm -f '${vnc_socket_runtime}' '${qmp_socket_runtime}' '${log_container}'
 
 qemu-system-i386 \\
-  -cdrom '${artifact_path_container}' \\
-  -boot d \\
+  ${qemu_artifact_args} \\
   -display none \\
   -vnc unix:'${vnc_socket_runtime}',share=force-shared \\
   -qmp unix:'${qmp_socket_runtime}',server,nowait \\

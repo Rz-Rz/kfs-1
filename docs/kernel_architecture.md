@@ -91,7 +91,7 @@ Current build rule:
 - [`Makefile`](/home/motero/Code/kfs-1/Makefile) compiles the kernel from `src/main.rs`
 - host `make` drives Dockerized `nasm`, `rustc`, `ld`, `objcopy`, and `grub-mkrescue` directly
 - the public build path is `Makefile` -> Dockerized tools, not `Makefile` -> container wrapper -> inner `make`
-- shared test variants are also built in [`Makefile`](/home/motero/Code/kfs-1/Makefile) via injected knobs such as `KFS_TEST_BAD_STRING`, `KFS_TEST_NO_CPUID`, and `KFS_SCREEN_GEOMETRY_PRESET`
+- shared test variants are also built in [`Makefile`](/home/motero/Code/kfs-1/Makefile) via injected knobs such as `KFS_TEST_BAD_STRING` and `KFS_TEST_NO_CPUID`
 - release-artifact reproducibility proofs also live in [`Makefile`](/home/motero/Code/kfs-1/Makefile) via `make reproducible-builds`
 - the kernel emits one Rust object: `build/arch/<arch>/rust/kernel.o`
 - the repo does not compile peer `src/kernel/*.rs` files as separate Rust objects
